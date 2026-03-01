@@ -7,7 +7,7 @@ on:
     branches: [main, develop]
 
 env:
-  DOTNET_VERSION: "9.0.x"
+  DOTNET_VERSION: "8.0.x"
   POSTGRES_USER: ssw_user
   POSTGRES_PASSWORD: ssw_secret_ci
   POSTGRES_DB: savesafe_test
@@ -62,7 +62,7 @@ jobs:
           Services__WalletServiceUrl: http://localhost:5002
           InternalApi__ApiKey: ci-internal-key
         run: |
-          dotnet tool install --global dotnet-ef || true
+          dotnet tool install --global dotnet-ef --version 8.* || true
           dotnet ef database update
 
       - name: Run tests
@@ -125,7 +125,7 @@ jobs:
           Jwt__Audience: savesafe-clients
           InternalApi__ApiKey: ci-internal-key
         run: |
-          dotnet tool install --global dotnet-ef || true
+          dotnet tool install --global dotnet-ef --version 8.* || true
           dotnet ef database update
 
       - name: Run tests
