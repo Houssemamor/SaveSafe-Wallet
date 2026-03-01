@@ -1,0 +1,53 @@
+app bancaire 
+gestionnaire de wallet 
+Plateforme Web Sécurisée avec IA Anti-Piratage ==> dashboard admin : historique attack
+ logs connexion , fausses tentative , sql injection , lsite des ip bloque
+ Rôle de l’IA
+
+L’IA analyse les comportements :
+
+Donnée	Exemple
+IP	185.xx.xx
+Tentatives	20/min
+Pays	Unknown
+Heure	3h matin
+Device	Bot
+
+Supervision
+
+Avec : Grafana
+
+Tu visualises :
+
+Attaques / jour
+IP bloquées
+CPU/RAM
+Alertes
+================================================================================
+  SOFTWARE ENGINEERING STUDENT - AI-FOCUSED PROJECT SUGGESTIONS
+  Web App + GitHub CI/CD + Cloud Database + Google Auth
+  FREE / Open-Source / Local AI Models ONLY - No Paid APIs
+================================================================================
+
+ project  includes:
+  - Core AI idea (deep learning, generative AI, or both)
+  - Model approach: 100% free and open-source (local or self-hosted)
+  - Cloud DB recommendation (free tiers available)
+  - Industry-oriented / innovative addons
+
+IMPORTANT:  project uses ONLY free, open-source AI models.
+  No OpenAI, Gemini, Anthropic, ElevenLabs, Stability AI, Replicate,
+  Plaid, or any other paid API is required.
+
+Stack baseline for projects:
+  Frontend  : angular or Next.js (or Vue/Nuxt)
+  Backend   : springboot or Node.js (Express/Fastify)
+  Auth      : Google OAuth 2.0 via Firebase Auth (free tier) or NextAuth.js
+  AI/ML     : Ollama (LLaMA 3, Mistral, Phi-3, LLaVA, CodeLlama, SQLCoder),
+              Hugging Face Transformers (free models), PyTorch, ONNX Runtime,
+              Whisper, Stable Diffusion (local), sentence-transformers
+  Database  : Firebase Firestore (free tier), Supabase (free tier, Postgres +
+              pgvector), PlanetScale (free tier), MongoDB Atlas (free tier)
+  CI/CD     : GitHub Actions (free for public repos)
+  Hosting   : Vercel (free tier), Railway (free tier), Render (free tier) azure(free) aws(free)
+  Containers: Docker + Docker Compose for local dev

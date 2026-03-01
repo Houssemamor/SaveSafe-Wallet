@@ -1,0 +1,475 @@
+================================================================================
+  SECUREBANK AI - CORE SERVICES BREAKDOWN
+  Base Functionality Before Security & AI Features
+================================================================================
+  Purpose: Identify core business services independent of security layer
+  Date: February 27, 2026
+
+================================================================================
+  LAYER 1: CORE BANKING & WALLET SERVICES (User-Facing)
+================================================================================
+
+Primary Value Proposition to End Users:
+  SecureBank provides a digital banking platform where users can create accounts,
+  manage multiple wallets, and conduct peer-to-peer transfers with full
+  transaction history and account management.
+
+Core Services:
+
+  1. ACCOUNT MANAGEMENT
+     ├─ Create Bank Account
+     │  └─ User initiates account creation
+     │     Input: Account type (checking/savings), currency (USD/EUR/etc)
+     │     Output: Account number, balance initialized to 0
+     │
+     ├─ View Accounts
+     │  └─ User sees all their accounts in dashboard
+     │     Output: List with balances, account numbers, creation date
+     │
+     ├─ Update Account Settings
+     │  └─ Change nickname, currency, account preferences
+     │     Input: New settings
+     │     Output: Updated account info
+     │
+     └─ Close/Delete Account
+        └─ User can deactivate an account
+           Validation: Account must have zero balance
+           Output: Account marked as closed
+
+  2. WALLET & BALANCE MANAGEMENT
+     ├─ View Balance
+     │  └─ Real-time balance display for each account
+     │     Output: Current balance in account currency
+     │
+     ├─ Multi-Currency Support
+     │  └─ Users can hold accounts in USD, EUR, GBP, JPY, etc.
+     │     Exchange rates: Pulled from external API (daily updates)
+     │     Output: Balance in selected currency with conversion info
+     │
+     └─ Balance History
+        └─ Track balance changes over time
+           Output: Historical balance snapshot (daily/weekly)
+
+  3. TRANSACTION MANAGEMENT (Transfers & Payments)
+     ├─ Peer-to-Peer Transfer
+     │  └─ Send money to another user's account
+     │     Input: Recipient email/account number, amount, currency
+     │     Validation: Sufficient balance, recipient account exists
+     │     Output: Transaction ID, confirmation receipt
+     │     Status: pending → completed/failed
+     │
+     ├─ Bill Payment
+     │  └─ Pay third-party bills (utilities, services)
+     │     Input: Biller info, account, amount
+     │     Output: Payment confirmation
+     │
+     ├─ Receive Transfer
+     │  └─ Accept incoming money from other users
+     │     Notification: User alerted of incoming transfer
+     │     Action: Accept/reject (if not auto-credited)
+     │
+     ├─ Transaction Status Tracking
+     │  └─ View real-time status of pending/completed transfers
+     │     Output: Status (pending, completed, failed, cancelled)
+     │
+     └─ Cancel Pending Transaction
+        └─ Reverse a transfer if still in pending state
+           Condition: Must be pending, within time limit
+           Output: Cancellation confirmation, funds returned
+
+  4. TRANSACTION HISTORY & AUDITING
+     ├─ View Full Transaction Log
+     │  └─ List all transfers (sent/received) for each account
+     │     Output: Chronological list with details
+     │
+     ├─ Transaction Details
+     │  └─ Click transaction to see full information
+     │     Output: From/to account, amount, timestamp, fees, etc.
+     │
+     ├─ Search & Filter Transactions
+     │  └─ Filter by date range, amount, recipient, status
+     │     Input: Search criteria
+     │     Output: Filtered transaction list
+     │
+     ├─ Export Transaction History
+     │  └─ Download transactions as CSV/PDF for record-keeping
+     │     Output: File export
+     │
+     └─ Transaction Receipt
+        └─ Generate/download receipt for single transaction
+           Output: Printable/saveable receipt document
+
+================================================================================
+  LAYER 2: USER ACCOUNT & PROFILE SERVICES (User-Facing)
+================================================================================
+
+Core Profile & Authentication Features:
+
+  1. USER PROFILE MANAGEMENT
+     ├─ Create User Profile
+     │  └─ Initial user registration/account creation
+     │     Input: Name, email, optional photo
+     │     Output: User ID, profile created
+     │
+     ├─ View Profile
+     │  └─ User sees their own profile information
+     │     Output: Name, email, creation date, total account count
+     │
+     ├─ Update Profile
+     │  └─ Change name, photo, preferences
+     │     Input: New profile fields
+     │     Output: Profile updated
+     │
+     ├─ Profile Visibility
+     │  └─ User can make profile public or private
+     │     For transfers: Need minimal info to send money to someone
+     │
+     └─ Delete Account
+        └─ User can request full account deletion
+           Condition: No active accounts with balances > 0
+           Output: Account marked for deletion/archival
+
+  2. AUTHENTICATION & SESSION SERVICES
+     ├─ User Login
+     │  └─ Authenticate via email/password
+     │     Input: Email, password
+     │     Validation: Credentials match
+     │     Output: JWT token, session created
+     │
+     ├─ Google OAuth Login
+     │  └─ One-click login via Google account
+     │     Flow: Redirect to Google → Consent → Redirect back with token
+     │     Output: User logged in, session established
+     │
+     ├─ Session Management
+     │  └─ Keep user logged in across page navigations
+     │     Token Storage: httpOnly cookie or localStorage
+     │     Token Refresh: Auto-refresh before expiry
+     │
+     ├─ User Logout
+     │  └─ End user session, clear tokens
+     │     Output: User redirected to login page
+     │
+     ├─ Password Management
+     │  └─ User can change password
+     │     Input: Current password, new password
+     │     Validation: Current password correct, new password strong
+     │     Output: Password updated
+     │
+     ├─ Forgot Password
+     │  └─ Reset password via email link
+     │     Flow: User enters email → Reset link sent → Click link → New password
+     │     Output: Password reset
+     │
+     └─ Session Timeout
+        └─ Auto-logout after period of inactivity
+           Default: 15-30 minutes
+           Output: User logged out for security
+
+  3. OPTIONAL: MULTI-FACTOR AUTHENTICATION (MFA)
+     ├─ Enable 2FA
+     │  └─ User optionally enables TOTP-based 2FA
+     │     Setup: Scan QR code with authenticator app
+     │     Output: 2FA enabled, backup codes generated
+     │
+     ├─ Login with 2FA
+     │  └─ During login, prompt for TOTP code
+     │     Input: 6-digit code from authenticator app
+     │     Validation: Code matches time-based secret
+     │     Output: Login successful if code valid
+     │
+     ├─ Backup Codes
+     │  └─ One-time use codes for account recovery
+     │     Usage: If authenticator app lost/reset
+     │
+     └─ Disable 2FA
+        └─ User can turn off 2FA
+           Condition: Must confirm via password
+
+================================================================================
+  LAYER 3: USER ACTIVITY & MONITORING SERVICES (User-Facing)
+================================================================================
+
+Core Activity Tracking Features (Basic, Non-AI):
+
+  1. LOGIN ACTIVITY LOG
+     ├─ View Login History
+     │  └─ User sees list of their login attempts
+     │     Output: Timestamp, IP address (partial), device type
+     │
+     ├─ Current Sessions
+     │  └─ See all active sessions/logged-in devices
+     │     Output: Device name, login time, last activity, IP region
+     │
+     ├─ Sign Out Other Sessions
+     │  └─ User can manually logout from other devices
+     │     Action: Click "sign out" on a session
+     │     Output: That session terminated
+     │
+     └─ Suspicious Activity Alerts
+        └─ User notified of unusual login attempts (basic rules)
+           Example: Login from new country, multiple failed attempts
+           Output: Email notification to user
+
+  2. ACCOUNT ACTIVITY LOG
+     ├─ View All Activity
+     │  └─ Changes to account settings, transfers, etc.
+     │     Output: Activity timeline
+     │
+     ├─ Transaction Timestamps
+     │  └─ See exactly when each transaction occurred
+     │
+     └─ Profile Change History
+        └─ See when profile was updated, by whom
+           (Useful if user suspects unauthorized changes)
+
+================================================================================
+  LAYER 4: ADMIN MANAGEMENT SERVICES (Admin-Facing)
+================================================================================
+
+Core Admin Features (Before AI/Security):
+
+  1. USER ADMINISTRATION
+     ├─ View All Users
+     │  └─ Admin can see list of all registered users
+     │     Output: User ID, email, created date, account count
+     │
+     ├─ User Details
+     │  └─ Admin views full user profile and account information
+     │     Includes: All accounts, transactions, settings
+     │
+     ├─ User Actions
+     │  ├─ Lock Account: Temporarily prevent user login
+     │  ├─ Force Password Reset: Require user to set new password
+     │  ├─ Delete User: Remove user from system
+     │  └─ Restore User: Undelete/unlock if applicable
+     │
+     └─ User Notes
+        └─ Admin can add internal notes on user profile
+           (e.g., "Contacted about unusual activity")
+
+  2. TRANSACTION ADMINISTRATION
+     ├─ View All Transactions (System-Wide)
+     │  └─ Audit trail of all transfers in system
+     │     Output: From/to, amount, timestamp, status
+     │
+     ├─ Transaction Search
+     │  └─ Filter by user, date range, amount, status
+     │     Input: Search criteria
+     │     Output: Filtered transaction list
+     │
+     ├─ Transaction Details
+     │  └─ Admin can inspect any transaction
+     │     Includes: All metadata, involved accounts, settlement status
+     │
+     ├─ Dispute Resolution
+     │  └─ Admin can mark transaction as disputed
+     │     Action: Freeze transaction, investigate, resolve
+     │     Output: Transaction notes updated
+     │
+     └─ Refund Processing
+        └─ Admin can issue refunds for fraudulent/disputed transactions
+           Action: Reverse transaction, credit account
+           Output: Refund recorded with reason
+
+  3. ACCOUNT & BALANCE ADMINISTRATION
+     ├─ View Account Details
+     │  └─ Admin sees all account info (balance, type, settings)
+     │
+     ├─ Manual Balance Adjustments (Limited)
+     │  └─ Admin can adjust balance for error correction
+     │     Input: Adjustment amount, reason
+     │     Output: Balance updated, audit logged
+     │     Constraint: Typically requires approval, highly restricted
+     │
+     └─ Account Status Management
+        └─ Close/reopen accounts, mark as frozen, etc.
+           Action: Set account status
+           Output: Account status updated
+
+  4. SYSTEM CONFIGURATION & RULES
+     ├─ System Settings
+     │  └─ Configure general system behavior
+     │     Settings: Session timeout, password policies, currency list
+     │
+     ├─ Fee Configuration
+     │  └─ Set transaction fees (if applicable)
+     │     Input: Fee percentages, flat fees by transaction type
+     │     Output: Fees applied to future transactions
+     │
+     └─ Alert Thresholds
+        └─ Set limits that trigger admin alerts
+           Example: Transaction > $10,000, failed logins > 5
+
+================================================================================
+  LAYER 5: REPORTING & ANALYTICS SERVICES (Basic, Non-AI)
+================================================================================
+
+Core Reporting Features (Descriptive, Not Predictive):
+
+  1. TRANSACTION REPORTING
+     ├─ Daily Transaction Summary
+     │  └─ Total transactions, total volume, by type
+     │     Output: Report showing totals
+     │
+     ├─ User Activity Report
+     │  └─ Active users per day, login frequency
+     │     Output: Metrics dashboard
+     │
+     └─ Transaction Breakdown
+        └─ Transfers vs. bill payments, by currency, by amount buckets
+           Output: Pie/bar charts
+
+  2. SYSTEM HEALTH REPORTING
+     ├─ User Registration Trends
+     │  └─ New users per day, registration source (OAuth vs. email)
+     │
+     ├─ Platform Metrics
+     │  └─ Uptime, error rates, average response time
+     │     Output: System health dashboard
+     │
+     └─ Database Metrics
+        └─ Query performance, storage usage, backup status
+
+  3. COMPLIANCE & AUDIT REPORTING
+     ├─ Audit Log Export
+     │  └─ Admin can export all user actions, transactions, logins
+     │     Output: CSV/JSON for compliance review
+     │
+     ├─ User Access Logs
+     │  └─ Who logged in when, from where (basic IP logging)
+     │
+     └─ Transaction Ledger
+        └─ Complete immutable ledger of all transfers
+           (Can be exported for accounting/audit purposes)
+
+================================================================================
+  LAYER 6: DATA & INFRASTRUCTURE SERVICES (Backend Support)
+================================================================================
+
+Core Infrastructure Services (Transparent to Users):
+
+  1. DATA STORAGE
+     ├─ User Accounts Database
+     │  └─ Store user profiles, credentials (hashed), settings
+     │
+     ├─ Transactions Database
+     │  └─ Immutable transaction ledger
+     │
+     └─ Session Storage
+        └─ Cache user sessions (Redis) for fast retrieval
+
+  2. API SERVICES
+     ├─ RESTful API
+     │  └─ Endpoints for all business logic (account CRUD, transfers, etc.)
+     │     Communication: Frontend ↔ Backend via JSON
+     │
+     └─ Real-Time Notifications
+        └─ WebSocket connection for live alerts/updates
+           Example: Transfer completed, session from new device
+
+  3. EXTERNAL INTEGRATIONS
+     ├─ Google OAuth Provider
+     │  └─ Delegate authentication to Google
+     │
+     ├─ Email Service
+     │  └─ Send password reset, 2FA codes, notifications (SMTP)
+     │
+     └─ Exchange Rate Provider (Optional)
+        └─ Fetch current exchange rates for currency conversion
+
+================================================================================
+  SUMMARY: CORE SERVICE LAYERS (Foundation)
+================================================================================
+
+┌─ Layer 1: Banking Services
+│  ├─ Account Creation/Management
+│  ├─ Wallet Balance Tracking (Multi-Currency)
+│  ├─ P2P Transfers & Bill Payments
+│  └─ Transaction History & Receipt Management
+│
+├─ Layer 2: Authentication & User Profile
+│  ├─ User Registration (Email or OAuth)
+│  ├─ Login/Logout & Session Management
+│  ├─ Password Management
+│  ├─ Profile Management
+│  └─ Optional 2FA/MFA
+│
+├─ Layer 3: User Activity Monitoring (Basic)
+│  ├─ Login Audit Trail
+│  ├─ Session Tracking
+│  └─ Activity Notifications (Rule-Based)
+│
+├─ Layer 4: Admin Management
+│  ├─ User Administration (CRUD, Lockdown)
+│  ├─ Transaction Administration (View, Dispute, Refund)
+│  ├─ Account Management
+│  └─ System Configuration
+│
+├─ Layer 5: Basic Reporting & Analytics
+│  ├─ Transaction Reports
+│  ├─ User Activity Reports
+│  ├─ System Health Metrics
+│  └─ Audit Log Export (Compliance)
+│
+└─ Layer 6: Infrastructure & APIs
+   ├─ Database Services
+   ├─ RESTful API Backend
+   ├─ Real-Time Notifications
+   └─ External Integrations (OAuth, Email, etc.)
+
+================================================================================
+  THEN: ADD SECURITY & AI FEATURES ON TOP
+================================================================================
+
+Once these core services are operational, the security/AI layer WRAPS AROUND them:
+
+  Security Layer Additions:
+    ✓ Threat Detection (AI analyzes login attempts, transactions)
+    ✓ Behavioral Anomaly Detection (AI identifies unusual patterns)
+    ✓ SQL Injection Detection (AI analyzes malicious queries)
+    ✓ IP Reputation & Geolocation (Detect VPNs, risky IPs)
+    ✓ Force Additional Authentication (If risk score high)
+    ✓ Auto-Block IPs (Prevent brute force attacks)
+    ✓ Admin Threat Dashboard (Visualize attacks in real-time)
+    ✓ Attack Timeline & Analytics (Grafana dashboards)
+    ✓ Incident Response Tools (Admin can respond to threats)
+
+  Example Flow WITH SECURITY:
+    1. User attempts login → API Gateway receives request
+    2. Authentication Service validates credentials
+    3. **SECURITY LAYER**: Threat Detection AI analyzes login
+       - Check IP reputation, geolocation, device, time
+       - Calculate risk score
+       - If score < 20: Allow login
+       - If score 20-60: Require 2FA before proceeding
+       - If score > 60: Block, lock account, alert admin
+    4. If cleared: Create session, return JWT
+    5. User can now access banking services (transfer money, view accounts, etc.)
+    6. **SECURITY LAYER**: Monitor transactions for suspicious amounts/velocity
+    7. All actions logged to tamper-proof audit trail
+
+================================================================================
+  KEY INSIGHT: "SECURITY AS A PLUG-IN LAYER"
+================================================================================
+
+The Core Services are BUSINESS LOGIC: "What does a bank do?"
+  - Manage accounts, transfer money, track transactions, user profiles
+
+The Security & AI Layer is PROTECTIVE LOGIC: "How do we prevent abuse?"
+  - Detect threats, block attackers, alert admins, force verification
+
+They're designed to operate INDEPENDENTLY:
+  - Core banking works even without AI (safe mode)
+  - Security layer doesn't modify core transactions (audit trail preserved)
+  - Admin dashboards show both: Banking metrics AND Security metrics
+
+This modular design allows you to:
+  1. Build and test core banking first (Weeks 1-4)
+  2. Add security/AI layer after (Weeks 5-8)
+  3. Iterate independently on each layer
+  4. Disable security features if needed (for debugging/testing)
+
+================================================================================
+  END OF CORE SERVICES BREAKDOWN
+================================================================================

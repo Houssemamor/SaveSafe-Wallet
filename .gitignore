@@ -1,0 +1,53 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+*.swp
+*.sln.docstates
+project.lock.json
+.nuget/
+
+# .env files (secrets must never be committed)
+.env
+.env.local
+.env.*.local
+
+# Build artifacts
+publish/
+out/
+dist/
+
+# Docker
+docker-compose.override.yml.local
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# JetBrains Rider
+.idea/
+*.iml
+
+# VS Code (keep extensions.json, ignore workspace settings with secrets)
+.vscode/settings.json
+.vscode/launch.json
+
+# EF Core bundle
+efbundle
+
+# Test results
+TestResults/
+coverage/
+*.trx
+*.coverage
+*.coveragexml
+
+# claude
+tmpclaude-*-cwd

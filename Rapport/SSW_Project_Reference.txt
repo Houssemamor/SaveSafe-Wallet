@@ -1,0 +1,604 @@
+================================================================================
+  SAVESAFE WALLET (SSW) - UNIFIED PROJECT REFERENCE
+  Consolidated from: Specifications, Core Services, Innovative Ideas, Notes
+================================================================================
+  Date: March 2026
+  Team: AMOR Houssem, KHEDHIRI Montaha, BEN SLIMA Wissem, BAHROUNI Seif
+  Supervisor: Mme. Ines AGREBI, Mr. Salah GHARBI
+
+================================================================================
+  PROJECT SUMMARY
+================================================================================
+
+Name: SaveSafe Wallet (SSW)
+Type: Secure web-based banking & wallet platform with AI anti-pirating system
+
+Core Vision:
+  - Secure, user-friendly banking and wallet management
+  - AI-powered threat detection using only free/open-source models
+  - Real-time admin security dashboard via Grafana
+  - Microservices architecture with async messaging (Kafka)
+  - 100% open-source stack, no paid APIs
+
+Target Users:
+  - End Users: manage accounts, wallets, transfers
+  - Administrators: monitor security, respond to threats
+  - System IA: autonomous threat detection and scoring
+
+================================================================================
+  TECH STACK
+================================================================================
+
+Frontend     : Angular (TypeScript)
+Backend      : .NET 8 (C#, microservices)
+Database     : PostgreSQL (users, transactions, logs)
+Cache        : Redis (sessions, rate-limiting, risk scores)
+Messaging    : Apache Kafka (inter-service events, Outbox pattern)
+AI/ML        : Ollama (Mistral 7B, LLaMA 3) for risk scoring
+               Isolation Forest + Autoencoders (scikit-learn, HuggingFace)
+               CodeLlama for SQL injection detection
+               sentence-transformers (embeddings)
+Auth         : JWT (access + refresh tokens), Google OAuth 2.0
+Monitoring   : Grafana + Prometheus (dashboards, metrics)
+Logging      : Loki (centralized logs)
+Containers   : Docker + Docker Compose (local), Kubernetes (prod)
+Cloud        : AWS free tier
+CI/CD        : GitHub Actions
+Collaboration: GitHub (PRs, branches), Jira (sprints)
+
+================================================================================
+  MICROSERVICES
+================================================================================
+
+  1. API Gateway       - routing, rate limiting, CORS, request validation
+  2. Auth Service      - register, login, JWT, refresh, RBAC, Google OAuth
+  3. User Service      - profile CRUD, preferences, account deletion
+  4. Wallet Service    - wallet creation, balance, ledger (credit/debit), history
+  5. Payment Service   - Stripe checkout, webhooks, reconciliation, idempotency
+  6. Security Service  - event capture, IP blocklist, SQLi detection, audit trail
+  7. AI Risk Service   - risk scoring, anomaly detection, policy actions (async)
+  8. Notification Svc  - email templates, retry/backoff, delivery journal
+  9. Reporting Service - payment aggregates, wallet KPIs, admin dashboard data
+
+Communication:
+  - Sync: REST (JSON) between Gateway and services
+  - Async: Kafka topics for events (payment.*, security.event.*, risk.score.*)
+  - Outbox pattern: outbox_events table -> Kafka publisher worker
+  - Dead-letter topics (DLT) for failed consumers
+
+================================================================================
+  DATA MODELS (KEY TABLES)
+================================================================================
+
+User:          id, email, name, google_id, mfa_enabled, account_status, ...
+Account:       id, user_id, account_number, type, currency, balance, ...
+Transaction:   id, from_account_id, to_account_id, amount, status, hash, ...
+LoginEvent:    id, user_id, ip, user_agent, country, success, is_flagged, ...
+AttackEvent:   id, type, source_ip, target_user_id, risk_score, action, ...
+BlockList:     id, ip_address, reason, added_by, expires_at, is_auto, ...
+AuditLog:      id, admin_id, action, resource_type, resource_id, changes, ...
+OutboxEvent:   id, topic, payload, status (PENDING/SENT/FAILED), ...
+Notification:  id, type, recipient, status (sent/failed), retry_count, ...
+
+================================================================================
+  API ENDPOINTS (HIGH-LEVEL)
+================================================================================
+
+Auth:
+  POST /api/auth/register           POST /api/auth/login
+  POST /api/auth/refresh            POST /api/auth/logout
+
+User:
+  GET  /api/users/profile           PUT  /api/users/profile
+  GET  /api/users/preferences       PUT  /api/users/preferences
+
+Wallet:
+  GET  /api/wallet/balance           GET  /api/wallet/history
+  GET  /api/wallet/history?filter=   (date, status, type, pagination)
+
+Payment:
+  POST /api/payment/checkout-session
+  POST /api/payment/webhook          (Stripe signature verification)
+  GET  /api/payment/transactions
+
+Admin:
+  GET  /api/admin/users              POST /api/admin/users/:id/lock
+  GET  /api/admin/attacks/summary    GET  /api/admin/attacks/timeline
+  GET  /api/admin/blocklist          POST /api/admin/blocklist
+  DELETE /api/admin/blocklist/:ip
+  GET  /api/admin/reports/daily      POST /api/admin/reports/custom
+  GET  /api/admin/dashboard/stats
+
+AI (internal):
+  POST /api/ml/analyze-threat        POST /api/ml/detect-anomaly
+  POST /api/ml/classify-query        GET  /api/ml/model-status
+
+
+================================================================================
+================================================================================
+  SPRINT BREAKDOWN - STEP BY STEP
+================================================================================
+================================================================================
+
+
+################################################################################
+  SPRINT 1 (2 weeks) - FOUNDATION
+  Goal: Setup + Auth + DB + Wallet minimal
+################################################################################
+
+STEP 1: Project Setup & DevOps
+  [ ] Create GitHub repo, branch strategy (main/dev/feature/*)
+  [ ] Add PR templates and review rules
+  [ ] Write docker-compose.yml:
+      - PostgreSQL container
+      - Redis container
+      - Kafka + Zookeeper containers
+      - Grafana + Loki containers (basic, configured later)
+  [ ] Add health check endpoints for each service
+  [ ] Write README with local setup instructions
+
+STEP 2: Database Schema (PostgreSQL)
+  [ ] Create User table (id, email, name, password_hash, google_id,
+      mfa_enabled, account_status, created_at, updated_at, last_login_at)
+  [ ] Create Account table (id, user_id, account_number, type, currency,
+      balance, created_at, updated_at)
+  [ ] Create Wallet/Ledger table (id, account_id, type=credit/debit,
+      amount, balance_after, description, created_at)
+  [ ] Create LoginEvent table (id, user_id, ip, user_agent, country,
+      success, failure_reason, timestamp, is_flagged)
+  [ ] Run EF Core migrations (.NET 8)
+
+STEP 3: Auth Service (.NET 8)
+  [ ] POST /api/auth/register
+      - Input: email, password, name
+      - Hash password with bcrypt (12 rounds)
+      - Create user record
+      - Auto-create wallet (balance = 0)
+      - Return JWT access token + refresh token (httpOnly cookie)
+  [ ] POST /api/auth/login
+      - Validate credentials
+      - Issue JWT (15 min expiry) + refresh token (7 days)
+      - Log LoginEvent (ip, user_agent, success/fail)
+  [ ] POST /api/auth/refresh
+      - Validate refresh token
+      - Issue new JWT
+  [ ] POST /api/auth/logout
+      - Invalidate refresh token
+  [ ] RBAC middleware
+      - Roles: User, Admin
+      - Attribute-based authorization on controllers
+      - Reject unauthorized requests with 403
+
+STEP 4: Wallet Service (basic)
+  [ ] Auto-create wallet when user registers (triggered by Auth Service)
+  [ ] GET /api/wallet/balance
+      - Return current balance for authenticated user
+  [ ] Ledger: append-only table recording every credit/debit
+      - Each entry: account_id, type, amount, balance_after, timestamp
+
+STEP 5: Verify & Document
+  [ ] Manual test: register -> login -> get balance -> refresh token
+  [ ] Verify Docker Compose starts all containers cleanly
+  [ ] Update README with API examples (curl or Postman collection)
+
+DELIVERABLES:
+  - GitHub repo with branch protection
+  - Docker Compose running PostgreSQL, Redis, Kafka
+  - Auth endpoints (register, login, refresh, logout) with JWT + RBAC
+  - Wallet created at registration, balance endpoint working
+  - Ledger table recording operations
+  - README for local setup
+
+
+################################################################################
+  SPRINT 2 (2 weeks) - USER DASHBOARD & PROFILE
+  Goal: Dashboard + profile + wallet history
+################################################################################
+
+STEP 1: User Profile Service
+  [ ] GET /api/users/profile
+      - Return authenticated user's profile (name, email, created_at, etc.)
+  [ ] PUT /api/users/profile
+      - Update name, preferences (language, notification settings)
+  [ ] Log sensitive profile changes to audit table
+
+STEP 2: Wallet History & Filtering
+  [ ] GET /api/wallet/history
+      - Return paginated list of ledger entries for user's wallet
+      - Query params: ?startDate=&endDate=&type=credit|debit&status=&page=&size=
+      - Sort by timestamp descending
+  [ ] GET /api/wallet/history/:id
+      - Detailed view of a single ledger entry
+
+STEP 3: Angular Frontend - User Dashboard
+  [ ] Login page (email/password form)
+  [ ] Registration page
+  [ ] Dashboard page:
+      - Display wallet balance (card component)
+      - Recent transactions list (last 10 ledger entries)
+      - Navigation: Profile, History, Settings
+  [ ] Profile page: view & edit profile
+  [ ] Wallet History page: table with date/type/amount filters, pagination
+  [ ] Auth guards: redirect to login if no valid JWT
+  [ ] HTTP interceptor: attach JWT to requests, handle 401 -> redirect
+
+STEP 4: Google OAuth Integration
+  [ ] POST /api/auth/google
+      - Receive Google OAuth token from frontend
+      - Verify token with Google API
+      - Create or link user account
+      - Issue JWT + refresh token
+  [ ] Angular: Google Sign-In button on login page
+
+STEP 5: Testing
+  [ ] Unit tests for profile CRUD
+  [ ] Unit tests for wallet history query with filters
+  [ ] Manual E2E: register -> login -> view dashboard -> edit profile -> view history
+
+DELIVERABLES:
+  - User profile CRUD endpoints
+  - Wallet history with pagination and filters
+  - Angular app: login, register, dashboard, profile, history pages
+  - Google OAuth login working
+  - Auth guards and JWT interceptor in Angular
+
+
+################################################################################
+  SPRINT 3 (2 weeks) - PAYMENTS & NOTIFICATIONS
+  Goal: Stripe checkout + webhooks + notifications + full ledger
+################################################################################
+
+STEP 1: Payment Service (Stripe Integration)
+  [ ] POST /api/payment/checkout-session
+      - Input: serviceType, amount
+      - Create Stripe CheckoutSession
+      - Save transaction record with status PENDING
+      - Return Stripe session URL to frontend
+  [ ] POST /api/payment/webhook
+      - Verify Stripe signature (webhook secret)
+      - On checkout.session.completed -> update transaction to SUCCESS
+      - On checkout.session.expired -> update transaction to FAILED
+      - Credit wallet via ledger entry on success
+      - Publish Kafka event: payment.completed or payment.failed
+
+STEP 2: Kafka Event Publishing (Outbox Pattern)
+  [ ] Create outbox_events table (id, topic, payload, status, created_at)
+  [ ] Payment Service writes to outbox_events instead of directly to Kafka
+  [ ] Background worker: poll outbox_events WHERE status=PENDING
+      - Publish to Kafka topic
+      - Mark as SENT on success, FAILED on error
+      - Retry with backoff for FAILED events
+
+STEP 3: Notification Service
+  [ ] Kafka consumer: listen to payment.completed, payment.failed topics
+  [ ] Email template: payment success (amount, date, transaction ID)
+  [ ] Email template: payment failed (reason, retry suggestion)
+  [ ] Notification record: id, type, recipient, status, retry_count, sent_at
+  [ ] Retry with exponential backoff (max 3 retries)
+  [ ] Journal all notifications (sent, failed, retried)
+
+STEP 4: Idempotency & Reconciliation
+  [ ] Idempotency key on checkout-session to prevent double payments
+  [ ] Idempotent consumer: check event_id before processing Kafka message
+  [ ] Daily reconciliation job: compare Stripe dashboard vs local transactions
+      - Flag mismatches for admin review
+
+STEP 5: Angular Frontend - Payment Flow
+  [ ] Payment page: select service, enter amount, click "Pay"
+  [ ] Redirect to Stripe Checkout
+  [ ] Success/cancel return pages
+  [ ] Updated dashboard: show payment transactions in wallet history
+  [ ] Notification preferences in profile settings
+
+STEP 6: Testing
+  [ ] Unit tests: checkout session creation, webhook signature verification
+  [ ] Integration test: full flow (create session -> webhook -> ledger update -> notification)
+  [ ] Test idempotency: submit same payment twice, verify single charge
+
+DELIVERABLES:
+  - Stripe checkout and webhook endpoints
+  - Outbox pattern with Kafka publishing
+  - Notification service consuming payment events, sending emails
+  - Idempotency and reconciliation logic
+  - Angular payment flow (pay -> Stripe -> success page -> updated balance)
+
+
+################################################################################
+  SPRINT 4 (2 weeks) - SECURITY & AI
+  Goal: Security service + AI risk scoring + monitoring
+################################################################################
+
+STEP 1: Security Service - Event Collection
+  [ ] Capture on every login: ip, user_agent, country (GeoIP), timestamp, success/fail
+  [ ] Store in security_events table
+  [ ] Add correlation_id to all requests (middleware, propagated via headers)
+  [ ] Rate-limit via Redis:
+      - 5 failed logins/min per IP -> temporary block
+      - 100 requests/min per IP -> rate limit response (429)
+
+STEP 2: Security Service - IP Blocklist & SQLi Detection
+  [ ] BlockList table: ip, reason, added_by, expires_at, is_auto
+  [ ] GET /api/admin/blocklist - list blocked IPs
+  [ ] POST /api/admin/blocklist - manually block IP
+  [ ] DELETE /api/admin/blocklist/:ip - unblock
+  [ ] Middleware: check incoming IP against blocklist (Redis cache for speed)
+  [ ] SQL Injection detection (rule-based):
+      - Pattern match: '; DROP, UNION SELECT, OR 1=1, etc.
+      - Log detected attempts as AttackEvent
+      - Block IP if repeated attempts
+
+STEP 3: Security Service - Immutable Audit Trail
+  [ ] audit_log table: id, admin_id, action, resource_type, resource_id,
+      prev_hash, curr_hash, timestamp
+  [ ] Each row: curr_hash = SHA256(prev_hash + action + timestamp + data)
+  [ ] Hash chain makes tampering detectable
+  [ ] GET /api/admin/security/timeline - paginated security event timeline
+
+STEP 4: AI Risk Service (Async via Kafka)
+  [ ] Kafka consumer: listen to security.event.created
+  [ ] Risk scoring logic:
+      - Rule-based baseline:
+        * Failed login: +20 pts
+        * Unknown VPN/Proxy: +15 pts
+        * Unusual hour (midnight-5am): +10 pts
+        * New device: +15 pts
+        * High-risk country: +15 pts
+        * Impossible travel: +40 pts
+      - ML model (Isolation Forest): train on historical login events
+        * Features: login_hour, country_code, device_hash, attempts_count
+        * Output: anomaly score
+      - Ollama (Mistral 7B): analyze event context, generate threat description
+  [ ] Publish Kafka event: risk.score.computed (score, action recommendation)
+  [ ] Action policies:
+      - Score 0-20: ALLOW
+      - Score 21-50: CHALLENGE (require 2FA or email verification)
+      - Score 51-80: TEMP_BLOCK (block for 1 hour, alert admin)
+      - Score >80: BLOCK (permanent until admin review)
+  [ ] Fallback: if AI service is down, use rule-based scoring only
+
+STEP 5: Security Service - React to AI Scores
+  [ ] Consume risk.score.computed events
+  [ ] Apply action: update blocklist, lock account, send alert to admin
+  [ ] Alert admin via Notification Service on critical scores (>80)
+
+STEP 6: Admin Dashboard (Angular)
+  [ ] Security overview page:
+      - Attacks today (count, trend)
+      - Recent attack timeline (table with IP, type, risk score, action)
+      - Blocked IPs list with unblock action
+  [ ] User management page:
+      - List users, search/filter
+      - Lock/unlock account
+      - View user's login events
+  [ ] IP management page:
+      - Current blocklist
+      - Add/remove manually
+      - View IP reputation (risk score, country, VPN status)
+
+STEP 7: Grafana & Prometheus Setup
+  [ ] Prometheus: scrape metrics from each .NET service (/metrics endpoint)
+      - request_count, request_duration, error_count per service
+      - login_success_total, login_failure_total
+      - kafka_messages_published, kafka_messages_consumed
+  [ ] Grafana dashboards:
+      - Security: attacks/day, blocked IPs, failed logins, SQLi attempts
+      - Payments: transactions/day, success rate, volume
+      - System: CPU, RAM, request latency, error rate
+  [ ] Loki: centralized log aggregation from all services
+  [ ] Alert rules: notify admin email on critical thresholds
+
+STEP 8: Testing
+  [ ] Unit tests: risk scoring logic, blocklist operations, hash chain integrity
+  [ ] Integration test: login -> security event -> Kafka -> AI scoring -> block
+  [ ] Test Grafana dashboards with sample data
+
+DELIVERABLES:
+  - Security service: event collection, blocklist, SQLi detection, audit trail
+  - AI risk service: scoring (rules + ML + Ollama), policy actions
+  - Kafka async flow: security events -> AI scoring -> response actions
+  - Admin Angular pages: security dashboard, user management, IP management
+  - Grafana dashboards: security, payments, system health
+  - Prometheus metrics from all services
+  - Loki log aggregation
+
+
+################################################################################
+  SPRINT 5 (2 weeks) - REPORTING, TESTING & HARDENING
+  Goal: Reports + final tests + production readiness
+################################################################################
+
+STEP 1: Reporting Service
+  [ ] Payment aggregates: daily/weekly/monthly totals, success/failure counts
+  [ ] Wallet KPIs: total volume, active wallets, average balance
+  [ ] Security summary: attacks by type, top source IPs, blocked count
+  [ ] GET /api/admin/reports/daily (auto-generated)
+  [ ] POST /api/admin/reports/custom (date range, report type)
+  [ ] Admin dashboard: reporting page with charts (bar, line, pie)
+
+STEP 2: Admin Dashboard - Reporting UI
+  [ ] Angular reporting page:
+      - Date range picker
+      - Report type selector (payments, security, wallet)
+      - Charts: daily transactions, attack trends, wallet growth
+      - Export as CSV/PDF
+
+STEP 3: Comprehensive Testing
+  [ ] Unit tests for all critical services:
+      - Auth: register, login, refresh, RBAC
+      - Wallet: balance, ledger operations
+      - Payment: checkout, webhook, idempotency
+      - Security: blocklist, hash chain
+      - AI Risk: scoring calculation
+  [ ] Integration tests:
+      - Stripe webhook flow (mock Stripe -> webhook -> ledger -> notification)
+      - Kafka outbox flow (write -> publish -> consume -> process)
+      - Security flow (login -> event -> AI score -> block)
+  [ ] E2E tests:
+      - User: register -> login -> pay -> view balance -> view history
+      - Admin: login -> view attacks -> block IP -> view reports
+  [ ] Load test: simulate concurrent logins and payments
+
+STEP 4: Security Hardening
+  [ ] CORS: strict domain whitelist (frontend domain only)
+  [ ] Security headers: HSTS, X-Content-Type-Options, X-Frame-Options, CSP
+  [ ] Secrets management: all secrets in environment variables, no hardcoded values
+  [ ] PII audit: verify no sensitive data in logs (mask emails, IPs in non-security logs)
+  [ ] Input validation: strict type checking on all endpoints
+  [ ] SQL parameterization: verify no raw SQL anywhere
+
+STEP 5: CI/CD Pipeline (GitHub Actions)
+  [ ] On push to dev:
+      - Run unit tests
+      - Run lint + format check
+      - Build Docker images
+  [ ] On merge to main:
+      - Run full test suite (unit + integration)
+      - Build and push Docker images to container registry
+      - Deploy to staging/production
+      - Run smoke tests
+  [ ] Secrets stored in GitHub Secrets (Stripe keys, DB credentials, etc.)
+
+STEP 6: Production Deployment
+  [ ] Kubernetes manifests (or Docker Compose for production):
+      - .NET services (2+ replicas for backend)
+      - PostgreSQL (single node + backup schedule)
+      - Redis (single node + persistence)
+      - Kafka cluster
+      - Prometheus + Grafana + Loki stack
+  [ ] SSL/TLS termination (nginx ingress or cloud load balancer)
+  [ ] Health checks and readiness probes for all services
+  [ ] Database backup schedule (daily)
+  [ ] Monitoring alerts configured in Grafana
+
+STEP 7: Documentation
+  [ ] API documentation (Swagger/OpenAPI from .NET controllers)
+  [ ] Architecture diagram (services, Kafka topics, data flow)
+  [ ] Deployment guide (how to deploy to AWS)
+  [ ] Admin user guide (how to use the security dashboard)
+
+DELIVERABLES:
+  - Reporting service with payment, wallet, security aggregates
+  - Admin reporting UI with charts and export
+  - Full test suite: unit, integration, E2E
+  - Security hardening (CORS, headers, secrets, PII audit)
+  - CI/CD pipeline via GitHub Actions
+  - Production-ready deployment (Docker/K8s)
+  - Documentation (API, architecture, deployment, admin guide)
+
+
+================================================================================
+  INNOVATIVE IDEAS (POST-MVP / OPTIONAL ENHANCEMENTS)
+================================================================================
+
+These ideas can be added after the 5 sprints if time permits:
+
+IDEA 1: Predictive Fraud Forecasting
+  - Time-series models (Prophet/ARIMA) to forecast attack windows
+  - "Red Alert Days" with confidence intervals
+  - Admin dashboard: 7-day attack forecast chart
+  - Tech: Prophet, MLflow
+
+IDEA 2: Zero-Trust Adaptive Authentication
+  - Dynamic risk-based auth: adjust 2FA requirements per login
+  - Risk accumulation: new device +15, VPN +12, failed login +20, etc.
+  - 0-20: password only, 21-40: TOTP, 41-60: email+TOTP, 61+: blocked
+  - Tech: scikit-learn Random Forest, FingerprintJS, Redis
+
+IDEA 3: Blockchain-Backed Audit Trail
+  - SHA-256 hash chain for every transaction and admin action
+  - Merkle tree structure, optional Ethereum testnet anchoring
+  - Tamper detection: if any record modified, chain breaks
+  - Already partially implemented in Sprint 4 (hash chain audit log)
+
+IDEA 4: Behavioral Biometric Authentication
+  - Keystroke dynamics, mouse patterns, touch pressure
+  - Client-side ML (TensorFlow.js) for continuous re-authentication
+  - If confidence drops: step-up auth
+  - Tech: TensorFlow.js, Interactjs
+
+IDEA 5: Gamified Security Awareness
+  - Phishing simulations, password challenges, security quizzes
+  - Points, badges, leaderboards for users and admins
+  - Red team drills for admin response time
+  - Tech: Custom point engine, HaveIBeenPwned API
+
+
+================================================================================
+  ADMIN GRAFANA DASHBOARD CHARTS (REFERENCE)
+================================================================================
+
+Security Charts:
+  1. Attacks per day/hour (line chart, drill-down by type)
+  2. Blocked IPs leaderboard (top 20, geo heatmap)
+  3. Failed login attempts (geographic distribution, ratio)
+  4. SQL injection attempts (count by type, affected endpoints)
+  5. Anomaly detection events (real-time stream, risk scores)
+  6. Geographic access heatmap (login locations, impossible travel)
+
+System Charts:
+  7. CPU & memory usage (per container)
+  8. Alert summary (critical/warning/resolved in 24h)
+  9. Uptime & latency (SLA tracking, API response times)
+  10. Request throughput (per service, per endpoint)
+
+Payment Charts:
+  11. Transactions per day (success vs failed)
+  12. Payment volume (daily/weekly/monthly)
+  13. Reconciliation status (matched vs mismatched)
+
+
+================================================================================
+  SECURITY ARCHITECTURE NOTES
+================================================================================
+
+Authentication:
+  - JWT: 15 min access token, 7 day refresh token (httpOnly cookie)
+  - Google OAuth 2.0 via Firebase Auth or direct Google API
+  - RBAC: User, Admin roles enforced at middleware level
+  - Optional TOTP-based 2FA
+
+Data Protection:
+  - TLS 1.3 for all traffic
+  - bcrypt (12 rounds) for passwords
+  - AES-256 for sensitive fields at rest
+  - Field-level encryption for PII
+  - SQL parameterization everywhere (no raw queries)
+
+Rate Limiting:
+  - 100 req/min per IP (general)
+  - 5 failed logins/min per IP (auth-specific)
+  - Redis-backed counters
+
+Logging:
+  - All admin actions logged (append-only, hash-chained)
+  - All login events logged (IP, user_agent, country, success/fail)
+  - No PII in general logs (masked)
+  - 90 days online retention, 1 year archived
+
+
+================================================================================
+  SUCCESS METRICS
+================================================================================
+
+Security:
+  - Attack detection latency: < 100ms
+  - False positive rate: < 5%
+  - False negative rate: < 2%
+  - Auto-remediation accuracy: > 90%
+
+Performance:
+  - API response p95: < 200ms
+  - Dashboard load: < 2s
+  - AI inference: < 500ms
+  - Uptime: > 99.5%
+
+Business:
+  - User registration rate
+  - Monthly active users
+  - Transaction volume
+  - Admin response time (MTTD, MTTR)
+
+
+================================================================================
+  END OF UNIFIED REFERENCE
+================================================================================

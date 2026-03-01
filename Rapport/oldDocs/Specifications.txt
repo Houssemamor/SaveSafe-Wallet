@@ -1,0 +1,807 @@
+================================================================================
+  SECURE BANKING & WALLET PLATFORM WITH AI ANTI-PIRATING SYSTEM
+  Project Specifications & Architecture Document
+================================================================================
+  Date: February 2026
+  Status: Pre-Development Specification
+  Scope: Full-Stack Web Application + AI Security Layer + Admin Dashboard
+
+================================================================================
+  1. PROJECT OVERVIEW
+================================================================================
+
+Project Name: SecureBank AI
+Description: A secure, web-based banking and wallet management platform with
+             AI-powered threat detection, attack prevention, and real-time
+             security monitoring for system administrators.
+
+Core Vision:
+  - Provide secure, user-friendly banking services
+  - Deploy advanced AI-based security threat detection
+  - Enable administrators to monitor, analyze, and respond to attacks
+  - Offer real-time visibility into security events via Grafana dashboards
+  - Maintain 100% open-source, free, and locally-hosted AI models
+
+Target Users:
+  - End Users: Customers managing accounts and transfers
+  - Administrators: Security teams monitoring and responding to threats
+  - DevOps: Infrastructure teams managing deployment and monitoring
+
+================================================================================
+  2. CORE FEATURES
+================================================================================
+
+2.1 USER FEATURES
+----------------
+  Feature                     | Description
+  -----------------------------|---------------------------------------------------
+  Account Management          | Create/update/delete bank accounts and profiles
+  Wallet Management           | Multi-currency wallet support, balance tracking
+  Transfers & Payments        | Peer-to-peer transfers, bill payments
+  Transaction History         | Full audit trail of all user transactions
+  Profile Security            | Password management, 2FA enablement
+  Activity Logs               | User-side view of login attempts and access
+  Google OAuth Integration    | One-click authentication via Google
+  Session Management          | Timeout controls, device tracking
+
+2.2 ADMIN-EXCLUSIVE FEATURES
+----------------------------
+  Feature                     | Description
+  -----------------------------|---------------------------------------------------
+  Attack Analytics Dashboard  | Real-time attack monitoring and visualization
+  IP Blocking Management      | Manual and AI-recommended IP blocking
+  Failed Login Analysis       | Aggregate view of login failures by IP/country
+  SQL Injection Detection     | Track detected SQL injection attempts
+  Behavioral Anomaly Reports  | AI-flagged unusual account behaviors
+  User Access Audit          | All login events with timestamps and locations
+  Alert Management           | Configurable thresholds for notifications
+  Threat Response Workflow    | Track investigation and remediation actions
+  System Health Metrics      | CPU, RAM, request latency, uptime monitoring
+
+================================================================================
+  3. TECHNICAL ARCHITECTURE
+================================================================================
+
+3.1 SYSTEM COMPONENTS
+---------------------
+
+┌─ Frontend Layer (User-Facing)
+│  ├─ Dashboard (Account, Transfers, Profile)
+│  ├─ Transaction Management UI
+│  ├─ OAuth Login Flow
+│  └─ Real-time Notifications
+
+├─ Frontend Layer (Admin-Facing)
+│  ├─ Security Analytics Dashboard
+│  ├─ IP Management Console
+│  ├─ Attack Timeline Visualization
+│  └─ Alert Configuration Panel
+
+├─ API Gateway / Backend
+│  ├─ RESTful API endpoints
+│  ├─ Authentication & Authorization (JWT)
+│  ├─ Request validation & sanitization
+│  └─ Rate limiting & DDoS protection
+
+├─ Business Logic Layer
+│  ├─ Account Service (CRUD operations)
+│  ├─ Transaction Service (validation, processing)
+│  ├─ User Service (profile management)
+│  └─ Admin Service (analytics queries)
+
+├─ AI/ML Security Layer
+│  ├─ Threat Detection Engine (Ollama-powered)
+│  ├─ Behavioral Anomaly Detection (ML models)
+│  ├─ IP Reputation Analysis
+│  └─ Threat Intelligence Aggregation
+
+├─ Data Layer
+│  ├─ Primary Database (user data, transactions)
+│  ├─ Vector Database (embeddings for anomaly detection)
+│  └─ Cache Layer (Redis for session/rate limiting)
+
+├─ Monitoring & Logging
+│  ├─ Structured Logging (ELK or Loki)
+│  ├─ Prometheus Metrics Export
+│  ├─ Grafana Dashboards
+│  └─ Alert Manager
+
+└─ Infrastructure
+   ├─ Docker Containerization
+   ├─ Kubernetes Orchestration
+   ├─ CI/CD Pipeline (GitHub Actions)
+   └─ Cloud Deployment (Azure/AWS free tier)
+
+================================================================================
+  4. AI/ML SECURITY COMPONENTS
+================================================================================
+
+4.1 THREAT DETECTION ENGINE
+---------------------------
+  Purpose: Real-time identification of suspicious activities
+
+  Data Inputs Monitored:
+    - Source IP Address
+    - Login Attempt Frequency (attempts/minute)
+    - Geographic Location (country, city)
+    - Access Time (hour of day, day of week)
+    - Device Information (browser, OS, user agent)
+    - Failed Login Patterns
+    - Query Patterns (detecting SQL injection)
+    - Transaction Velocity (unusual amounts or frequency)
+    - Account Access Anomalies
+
+  AI Model: Ollama + Mistral 7B or LLaMA 3
+    - Analyzes behavioral patterns in real-time
+    - Compares against baseline user profiles
+    - Generates risk scores (0-100)
+    - Produces actionable threat descriptions
+
+  Anomaly Score Calculation:
+    Normal User Profile (Baseline):
+    {
+      "avg_login_time_UTC": 9,
+      "login_frequency": "5/day",
+      "typical_locations": ["US", "CA"],
+      "typical_devices": ["Chrome on Windows", "Safari on iOS"],
+      "avg_transaction_amount": 500,
+      "transaction_frequency": "10/week"
+    }
+
+    Real-Time Event:
+    {
+      "ip": "185.220.101.xx",
+      "attempts": "20/min",
+      "location": "Unknown (Proxy/VPN)",
+      "time": "3:00 AM",
+      "device": "Bot User Agent",
+      "login_failures": 15,
+      "transaction_attempts": "50/min high amounts"
+    }
+
+    Risk Assessment: 95/100 (CRITICAL)
+    Recommendation: BLOCK IP, ALERT ADMIN, LOCK ACCOUNT
+
+4.2 BEHAVIORAL ANOMALY DETECTION
+---------------------------------
+  Model: Isolation Forest + Autoencoder (HuggingFace transformers)
+  Purpose: Identify deviations from user baseline behavior
+
+  Detected Anomalies:
+    - Impossible travel (login from 2 different continents < 2 hours)
+    - Time-based anomalies (access at unusual hours)
+    - Device fingerprint changes (new device from known user)
+    - Amount-based anomalies (transfer amount 10x higher than average)
+    - Velocity anomalies (too many transactions in short period)
+    - Query pattern anomalies (SQL injection attempts, malformed requests)
+
+4.3 IP REPUTATION & GEOLOCATION
+-------------------------------
+  Data Sources:
+    - MaxMind GeoIP2 Lite (free tier)
+    - AbuseIPDB API (free tier, 15 requests/day)
+    - Custom IP blacklist (admin-managed)
+    - VPN/Proxy detection (IP2Proxy free database)
+
+  Risk Factors:
+    - Unknown VPN/Proxy: +20 risk points
+    - High-risk country: +15 risk points
+    - Previous attack source: +50 risk points
+    - Datacenter IP: +10 risk points
+
+4.4 SQL INJECTION DETECTION
+---------------------------
+  Approach: Rule-based + ML-based hybrid detection
+  
+  Rule-Based Detection:
+    - Pattern matching for common SQL injection payloads
+    - Special character sequences: '; DROP --, UNION SELECT
+    - Encoding detection: URL, hex, unicode bypass attempts
+    - Comment patterns: /*, --, #, ;
+
+  ML-Based Detection (Ollama + CodeLlama):
+    - Parse SQL queries against normalized AST
+    - Compare against known malicious query patterns
+    - Flag suspicious parameter types and counts
+    - Suggest query alternatives to developers
+
+================================================================================
+  5. ADMIN DASHBOARD & MONITORING
+================================================================================
+
+5.1 GRAFANA METRICS DASHBOARD
+-----------------------------
+  Real-Time Visualizations:
+
+  Security Metrics:
+    Chart 1: Attacks Per Day/Hour
+      - Line chart showing attack frequency trends
+      - Drill-down by attack type (login attempts, injection, etc.)
+
+    Chart 2: Blocked IPs Leaderboard
+      - Top 20 source IPs (by attack count)
+      - Geolocation heat map overlay
+      - Block duration and severity indicators
+
+    Chart 3: Failed Login Attempts
+      - Geographic distribution map
+      - Failed vs. successful login ratio
+      - Time-series trend analysis
+
+    Chart 4: SQL Injection Attempts
+      - Detection count by injection type
+      - Payload patterns identified
+      - Affected endpoints/queries
+
+    Chart 5: Anomaly Detection Events
+      - Real-time alerts stream
+      - Anomaly type breakdown (5-10 categories)
+      - Affected user accounts and risk scores
+
+    Chart 6: Geographic Access Heatmap
+      - World map showing login locations
+      - Impossible travel alerts
+      - Unknown/proxy locations highlighted
+
+  System Metrics:
+    Chart 7: CPU & Memory Usage
+      - Backend container resource utilization
+      - AI model inference time and memory footprint
+      - Database query performance metrics
+
+    Chart 8: Alert Summary
+      - Critical alerts (24h)
+      - Warning alerts (24h)
+      - Resolved alerts (24h)
+
+    Chart 9: System Uptime & Latency
+      - Percent uptime (SLA tracking)
+      - API response time distribution
+      - Error rate by endpoint
+
+    Chart 10: Top Administrators
+      - Most active admins
+      - Response time to alerts
+      - Incidents handled (actions taken)
+
+5.2 ATTACK TIMELINE VIEW
+------------------------
+  Chronological Attack Log with Details:
+
+  Timestamp    | IP Address   | Attack Type        | User Affected | Risk | Status
+  -------------|--------------|--------------------|--------------: |------|----------
+  14:32:15     | 185.220.x.x  | Brute Force Login  | None (blocked) | 92   | BLOCKED
+  14:28:47     | 203.165.x.x  | SQL Injection      | user_id: 523  | 78   | ALERT
+  14:25:33     | 10.0.0.150   | Impossible Travel  | user_id: 892  | 45   | ALERT
+  14:22:01     | 88.198.x.x   | Bot User Agent     | Blocked batch | 81   | BLOCKED
+
+  Interaction Options:
+    - Click row to view full attack details
+    - View affected user profile
+    - Review system response (block, alert, etc.)
+    - Download attack payload sample
+    - Add/remove IP from blocklist
+
+5.3 ADMIN CONTROL PANEL
+-----------------------
+  IP Management:
+    - View blocklist (auto-generated + manual entries)
+    - Add/remove IPs manually
+    - Set block duration (permanent, 24h, 7d, etc.)
+    - Whitelist trusted IPs (VPN endpoints, partner IPs)
+
+  Alert Configuration:
+    - Set thresholds (failed logins/min, injection attempts, etc.)
+    - Enable/disable alert types
+    - Alert destinations (email, Slack, PagerDuty)
+    - Escalation rules
+
+  User Lockdown (Emergency):
+    - Temporarily lock specific user account
+    - Force password reset
+    - Force re-authentication of active sessions
+    - Generate incident report
+
+  Report Generation:
+    - Daily/Weekly/Monthly security summaries
+    - Threat landscape analysis
+    - Top threats identified
+    - Remediation actions taken
+    - Compliance audit trail
+
+================================================================================
+  6. SECURITY ARCHITECTURE
+================================================================================
+
+6.1 AUTHENTICATION & AUTHORIZATION
+----------------------------------
+  User Authentication:
+    - Google OAuth 2.0 via Firebase Auth (free tier)
+    - JWT tokens for API requests (15 min expiry)
+    - Refresh tokens (7 day expiry, stored in httpOnly cookie)
+    - Multi-Factor Authentication optional (TOTP)
+
+  Role-Based Access Control (RBAC):
+    Role          | Permissions
+    --------------|------------------------------------------------------------------
+    User          | View own account, transactions, profile; initiate transfers
+    Admin         | View all dashboards, manage IPs, generate reports, user lockdown
+    SuperAdmin    | Full system access, user/admin management, config changes
+    Audit         | Read-only access to logs (no write/delete permissions)
+
+6.2 DATA PROTECTION
+-------------------
+  Encryption:
+    - TLS 1.3 for all in-transit data
+    - AES-256 encryption for sensitive fields at rest
+      * Passwords: bcrypt with 12 salt rounds
+      * API keys: encrypted with master key
+      * PII: encrypted field-level using libsodium
+    - Field-level encryption for transaction details
+
+  API Security:
+    - CORS policy: strict domain whitelist
+    - CSRF protection: token-based validation
+    - Rate limiting: 100 requests/min per IP
+    - Input validation: strict type checking, SQL parameterization
+    - Output encoding: HTML entity encoding for JSON responses
+
+  Logging & Audit:
+    - All admin actions logged (timestamp, action, user)
+    - All failed login attempts logged (IP, user account, time)
+    - All data access logged (Read-only for audit role)
+    - Logs stored in tamper-proof format (immutable append-only)
+    - Log retention: 90 days online, 1 year archived
+
+================================================================================
+  7. TECH STACK
+================================================================================
+
+7.1 FRONTEND (User & Admin Interfaces)
+--------------------------------------
+  Framework   : Next.js 14 (React-based, full-stack capable)
+  UI Library  : Material-UI or Tailwind CSS
+  State Mgmt  : TanStack Query + Zustand
+  Charts      : Recharts or Chart.js
+  Real-time   : WebSocket (Socket.io) for live alert push
+  Auth Flow   : NextAuth.js with Google provider
+
+7.2 BACKEND (API & Business Logic)
+----------------------------------
+  Runtime     : Node.js 20 LTS (or Python FastAPI alternative)
+  Framework   : Express.js or Fastify
+  API Style   : RESTful with JSON
+  Validation  : Zod (schema validation)
+  Database ORM: Prisma or Sequelize
+  Caching     : Redis (ioredis client)
+  Task Queues : Bull queues for async jobs (threat analysis)
+  Logging     : Winston + structured logs
+
+7.3 AI/ML STACK
+---------------
+  LLM Inference    : Ollama (self-hosted) + LLaMA 3 8B or Mistral 7B
+  Models Needed    :
+    - Base LLM: Mistral 7B (4GB VRAM) for threat analysis
+    - Code model: CodeLlama 7B (SSL detection, query analysis)
+    - Embedding model: all-MiniLM-L6-v2 (sentence-transformers)
+    - Vision model: LLaVA 1.6 (optional, for fraud detection from images)
+
+  Libraries        : 
+    - HuggingFace Transformers (embeddings, classifiers)
+    - scikit-learn (Isolation Forest for anomalies)
+    - PyTorch or ONNX Runtime (model inference)
+    - pandas + numpy (data processing)
+
+  Python Bridge    : FastAPI microservice for ML model serving
+                     (separate from Node.js backend via REST API)
+
+7.4 DATABASE
+-----------
+  Primary DB       : Supabase (PostgreSQL, free tier)
+    - User accounts, transactions, audit logs
+    - Firewall rules, IP blocklist, alerts config
+
+  Vector DB        : pgvector extension in Postgres
+    - Store user behavior embeddings
+    - Similarity search for anomaly detection
+
+  Cache Layer      : Redis (free tier or local Docker)
+    - Session storage
+    - Rate limit counters
+    - Real-time blocklist cache
+
+  Time-Series DB   : Prometheus (optional, built-in scraping)
+    - Metrics for attack events
+    - Performance counters
+
+7.5 MONITORING & LOGGING
+------------------------
+  Grafana         : Dashboards and visualization (open-source)
+  Prometheus      : Metrics collection (open-source)
+  Loki or ELK     : Log aggregation (optional, Loki is lightweight)
+  AlertManager    : Alert routing and notifications (with Prometheus)
+  
+  Alert Channels  :
+    - Email (SMTP)
+    - Slack (webhook)
+    - PagerDuty (free tier, if needed)
+    - SMS via Twilio (evaluate free tier)
+
+7.6 INFRASTRUCTURE & DEPLOYMENT
+-------------------------------
+  Containerization : Docker + Docker Compose
+  Orchestration    : Kubernetes (k3s for free tier) or Docker Compose
+  CI/CD           : GitHub Actions (free for public repos)
+  Cloud Hosting   :
+    - Option 1: Azure (free tier, 12 months)
+    - Option 2: AWS (free tier, 12 months)
+    - Option 3: Railway.app (free tier, ease of use)
+    - Option 4: Render (free tier)
+
+  Deployment Architecture:
+    ┌─ GitHub Repo
+    │  ├─ Push event
+    │  └─ GitHub Actions triggered
+    │     ├─ Run tests
+    │     ├─ Build Docker image
+    │     ├─ Push to Docker Hub / GitHub Container Registry
+    │     └─ Deploy to Kubernetes/Cloud via SSH
+    │
+    └─ Production Cluster
+       ├─ Node.js Backend (2+ replicas)
+       ├─ FastAPI/Python AI Services (1 replica for inference)
+       ├─ PostgreSQL Database (single node + backup)
+       ├─ Redis Cache (single node + sentinel)
+       ├─ Prometheus + Grafana (monitoring stack)
+       └─ Nginx Ingress (load balancing, SSL termination)
+
+================================================================================
+  8. API SPECIFICATION (HIGH-LEVEL)
+================================================================================
+
+8.1 USER ENDPOINTS
+------------------
+  Authentication:
+    POST   /api/auth/login              (Google OAuth callback)
+    POST   /api/auth/logout             (Invalidate JWT)
+    GET    /api/auth/profile            (Current user profile)
+    POST   /api/auth/refresh            (Refresh JWT token)
+
+  Account Management:
+    GET    /api/accounts                (List user's accounts)
+    POST   /api/accounts                (Create new account)
+    GET    /api/accounts/:id            (Get account details)
+    PUT    /api/accounts/:id            (Update account settings)
+    DELETE /api/accounts/:id            (Close account)
+
+  Transactions:
+    GET    /api/transactions            (List transactions)
+    POST   /api/transactions            (Initiate transfer)
+    GET    /api/transactions/:id        (Get transaction details)
+    PUT    /api/transactions/:id        (Cancel pending transfer)
+
+  Security:
+    GET    /api/security/activity       (User's login history)
+    POST   /api/security/2fa/enable     (Enable 2FA)
+    POST   /api/security/password-reset (Initiate password reset)
+
+8.2 ADMIN ENDPOINTS
+-------------------
+  Analytics:
+    GET    /api/admin/attacks/summary   (Attacks today, this week, etc.)
+    GET    /api/admin/attacks/timeline  (Chronological attack list)
+    GET    /api/admin/attacks/by-type   (Breakdown by attack type)
+    GET    /api/admin/blocklist        (Current blocked IPs)
+    GET    /api/admin/alerts           (Active alerts)
+
+  IP Management:
+    POST   /api/admin/blocklist         (Add IP to blocklist)
+    DELETE /api/admin/blocklist/:ip     (Remove IP from blocklist)
+    GET    /api/admin/ip-reputation/:ip (Get IP threat scores)
+    POST   /api/admin/whitelist         (Add IP to whitelist)
+
+  User Management:
+    GET    /api/admin/users/:id         (Get user details)
+    POST   /api/admin/users/:id/lock    (Lock user account)
+    POST   /api/admin/users/:id/reset-mfa (Force password reset)
+    GET    /api/admin/users/:id/activity (User's activity timeline)
+
+  Reporting:
+    GET    /api/admin/reports/daily     (Daily security report)
+    GET    /api/admin/reports/incident/:id (Specific incident details)
+    POST   /api/admin/reports/custom    (Generate custom report)
+
+8.3 AI/ML INFERENCE ENDPOINTS
+------------------------------
+  Threat Analysis (Internal Service):
+    POST   /api/ml/analyze-threat      (Analyze IP/login event)
+    POST   /api/ml/detect-anomaly      (Check for behavioral anomaly)
+    POST   /api/ml/classify-query      (Detect SQL injection)
+    GET    /api/ml/model-status        (Health check, inference latency)
+
+================================================================================
+  9. DATA MODELS
+================================================================================
+
+9.1 USER/ACCOUNT SCHEMA
+-----------------------
+  User Table:
+    - id (UUID primary key)
+    - email (unique, indexed)
+    - name
+    - google_id
+    - profile_picture_url
+    - created_at
+    - updated_at
+    - last_login_at
+    - total_login_count
+    - mfa_enabled (boolean)
+    - mfa_secret (encrypted)
+    - account_status (active, locked, suspended)
+
+  Account Table (Wallet):
+    - id (UUID)
+    - user_id (foreign key)
+    - account_number
+    - account_type (checking, savings)
+    - currency (USD, EUR, etc.)
+    - balance (decimal)
+    - created_at
+    - updated_at
+
+  Transaction Table:
+    - id (UUID)
+    - from_account_id (foreign key)
+    - to_account_id (foreign key)
+    - amount (decimal)
+    - currency
+    - timestamp
+    - status (pending, completed, failed, cancelled)
+    - transaction_hash (for immutability)
+
+9.2 SECURITY/AUDIT SCHEMA
+--------------------------
+  LoginEvent Table:
+    - id (UUID)
+    - user_id (foreign key)
+    - ip_address
+    - user_agent
+    - geolocation_country
+    - device_fingerprint_hash
+    - success (boolean)
+    - failure_reason (if failed)
+    - timestamp
+    - is_flagged_by_ai (boolean)
+    - is_blocked (boolean)
+
+  AttackEvent Table:
+    - id (UUID)
+    - attack_type (enum: brute_force, sqli, impossible_travel, etc.)
+    - source_ip
+    - target_user_id (if known)
+    - payload_sample (encrypted)
+    - risk_score (0-100)
+    - ai_analysis (JSON, LLM output)
+    - action_taken (blocked, alerted, logged)
+    - timestamp
+    - admin_notes (text)
+    - status (open, investigating, resolved)
+
+  BlockList Table:
+    - id (UUID)
+    - ip_address (indexed)
+    - reason
+    - added_by (admin user_id)
+    - added_at
+    - expires_at (NULL for permanent)
+    - is_auto_generated (boolean)
+
+  AuditLog Table:
+    - id (UUID)
+    - admin_id
+    - action (enum: login, logout, add_blocklist, remove_blocklist, etc.)
+    - resource_type (User, IP, Transaction, etc.)
+    - resource_id
+    - changes (JSON diff)
+    - timestamp
+    - ip_address
+
+================================================================================
+  10. DEPLOYMENT & ENVIRONMENT SETUP
+================================================================================
+
+10.1 LOCAL DEVELOPMENT ENVIRONMENT
+----------------------------------
+  Prerequisites:
+    - Docker + Docker Compose
+    - Node.js 20 LTS
+    - Python 3.10+
+    - Ollama CLI installed locally
+
+  Quick Start:
+    1. Clone repository
+    2. Copy .env.example to .env
+    3. Configure Google OAuth credentials
+    4. Run: docker-compose up -d
+    5. Backend starts on http://localhost:3000
+    6. Frontend starts on http://localhost:3001
+    7. Grafana available on http://localhost:3000/grafana
+    8. Ollama models auto-download on first inference
+
+  Services in docker-compose.yml:
+    - postgres (database)
+    - redis (cache)
+    - backend (Node.js API)
+    - frontend (Next.js web app)
+    - ollama (AI inference service, CPU/GPU)
+    - prometheus (metrics)
+    - grafana (dashboards)
+
+10.2 STAGING & PRODUCTION DEPLOYMENT
+---------------------------------------
+  Target: Azure/AWS free tier or Railway
+
+  Deployment Pipeline:
+    1. Branch: main -> Trigger GitHub Action
+    2. Steps:
+       - Run test suite
+       - Build Docker images
+       - Push to container registry
+       - Deploy to production cluster
+       - Run smoke tests
+       - Notify team on Slack
+
+  Secrets Management:
+    - GitHub Secrets: API keys, database credentials
+    - Cloud Key Vault: Encryption keys, SSL certs
+    - Environment-specific .env files
+
+  Monitoring Setup:
+    - Prometheus scrapes metrics from backend
+    - Grafana dashboards configured
+    - Alerts sent to PagerDuty/Email/Slack
+    - Logs aggregated in Loki or CloudWatch
+
+================================================================================
+  11. SECURITY COMPLIANCE & BEST PRACTICES
+================================================================================
+
+11.1 DATA PRIVACY
+-----------------
+  - No PII stored in logs except hashed identifiers
+  - User consent for data processing (GDPR if EU)
+  - Data retention policy enforced (90 days details, 1 year archive)
+  - SQLite injection prevention via parameterized queries
+  - Password never stored in plaintext (bcrypt)
+
+11.2 API SECURITY
+-----------------
+  - CORS restricted to registered frontend domains
+  - API rate limiting: 100 req/min per IP/user
+  - Request signing for sensitive operations (signature verification)
+  - API versioning (/api/v1/, /api/v2/)
+  - Deprecation policy: 6-month notice for breaking changes
+
+11.3 INCIDENT RESPONSE
+----------------------
+  - Incident response playbook documented
+  - On-call rotation for critical alerts
+  - Post-incident review process (RCA)
+  - Regular security audit (monthly)
+  - Penetration testing (quarterly, external)
+
+================================================================================
+  12. DEVELOPMENT ROADMAP
+================================================================================
+
+Phase 1 (Weeks 1-4): MVP Foundation
+  - User authentication + Google OAuth integration
+  - Basic account & transaction management
+  - Simple login analytics page
+  - Initial IP blocklist (manual only)
+  - Basic tests (unit + integration)
+
+Phase 2 (Weeks 5-8): AI Security Layer
+  - Deploy Ollama + LLaMA 3 8B locally
+  - Implement threat detection engine
+  - Train anomaly detection model on sample data
+  - Integrate attack detection into login flow
+  - Admin dashboard with attack timeline
+
+Phase 3 (Weeks 9-12): Monitoring & Automation
+  - Prometheus + Grafana setup
+  - Multi-chart security dashboards
+  - Auto-generated IP blocklist from threat engine
+  - Alert system + notifications
+  - Incident response workflows
+
+Phase 4 (Weeks 13-16): Production Hardening
+  - Load testing & performance optimization
+  - Security penetration testing
+  - Deployment to cloud (Azure/AWS)
+  - CI/CD pipeline via GitHub Actions
+  - Documentation & knowledge base
+
+Phase 5 (Weeks 17+): Advanced Features
+  - 2FA/MFA enrollment
+  - Behavior-based step-up authentication
+  - RegionEntity DLL anomalies detection
+  - Multi-language dashboard support
+  - Historical analytics & trend analysis
+
+================================================================================
+  13. SUCCESS METRICS & KPIs
+================================================================================
+
+Security Effectiveness:
+  - Attack detection latency: < 100ms (from IP request to risk score)
+  - False positive rate: < 5% (flagged benign activity)
+  - False negative rate: < 2% (missed attacks)
+  - Auto-remediation accuracy: > 90%
+
+System Performance:
+  - API response time p95: < 200ms
+  - Dashboard load time: < 2s
+  - AI model inference time: < 500ms
+  - System uptime: > 99.5%
+
+User Adoption:
+  - New user registration rate
+  - Monthly active users (MAU)
+  - Transaction volume growth
+  - User satisfaction/NPS score
+
+Admin Effectiveness:
+  - Mean time to detect (MTTD) threats
+  - Mean time to respond (MTTR) to alerts
+  - Admin dashboard usage patterns
+  - Training/onboarding time
+
+================================================================================
+  14. TEAM ROLES & RESPONSIBILITIES
+================================================================================
+
+Role            | Responsibilities
+----------------|---------------------------------------------------------------------
+Lead Developer  | Architecture decisions, code reviews, backend core
+Frontend Dev    | UI/UX implementation, web dashboard, optimization
+ML Engineer     | Model selection/tuning, inference pipeline, anomaly detection
+DevOps Eng      | Deployment, CI/CD, monitoring, infrastructure
+Security Lead   | Threat model, authentication, compliance, penetration testing
+Project Manager | Timeline tracking, stakeholder updates, sprint planning
+
+================================================================================
+  15. NEXT STEPS & ACTION ITEMS
+================================================================================
+
+Immediate (This Week):
+  [ ] Finalize Google OAuth credentials
+  [ ] Set up GitHub repository with branch protection rules
+  [ ] Create GDD (Google Design Document) for database schema
+  [ ] Provision Azure/AWS free tier account
+  [ ] Install Docker, Ollama, Node.js locally
+
+Short-Term (Next 2 Weeks):
+  [ ] Project initialize (Next.js + Express scaffolding)
+  [ ] Database schema implementation (Prisma migrations)
+  [ ] Authentication flow (Google OAuth + NextAuth.js)
+  [ ] Basic user CRUD endpoints
+  [ ] Role-based access control middleware
+
+Medium-Term (Weeks 3-4):
+  [ ] Wallet/transaction features
+  [ ] Frontend dashboard UI mockups
+  [ ] Login event tracking and admin view
+  [ ] Ollama setup and basic LLM integration
+  [ ] Docker Compose setup for local dev
+
+Research & Design (Parallel):
+  [ ] Threat intel data source analysis (GeoIP, VPN detection)
+  [ ] ML model selection and proof-of-concept
+  [ ] Grafana dashboard design
+  [ ] Incident response playbook draft
+  [ ] Security audit checklist
+
+================================================================================
+  END OF SPECIFICATIONS DOCUMENT
+================================================================================

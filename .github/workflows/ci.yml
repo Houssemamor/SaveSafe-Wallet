@@ -1,0 +1,177 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  DOTNET_VERSION: "9.0.x"
+  POSTGRES_USER: ssw_user
+  POSTGRES_PASSWORD: ssw_secret_ci
+  POSTGRES_DB: savesafe_test
+
+jobs:
+
+  # ── Auth Service: Build & Test ──────────────────────────────────────────────
+  auth-service-ci:
+    name: Auth Service — Build & Test
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ${{ env.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ env.POSTGRES_DB }}
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore
+        run: dotnet restore src/AuthService/AuthService.sln
+
+      - name: Build
+        run: dotnet build src/AuthService/AuthService.sln --no-restore --configuration Release
+
+      - name: Apply EF Core migrations
+        working-directory: src/AuthService/AuthService.API
+        env:
+          ConnectionStrings__DefaultConnection: >-
+            Host=localhost;Port=5432;Database=${{ env.POSTGRES_DB }};
+            Username=${{ env.POSTGRES_USER }};Password=${{ env.POSTGRES_PASSWORD }};
+            Search Path=auth
+          Jwt__Key: ci-test-secret-key-at-least-32-characters-long
+          Jwt__Issuer: savesafe-auth
+          Jwt__Audience: savesafe-clients
+          Services__WalletServiceUrl: http://localhost:5002
+          InternalApi__ApiKey: ci-internal-key
+        run: |
+          dotnet tool install --global dotnet-ef || true
+          dotnet ef database update
+
+      - name: Run tests
+        run: dotnet test src/AuthService/AuthService.sln --no-build --configuration Release --verbosity normal
+        env:
+          ConnectionStrings__DefaultConnection: >-
+            Host=localhost;Port=5432;Database=${{ env.POSTGRES_DB }};
+            Username=${{ env.POSTGRES_USER }};Password=${{ env.POSTGRES_PASSWORD }};
+            Search Path=auth
+          Jwt__Key: ci-test-secret-key-at-least-32-characters-long
+          Jwt__Issuer: savesafe-auth
+          Jwt__Audience: savesafe-clients
+          Services__WalletServiceUrl: http://localhost:5002
+          InternalApi__ApiKey: ci-internal-key
+
+  # ── Wallet Service: Build & Test ────────────────────────────────────────────
+  wallet-service-ci:
+    name: Wallet Service — Build & Test
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ${{ env.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ env.POSTGRES_DB }}
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore
+        run: dotnet restore src/WalletService/WalletService.sln
+
+      - name: Build
+        run: dotnet build src/WalletService/WalletService.sln --no-restore --configuration Release
+
+      - name: Apply EF Core migrations
+        working-directory: src/WalletService/WalletService.API
+        env:
+          ConnectionStrings__DefaultConnection: >-
+            Host=localhost;Port=5432;Database=${{ env.POSTGRES_DB }};
+            Username=${{ env.POSTGRES_USER }};Password=${{ env.POSTGRES_PASSWORD }};
+            Search Path=wallet
+          Jwt__Key: ci-test-secret-key-at-least-32-characters-long
+          Jwt__Issuer: savesafe-auth
+          Jwt__Audience: savesafe-clients
+          InternalApi__ApiKey: ci-internal-key
+        run: |
+          dotnet tool install --global dotnet-ef || true
+          dotnet ef database update
+
+      - name: Run tests
+        run: dotnet test src/WalletService/WalletService.sln --no-build --configuration Release --verbosity normal
+        env:
+          ConnectionStrings__DefaultConnection: >-
+            Host=localhost;Port=5432;Database=${{ env.POSTGRES_DB }};
+            Username=${{ env.POSTGRES_USER }};Password=${{ env.POSTGRES_PASSWORD }};
+            Search Path=wallet
+          Jwt__Key: ci-test-secret-key-at-least-32-characters-long
+          Jwt__Issuer: savesafe-auth
+          Jwt__Audience: savesafe-clients
+          InternalApi__ApiKey: ci-internal-key
+
+  # ── Docker Compose Smoke Test ────────────────────────────────────────────────
+  docker-smoke-test:
+    name: Docker Compose Stack Smoke Test
+    runs-on: ubuntu-latest
+    needs: [auth-service-ci, wallet-service-ci]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create .env from example
+        run: |
+          cp .env.example .env
+          echo "JWT_SECRET_KEY=ci-test-secret-key-at-least-32-characters-long" >> .env
+          echo "INTERNAL_API_KEY=ci-internal-key" >> .env
+
+      - name: Build and start all services
+        run: docker compose up --build -d
+
+      - name: Wait for services to be healthy
+        run: |
+          timeout 180 bash -c \
+            'until [ "$(docker compose ps --format json | python3 -c "import sys,json; data=sys.stdin.read(); services=[json.loads(l) for l in data.strip().split(chr(10)) if l]; unhealthy=[s for s in services if s.get(\"Health\") not in [\"healthy\",\"\"]], print(len(unhealthy))")" = "0" ]; do
+              echo "Waiting for services..."; docker compose ps; sleep 10
+            done'
+
+      - name: Health check - Auth Service
+        run: curl --fail --retry 5 --retry-delay 5 http://localhost:5001/health
+
+      - name: Health check - Wallet Service
+        run: curl --fail --retry 5 --retry-delay 5 http://localhost:5002/health
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v
