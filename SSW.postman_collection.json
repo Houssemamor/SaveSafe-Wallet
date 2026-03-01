@@ -1,0 +1,407 @@
+{
+  "info": {
+    "name": "SaveSafe Wallet (SSW)",
+    "description": "Sprint 1 API collection — Auth Service (5001) + Wallet Service (5002).\n\nWorkflow:\n1. Register → access token + ssw_refresh cookie stored automatically\n2. Login → same\n3. Get Balance → uses stored token\n4. Refresh → rotates token via cookie\n5. Logout → revokes refresh token",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "auth_base_url",
+      "value": "http://localhost:5001",
+      "type": "string"
+    },
+    {
+      "key": "wallet_base_url",
+      "value": "http://localhost:5002",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string",
+      "description": "Populated automatically by Register / Login / Refresh scripts"
+    },
+    {
+      "key": "internal_api_key",
+      "value": "dev-internal-key-change-for-production",
+      "type": "string",
+      "description": "Must match InternalApi__ApiKey in appsettings / .env"
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth Service",
+      "item": [
+        {
+          "name": "Register",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const body = pm.response.json();",
+                  "    pm.collectionVariables.set('access_token', body.accessToken);",
+                  "    pm.test('Returns 201 Created', () => pm.response.to.have.status(201));",
+                  "    pm.test('Body has accessToken', () => pm.expect(body.accessToken).to.be.a('string').and.not.empty);",
+                  "    pm.test('Body has userId (UUID)', () => pm.expect(body.userId).to.match(/^[0-9a-f-]{36}$/i));",
+                  "    pm.test('Role is User', () => pm.expect(body.role).to.eql('User'));",
+                  "    pm.test('ssw_refresh cookie set', () => pm.expect(pm.cookies.has('ssw_refresh')).to.be.true);",
+                  "    console.log('✓ access_token saved to collection variables');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@example.com\",\n  \"name\": \"Test User\",\n  \"password\": \"Secure@1234\"\n}"
+            },
+            "url": {
+              "raw": "{{auth_base_url}}/api/auth/register",
+              "host": ["{{auth_base_url}}"],
+              "path": ["api", "auth", "register"]
+            },
+            "description": "Create a new user account. On success:\n- Returns 201 with `accessToken`, `userId`, `role`\n- Sets `ssw_refresh` httpOnly cookie (7-day)\n- Provisions a wallet account automatically (best-effort)"
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const body = pm.response.json();",
+                  "    pm.collectionVariables.set('access_token', body.accessToken);",
+                  "    pm.test('Returns 200 OK', () => pm.response.to.have.status(200));",
+                  "    pm.test('Body has accessToken', () => pm.expect(body.accessToken).to.be.a('string').and.not.empty);",
+                  "    pm.test('Body has userId', () => pm.expect(body.userId).to.be.a('string').and.not.empty);",
+                  "    pm.test('ssw_refresh cookie set', () => pm.expect(pm.cookies.has('ssw_refresh')).to.be.true);",
+                  "    console.log('✓ access_token saved to collection variables');",
+                  "}",
+                  "if (pm.response.code === 401) {",
+                  "    pm.test('Returns 401 for bad credentials', () => pm.response.to.have.status(401));",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"Secure@1234\"\n}"
+            },
+            "url": {
+              "raw": "{{auth_base_url}}/api/auth/login",
+              "host": ["{{auth_base_url}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "description": "Authenticate with email + password. Rotates all existing refresh tokens. Logs a LoginEvent regardless of success/failure."
+          }
+        },
+        {
+          "name": "Login — Wrong Password (expect 401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Returns 401 Unauthorized', () => pm.response.to.have.status(401));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"WrongPassword!\"\n}"
+            },
+            "url": {
+              "raw": "{{auth_base_url}}/api/auth/login",
+              "host": ["{{auth_base_url}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "description": "Verifies failed login returns 401. A LoginEvent with success=false is still recorded in the DB."
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const body = pm.response.json();",
+                  "    pm.collectionVariables.set('access_token', body.accessToken);",
+                  "    pm.test('Returns 200 OK', () => pm.response.to.have.status(200));",
+                  "    pm.test('New accessToken issued', () => pm.expect(body.accessToken).to.be.a('string').and.not.empty);",
+                  "    pm.test('New ssw_refresh cookie set', () => pm.expect(pm.cookies.has('ssw_refresh')).to.be.true);",
+                  "    console.log('✓ Rotated token saved to collection variables');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{auth_base_url}}/api/auth/refresh",
+              "host": ["{{auth_base_url}}"],
+              "path": ["api", "auth", "refresh"]
+            },
+            "description": "Exchange the `ssw_refresh` cookie for a new access token + rotated refresh cookie. Postman sends cookies automatically if cookie jar is enabled."
+          }
+        },
+        {
+          "name": "Refresh — Revoked Token (expect 401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Returns 401 after logout', () => pm.response.to.have.status(401));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{auth_base_url}}/api/auth/refresh",
+              "host": ["{{auth_base_url}}"],
+              "path": ["api", "auth", "refresh"]
+            },
+            "description": "Run this AFTER Logout to confirm the revoked cookie no longer works."
+          }
+        },
+        {
+          "name": "Logout",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Returns 204 No Content', () => pm.response.to.have.status(204));",
+                  "pm.collectionVariables.set('access_token', '');",
+                  "console.log('✓ access_token cleared');"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{auth_base_url}}/api/auth/logout",
+              "host": ["{{auth_base_url}}"],
+              "path": ["api", "auth", "logout"]
+            },
+            "description": "Revokes the current refresh token and clears the `ssw_refresh` cookie. Requires a valid Bearer token."
+          }
+        },
+        {
+          "name": "Health — Auth Service",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Health endpoint responds 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{auth_base_url}}/health",
+              "host": ["{{auth_base_url}}"],
+              "path": ["health"]
+            },
+            "description": "Returns health status for Auth Service (checks PostgreSQL + Redis)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Wallet Service",
+      "item": [
+        {
+          "name": "Get Balance",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const body = pm.response.json();",
+                  "    pm.test('Returns 200 OK', () => pm.response.to.have.status(200));",
+                  "    pm.test('Balance is a number', () => pm.expect(body.balance).to.be.a('number'));",
+                  "    pm.test('AccountNumber matches SSW format', () => pm.expect(body.accountNumber).to.match(/^SSW-\\d{10}$/));",
+                  "    pm.test('Currency is present', () => pm.expect(body.currency).to.be.a('string').and.not.empty);",
+                  "    console.log('Account:', body.accountNumber, '| Balance:', body.balance, body.currency);",
+                  "}",
+                  "if (pm.response.code === 401) {",
+                  "    pm.test('Returns 401 — run Login first', () => pm.response.to.have.status(401));",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{wallet_base_url}}/api/wallet/balance",
+              "host": ["{{wallet_base_url}}"],
+              "path": ["api", "wallet", "balance"]
+            },
+            "description": "Returns balance, accountNumber, currency for the authenticated user. Requires Bearer token from Login/Register."
+          }
+        },
+        {
+          "name": "Health — Wallet Service",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Health endpoint responds 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{wallet_base_url}}/health",
+              "host": ["{{wallet_base_url}}"],
+              "path": ["health"]
+            },
+            "description": "Returns health status for Wallet Service (checks PostgreSQL)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Internal",
+      "item": [
+        {
+          "name": "Provision Wallet",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const body = pm.response.json();",
+                  "    pm.test('Returns 200 OK', () => pm.response.to.have.status(200));",
+                  "    pm.test('AccountId is UUID', () => pm.expect(body.accountId).to.match(/^[0-9a-f-]{36}$/i));",
+                  "    console.log('Provisioned accountId:', body.accountId);",
+                  "}",
+                  "if (pm.response.code === 401) {",
+                  "    pm.test('Returns 401 — wrong or missing API key', () => pm.response.to.have.status(401));",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Internal-Api-Key",
+                "value": "{{internal_api_key}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"00000000-0000-0000-0000-000000000001\",\n  \"currency\": \"USD\"\n}"
+            },
+            "url": {
+              "raw": "{{wallet_base_url}}/api/internal/wallet/provision",
+              "host": ["{{wallet_base_url}}"],
+              "path": ["api", "internal", "wallet", "provision"]
+            },
+            "description": "Idempotent wallet account creation. Normally called by Auth Service on register. Protected by `X-Internal-Api-Key` header.\n\nReplace `userId` with a real UUID from your users table to test manually."
+          }
+        },
+        {
+          "name": "Provision Wallet — Bad API Key (expect 401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Returns 401 for invalid API key', () => pm.response.to.have.status(401));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Internal-Api-Key", "value": "wrong-key" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"00000000-0000-0000-0000-000000000001\",\n  \"currency\": \"USD\"\n}"
+            },
+            "url": {
+              "raw": "{{wallet_base_url}}/api/internal/wallet/provision",
+              "host": ["{{wallet_base_url}}"],
+              "path": ["api", "internal", "wallet", "provision"]
+            },
+            "description": "Verifies the internal endpoint rejects requests with an incorrect API key."
+          }
+        }
+      ]
+    }
+  ]
+}
