@@ -161,10 +161,14 @@ jobs:
 
       - name: Wait for services to be healthy
         run: |
-          timeout 180 bash -c \
-            'until [ "$(docker compose ps --format json | python3 -c "import sys,json; data=sys.stdin.read(); services=[json.loads(l) for l in data.strip().split(chr(10)) if l]; unhealthy=[s for s in services if s.get(\"Health\") not in [\"healthy\",\"\"]], print(len(unhealthy))")" = "0" ]; do
-              echo "Waiting for services..."; docker compose ps; sleep 10
-            done'
+          timeout 180 bash -c '
+            until ! docker compose ps | grep -qE "(starting|unhealthy)"; do
+              echo "Waiting for services..."
+              docker compose ps
+              sleep 10
+            done
+            echo "All services ready."
+          '
 
       - name: Health check - Auth Service
         run: curl --fail --retry 5 --retry-delay 5 http://localhost:5001/health
