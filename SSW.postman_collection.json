@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "SaveSafe Wallet (SSW)",
-    "description": "Sprint 1 API collection — Auth Service (5001) + Wallet Service (5002).\n\nWorkflow:\n1. Register → access token + ssw_refresh cookie stored automatically\n2. Login → same\n3. Get Balance → uses stored token\n4. Refresh → rotates token via cookie\n5. Logout → revokes refresh token",
+    "description": "Sprint 1 + Sprint 2 API collection — Auth Service (5001) + Wallet Service (5002).\n\nAuth Workflow:\n1. Register → access token + ssw_refresh cookie stored automatically\n2. Login → same\n3. Get Profile → uses stored token\n4. Update Profile → PUT with auth token\n5. Refresh → rotates token via cookie\n6. Logout → revokes refresh token & deletes profile\n\nWallet Workflow:\n1. Get Balance → uses stored token\n2. Get History → paginated transaction history (ledger entries)",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -229,6 +229,125 @@
           }
         },
         {
+          "name": "Get Profile",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const body = pm.response.json();",
+                  "    pm.test('Returns 200 OK', () => pm.response.to.have.status(200));",
+                  "    pm.test('Body has userId', () => pm.expect(body.userId).to.match(/^[0-9a-f-]{36}$/i));",
+                  "    pm.test('Body has email', () => pm.expect(body.email).to.be.a('string').and.not.empty);",
+                  "    pm.test('Body has name', () => pm.expect(body.name).to.be.a('string').and.not.empty);",
+                  "    pm.test('Body has role', () => pm.expect(body.role).to.be.a('string'));",
+                  "    console.log('Profile:', body.email, body.name);",
+                  "}",
+                  "if (pm.response.code === 401) {",
+                  "    pm.test('Returns 401 — run Login first', () => pm.response.to.have.status(401));",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{auth_base_url}}/api/users/profile",
+              "host": ["{{auth_base_url}}"],
+              "path": ["api", "users", "profile"]
+            },
+            "description": "Retrieve authenticated user's profile: email, name, MFA status, account status, role, created_at, last_login_at."
+          }
+        },
+        {
+          "name": "Update Profile",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 204) {",
+                  "    pm.test('Returns 204 No Content', () => pm.response.to.have.status(204));",
+                  "    console.log('✓ Profile updated');",
+                  "}",
+                  "if (pm.response.code === 401) {",
+                  "    pm.test('Returns 401 — unauthorized', () => pm.response.to.have.status(401));",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Name Here\"\n}"
+            },
+            "url": {
+              "raw": "{{auth_base_url}}/api/users/profile",
+              "host": ["{{auth_base_url}}"],
+              "path": ["api", "users", "profile"]
+            },
+            "description": "Update authenticated user's profile. Currently supports updating: name. Returns 204 No Content on success."
+          }
+        },
+        {
+          "name": "Delete Profile (Account)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 204) {",
+                  "    pm.test('Returns 204 No Content', () => pm.response.to.have.status(204));",
+                  "    pm.collectionVariables.set('access_token', '');",
+                  "    console.log('✓ Account deleted, token cleared');",
+                  "}",
+                  "if (pm.response.code === 401) {",
+                  "    pm.test('Returns 401 — unauthorized', () => pm.response.to.have.status(401));",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{auth_base_url}}/api/users/profile",
+              "host": ["{{auth_base_url}}"],
+              "path": ["api", "users", "profile"]
+            },
+            "description": "Soft-delete user account: marks account as Deleted, revokes all refresh tokens, clears cookie. Does NOT hard-delete to preserve audit trail."
+          }
+        },
+        {
           "name": "Health — Auth Service",
           "event": [
             {
@@ -294,6 +413,55 @@
               "path": ["api", "wallet", "balance"]
             },
             "description": "Returns balance, accountNumber, currency for the authenticated user. Requires Bearer token from Login/Register."
+          }
+        },
+        {
+          "name": "Get History (Paginated)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const body = pm.response.json();",
+                  "    pm.test('Returns 200 OK', () => pm.response.to.have.status(200));",
+                  "    pm.test('Body has entries array', () => pm.expect(body.entries).to.be.an('array'));",
+                  "    pm.test('Body has page', () => pm.expect(body.page).to.be.a('number'));",
+                  "    pm.test('Body has pageSize', () => pm.expect(body.pageSize).to.be.a('number'));",
+                  "    pm.test('Body has totalCount', () => pm.expect(body.totalCount).to.be.a('number'));",
+                  "    if (body.entries.length > 0) {",
+                  "        pm.test('First entry has type', () => pm.expect(body.entries[0].type).to.be.a('string'));",
+                  "        pm.test('First entry has amount', () => pm.expect(body.entries[0].amount).to.be.a('number'));",
+                  "        pm.test('First entry has createdAt', () => pm.expect(body.entries[0].createdAt).to.be.a('string'));",
+                  "    }",
+                  "    console.log('History - Page:', body.page, 'Size:', body.pageSize, 'Total:', body.totalCount, 'Entries:', body.entries.length);",
+                  "}",
+                  "if (pm.response.code === 401) {",
+                  "    pm.test('Returns 401 — run Login first', () => pm.response.to.have.status(401));",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{wallet_base_url}}/api/wallet/history?page=1&pageSize=10",
+              "host": ["{{wallet_base_url}}"],
+              "path": ["api", "wallet", "history"],
+              "query": [
+                {"key": "page", "value": "1"},
+                {"key": "pageSize", "value": "10"}
+              ]
+            },
+            "description": "Returns paginated wallet transaction history (ledger entries). Query params: page (default=1), pageSize (default=10, max=100). Returns entries sorted by timestamp descending."
           }
         },
         {
