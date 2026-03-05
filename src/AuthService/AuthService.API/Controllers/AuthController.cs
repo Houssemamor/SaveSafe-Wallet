@@ -2,7 +2,6 @@ using AuthService.API.DTOs;
 using AuthService.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
 
 namespace AuthService.API.Controllers;
 
@@ -68,61 +67,6 @@ public class AuthController : ControllerBase
         if (!string.IsNullOrWhiteSpace(rawToken))
             await _authService.LogoutAsync(rawToken);
 
-        Response.Cookies.Delete("ssw_refresh", new CookieOptions
-        {
-            HttpOnly = true,
-            Secure = true,
-            SameSite = SameSiteMode.Strict
-        });
-        return NoContent();
-    }
-
-    /// <summary>Get authenticated user's profile information.</summary>
-    [HttpGet("../users/profile")]
-    [Authorize]
-    [ProducesResponseType(typeof(UserProfileDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> GetProfile()
-    {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (userId is null)
-            return Unauthorized();
-
-        var profile = await _authService.GetUserProfileAsync(Guid.Parse(userId));
-        return Ok(profile);
-    }
-
-    /// <summary>Update authenticated user's profile.</summary>
-    [HttpPut("../users/profile")]
-    [Authorize]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileRequestDto request)
-    {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (userId is null)
-            return Unauthorized();
-
-        await _authService.UpdateUserProfileAsync(Guid.Parse(userId), request);
-        return NoContent();
-    }
-
-    /// <summary>Delete user's account (soft-delete). Requires the user's own Bearer token.</summary>
-    [HttpDelete("../users/profile")]
-    [Authorize]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> DeleteProfile()
-    {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (userId is null)
-            return Unauthorized();
-
-        await _authService.DeleteUserAccountAsync(Guid.Parse(userId));
         Response.Cookies.Delete("ssw_refresh", new CookieOptions
         {
             HttpOnly = true,
