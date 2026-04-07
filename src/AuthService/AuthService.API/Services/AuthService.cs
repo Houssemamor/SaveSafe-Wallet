@@ -13,6 +13,9 @@ public interface IAuthService
         LoginRequestDto request, string? ipAddress, string? userAgent);
     Task<(AuthResponseDto response, string rawRefreshToken)> RefreshAsync(string rawRefreshToken);
     Task LogoutAsync(string rawRefreshToken);
+    Task<UserProfileDto> GetUserProfileAsync(Guid userId);
+    Task UpdateUserProfileAsync(Guid userId, UpdateProfileRequestDto request);
+    Task DeleteUserAccountAsync(Guid userId);
 }
 
 public class AuthService : IAuthService
@@ -152,6 +155,68 @@ public class AuthService : IAuthService
             tokenRecord.IsRevoked = true;
             await _db.SaveChangesAsync();
         }
+    }
+
+    /// <summary>Retrieve authenticated user's profile information. Used by GET /api/users/profile.</summary>
+    public async Task<UserProfileDto> GetUserProfileAsync(Guid userId)
+    {
+        var user = await _db.Users
+            .AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Id == userId);
+
+        if (user is null)
+            throw new KeyNotFoundException($"User {userId} not found.");
+
+        return new UserProfileDto(
+            UserId: user.Id,
+            Email: user.Email,
+            Name: user.Name,
+            MfaEnabled: user.MfaEnabled,
+            AccountStatus: user.AccountStatus.ToString(),
+            Role: user.Role.ToString(),
+            CreatedAt: user.CreatedAt,
+            LastLoginAt: user.LastLoginAt
+        );
+    }
+
+    /// <summary>Update authenticated user's profile. Used by PUT /api/users/profile.</summary>
+    public async Task UpdateUserProfileAsync(Guid userId, UpdateProfileRequestDto request)
+    {
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId);
+        if (user is null)
+            throw new KeyNotFoundException($"User {userId} not found.");
+
+        user.Name = request.Name;
+        user.UpdatedAt = DateTime.UtcNow;
+
+        _db.Users.Update(user);
+        await _db.SaveChangesAsync();
+
+        _logger.LogInformation("User {UserId} profile updated", userId);
+    }
+
+    /// <summary>Delete user account (soft-delete: mark as Deleted). Used by DELETE /api/users/{id}.</summary>
+    public async Task DeleteUserAccountAsync(Guid userId)
+    {
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId);
+        if (user is null)
+            throw new KeyNotFoundException($"User {userId} not found.");
+
+        // Mark account as deleted instead of hard-delete (preserves audit trail)
+        user.AccountStatus = UserAccountStatus.Deleted;
+        user.UpdatedAt = DateTime.UtcNow;
+
+        _db.Users.Update(user);
+
+        // Revoke all active refresh tokens
+        var activeTokens = await _db.RefreshTokens
+            .Where(rt => rt.UserId == userId && !rt.IsRevoked)
+            .ToListAsync();
+        activeTokens.ForEach(rt => rt.IsRevoked = true);
+
+        await _db.SaveChangesAsync();
+
+        _logger.LogInformation("User {UserId} account deleted (soft)", userId);
     }
 
     private (string raw, RefreshToken entity) CreateRefreshToken(Guid userId)

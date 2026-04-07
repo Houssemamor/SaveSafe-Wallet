@@ -9,6 +9,7 @@ public interface IWalletService
 {
     Task<Guid> CreateAccountAsync(Guid userId, string currency = "USD");
     Task<WalletBalanceResponseDto?> GetBalanceAsync(Guid userId);
+    Task<WalletHistoryResponseDto?> GetWalletHistoryAsync(Guid userId, int page = 1, int pageSize = 10);
 }
 
 public class WalletService : IWalletService
@@ -82,6 +83,44 @@ public class WalletService : IWalletService
             Currency: account.Currency,
             Balance: account.Balance,
             UpdatedAt: account.UpdatedAt
+        );
+    }
+
+    /// <summary>Retrieve paginated wallet transaction history (ledger entries). Used by GET /api/wallet/history.</summary>
+    public async Task<WalletHistoryResponseDto?> GetWalletHistoryAsync(Guid userId, int page = 1, int pageSize = 10)
+    {
+        var account = await _db.Accounts
+            .AsNoTracking()
+            .FirstOrDefaultAsync(a => a.UserId == userId);
+
+        if (account is null) return null;
+
+        var totalCount = await _db.LedgerEntries
+            .AsNoTracking()
+            .Where(le => le.AccountId == account.Id)
+            .CountAsync();
+
+        var entries = await _db.LedgerEntries
+            .AsNoTracking()
+            .Where(le => le.AccountId == account.Id)
+            .OrderByDescending(le => le.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(le => new LedgerHistoryItemDto(
+                le.Id,
+                le.Type.ToString(),
+                le.Amount,
+                le.BalanceAfter,
+                le.Description,
+                le.CreatedAt
+            ))
+            .ToListAsync();
+
+        return new WalletHistoryResponseDto(
+            Entries: entries,
+            Page: page,
+            PageSize: pageSize,
+            TotalCount: totalCount
         );
     }
 }

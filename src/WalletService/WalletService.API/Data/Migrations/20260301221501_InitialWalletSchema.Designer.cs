@@ -12,7 +12,7 @@ using WalletService.API.Data;
 namespace WalletService.API.Data.Migrations
 {
     [DbContext(typeof(WalletDbContext))]
-    [Migration("20260301203042_InitialWalletSchema")]
+    [Migration("20260301221501_InitialWalletSchema")]
     partial class InitialWalletSchema
     {
         /// <inheritdoc />
@@ -21,7 +21,7 @@ namespace WalletService.API.Data.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("wallet")
-                .HasAnnotation("ProductVersion", "9.0.13")
+                .HasAnnotation("ProductVersion", "8.0.24")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);

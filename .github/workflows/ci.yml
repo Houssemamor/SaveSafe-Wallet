@@ -7,7 +7,7 @@ on:
     branches: [main, develop]
 
 env:
-  DOTNET_VERSION: "9.0.x"
+  DOTNET_VERSION: "8.0.x"
   POSTGRES_USER: ssw_user
   POSTGRES_PASSWORD: ssw_secret_ci
   POSTGRES_DB: savesafe_test
@@ -62,7 +62,7 @@ jobs:
           Services__WalletServiceUrl: http://localhost:5002
           InternalApi__ApiKey: ci-internal-key
         run: |
-          dotnet tool install --global dotnet-ef || true
+          dotnet tool install --global dotnet-ef --version 8.* || true
           dotnet ef database update
 
       - name: Run tests
@@ -125,7 +125,7 @@ jobs:
           Jwt__Audience: savesafe-clients
           InternalApi__ApiKey: ci-internal-key
         run: |
-          dotnet tool install --global dotnet-ef || true
+          dotnet tool install --global dotnet-ef --version 8.* || true
           dotnet ef database update
 
       - name: Run tests
@@ -161,10 +161,14 @@ jobs:
 
       - name: Wait for services to be healthy
         run: |
-          timeout 180 bash -c \
-            'until [ "$(docker compose ps --format json | python3 -c "import sys,json; data=sys.stdin.read(); services=[json.loads(l) for l in data.strip().split(chr(10)) if l]; unhealthy=[s for s in services if s.get(\"Health\") not in [\"healthy\",\"\"]], print(len(unhealthy))")" = "0" ]; do
-              echo "Waiting for services..."; docker compose ps; sleep 10
-            done'
+          timeout 180 bash -c '
+            until ! docker compose ps | grep -qE "(starting|unhealthy)"; do
+              echo "Waiting for services..."
+              docker compose ps
+              sleep 10
+            done
+            echo "All services ready."
+          '
 
       - name: Health check - Auth Service
         run: curl --fail --retry 5 --retry-delay 5 http://localhost:5001/health
