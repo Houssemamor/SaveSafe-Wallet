@@ -20,8 +20,8 @@ out/
 dist/
 
 # Angular
-src/Front/node_modules/
-src/Front/.angular/
+src/frontend/node_modules/
+src/frontend/.angular/
 *.log
 
 # Docker

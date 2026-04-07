@@ -13,6 +13,7 @@ Secure web-based banking & wallet platform with AI anti-pirating system.
 
 | Service | Port | Description |
 |---|---|---|
+| Frontend (Angular) | 4200 | login/register/dashboard/profile/wallet history |
 | Auth Service | 5001 | register, login, refresh, logout · JWT · RBAC |
 | Wallet Service | 5002 | wallet balance · ledger · internal provisioning |
 | PostgreSQL | 5432 | `auth` and `wallet` schemas |
@@ -48,13 +49,14 @@ cp .env.example .env
 docker compose up -d
 
 # 4. Watch logs (optional)
-docker compose logs -f auth-service wallet-service
+docker compose logs -f frontend auth-service wallet-service
 
 # 5. Verify all services are healthy
 docker compose ps
 ```
 
 Wait ~30 seconds for Kafka to become ready. Then check:
+- Frontend: http://localhost:4200
 - Auth Service: http://localhost:5001/health
 - Wallet Service: http://localhost:5002/health
 - Swagger (Auth): http://localhost:5001/swagger (dev mode only)

@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { API_CONFIG } from '../config/api.config';
-import { WalletBalanceResponse } from '../models/wallet.models';
+import { WalletBalanceResponse, WalletHistoryResponse } from '../models/wallet.models';
 
 @Injectable({ providedIn: 'root' })
 export class WalletService {
@@ -10,5 +10,14 @@ export class WalletService {
 
   getBalance(): Observable<WalletBalanceResponse> {
     return this.http.get<WalletBalanceResponse>(`${API_CONFIG.walletBaseUrl}/balance`);
+  }
+
+  getHistory(page: number, pageSize: number): Observable<WalletHistoryResponse> {
+    return this.http.get<WalletHistoryResponse>(`${API_CONFIG.walletBaseUrl}/history`, {
+      params: {
+        page,
+        pageSize
+      }
+    });
   }
 }

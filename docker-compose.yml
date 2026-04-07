@@ -188,3 +188,20 @@ services:
     networks:
       - ssw-network
     restart: unless-stopped
+
+  # ── Frontend (Angular + Nginx) ────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./src/frontend
+      dockerfile: Dockerfile
+    container_name: ssw-frontend
+    depends_on:
+      auth-service:
+        condition: service_started
+      wallet-service:
+        condition: service_started
+    ports:
+      - "4200:80"
+    networks:
+      - ssw-network
+    restart: unless-stopped

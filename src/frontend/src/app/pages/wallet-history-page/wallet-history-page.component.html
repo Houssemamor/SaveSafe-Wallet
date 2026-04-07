@@ -1,0 +1,168 @@
+<div class="bg-surface text-on-surface antialiased min-h-screen">
+  <aside class="fixed left-0 top-0 h-full w-[280px] bg-white flex flex-col py-8 px-6 z-50 shadow-[32px_8px_6%_#191c1d]">
+    <div class="mb-12">
+      <h1 class="text-2xl font-bold tracking-tight text-[#191c1d] font-manrope">The Architect</h1>
+      <p class="font-inter text-xs text-on-surface-variant uppercase tracking-widest mt-1">Wealth Management</p>
+    </div>
+    <div class="flex items-center gap-4 mb-10 p-3 rounded-xl bg-surface-container-low">
+      <div class="w-10 h-10 rounded-full bg-primary-container flex items-center justify-center">
+        <span class="material-symbols-outlined text-primary">person</span>
+      </div>
+      <div class="overflow-hidden">
+        <p class="font-manrope font-bold text-sm truncate">{{ user?.name || 'Portfolio User' }}</p>
+        <p class="font-inter text-xs text-on-surface-variant truncate">{{ user?.email || 'No email loaded' }}</p>
+      </div>
+    </div>
+    <nav class="flex-1 space-y-2">
+      <a class="flex items-center gap-3 py-3 px-4 rounded-lg text-[#434654] font-normal hover:bg-[#f3f4f5] transition-colors duration-200 group" routerLink="/dashboard">
+        <span class="material-symbols-outlined">dashboard</span>
+        <span class="font-inter text-sm">Dashboard</span>
+      </a>
+      <a class="flex items-center gap-3 py-3 px-4 border-l-4 border-[#0052CC] text-[#0040a2] bg-[#f8f9fa] font-semibold group scale-98 transition-transform duration-150 ease-in-out" routerLink="/wallet-history">
+        <span class="material-symbols-outlined">history</span>
+        <span class="font-inter text-sm">Wallet History</span>
+      </a>
+      <a class="flex items-center gap-3 py-3 px-4 rounded-lg text-[#434654] font-normal hover:bg-[#f3f4f5] transition-colors duration-200 group" routerLink="/profile">
+        <span class="material-symbols-outlined">person</span>
+        <span class="font-inter text-sm">Profile</span>
+      </a>
+    </nav>
+    <div class="mt-auto">
+      <button class="w-full flex items-center gap-3 py-3 px-4 rounded-lg text-[#434654] font-normal hover:bg-[#f3f4f5] transition-colors duration-200" type="button" (click)="logout()">
+        <span class="material-symbols-outlined">logout</span>
+        <span class="font-inter text-sm">Logout</span>
+      </button>
+    </div>
+  </aside>
+
+  <main class="ml-[280px] min-h-screen">
+    <header class="w-full h-16 sticky top-0 z-40 bg-[#f8f9fa] flex items-center justify-between px-8">
+      <div class="flex items-center gap-8">
+        <span class="text-xl font-black text-[#191c1d] font-manrope">The Architectural Ledger</span>
+      </div>
+      <div class="flex items-center gap-4">
+        <div class="relative hidden lg:block">
+          <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline scale-75">search</span>
+          <input class="bg-surface-container-highest border-none rounded-xl pl-10 pr-4 py-2 text-sm focus:ring-2 focus:ring-surface-tint w-64 transition-all" placeholder="Search transactions..." type="text" (input)="onSearch($any($event.target).value)" />
+        </div>
+        <button class="material-symbols-outlined text-on-surface-variant opacity-80 hover:text-primary transition-all p-2">notifications</button>
+        <button class="material-symbols-outlined text-on-surface-variant opacity-80 hover:text-primary transition-all p-2">settings</button>
+      </div>
+    </header>
+
+    <div class="p-8 max-w-7xl mx-auto">
+      <div class="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
+        <div>
+          <h2 class="text-4xl font-extrabold font-manrope tracking-tight text-on-surface mb-2">Wallet History</h2>
+          <p class="text-on-surface-variant font-body">Manage your architectural investments and cash flow.</p>
+        </div>
+        <div class="flex items-center gap-3 flex-wrap">
+          <div class="bg-surface-container-low p-1.5 rounded-xl flex gap-1">
+            <button class="px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors" [ngClass]="activityFilter === 'all' ? 'bg-surface-container-lowest shadow-sm text-primary' : 'text-on-surface-variant hover:bg-surface-container-high'" (click)="setActivityFilter('all')" type="button">All Activity</button>
+            <button class="px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors" [ngClass]="activityFilter === 'income' ? 'bg-surface-container-lowest shadow-sm text-primary' : 'text-on-surface-variant hover:bg-surface-container-high'" (click)="setActivityFilter('income')" type="button">Income</button>
+            <button class="px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors" [ngClass]="activityFilter === 'expenses' ? 'bg-surface-container-lowest shadow-sm text-primary' : 'text-on-surface-variant hover:bg-surface-container-high'" (click)="setActivityFilter('expenses')" type="button">Expenses</button>
+          </div>
+
+          <div class="bg-surface-container-low p-1.5 rounded-xl flex gap-1">
+            <button class="px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors" [ngClass]="dateFilter === '30d' ? 'bg-surface-container-lowest shadow-sm text-primary' : 'text-on-surface-variant hover:bg-surface-container-high'" (click)="setDateFilter('30d')" type="button">Last 30 Days</button>
+            <button class="px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors" [ngClass]="dateFilter === 'all' ? 'bg-surface-container-lowest shadow-sm text-primary' : 'text-on-surface-variant hover:bg-surface-container-high'" (click)="setDateFilter('all')" type="button">All Time</button>
+          </div>
+        </div>
+      </div>
+
+      <p *ngIf="isLoading" class="text-sm text-on-surface-variant mb-4">Loading wallet history...</p>
+      <p *ngIf="errorMessage" class="text-sm text-error mb-4">{{ errorMessage }}</p>
+
+      <div class="bg-surface-container-low rounded-xl overflow-hidden mb-8">
+        <div class="bg-surface-container-lowest overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-surface-container-low text-on-surface-variant text-[11px] uppercase tracking-[0.15em] font-bold">
+                <th class="px-8 py-5">Date</th>
+                <th class="px-6 py-5">Description</th>
+                <th class="px-6 py-5">Category</th>
+                <th class="px-6 py-5">Status</th>
+                <th class="px-8 py-5 text-right">Amount</th>
+              </tr>
+            </thead>
+            <tbody class="font-body text-sm divide-y divide-outline-variant/10">
+              <tr *ngFor="let entry of filteredEntries; trackBy: trackByEntry" class="hover:bg-surface-container-low transition-colors duration-150 group">
+                <td class="px-8 py-6 font-medium text-on-surface">{{ entry.createdAt | date: 'MMM d, y' }}</td>
+                <td class="px-6 py-6">
+                  <div class="flex flex-col">
+                    <span class="font-bold text-on-surface">{{ entry.description || 'Wallet operation' }}</span>
+                    <span class="text-xs text-on-surface-variant mt-0.5">Balance after: {{ entry.balanceAfter | number: '1.2-2' }}</span>
+                  </div>
+                </td>
+                <td class="px-6 py-6">
+                  <span class="px-3 py-1 rounded-lg text-xs font-semibold" [ngClass]="isCredit(entry) ? 'bg-secondary-container text-on-secondary-container' : 'bg-surface-container-highest text-on-surface-variant'">
+                    {{ entry.type }}
+                  </span>
+                </td>
+                <td class="px-6 py-6">
+                  <div class="flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full" [ngClass]="isCredit(entry) ? 'bg-surface-tint' : 'bg-outline-variant'"></span>
+                    <span class="font-medium">Complete</span>
+                  </div>
+                </td>
+                <td class="px-8 py-6 text-right font-manrope font-extrabold text-base" [ngClass]="isCredit(entry) ? 'text-primary' : 'text-error'">
+                  {{ formatAmount(entry) }}
+                </td>
+              </tr>
+              <tr *ngIf="!isLoading && filteredEntries.length === 0">
+                <td class="px-8 py-6 text-center text-on-surface-variant" colspan="5">No transactions matched your filters.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-between">
+        <p class="text-xs text-on-surface-variant font-medium">
+          Showing <span class="text-on-surface">{{ startItem }} - {{ endItem }}</span> of <span class="text-on-surface">{{ totalCount }}</span> transactions
+        </p>
+        <div class="flex items-center gap-2">
+          <button class="w-10 h-10 flex items-center justify-center rounded-xl bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high transition-colors disabled:opacity-50" (click)="previousPage()" [disabled]="page <= 1 || isLoading" type="button">
+            <span class="material-symbols-outlined scale-90">chevron_left</span>
+          </button>
+          <div class="px-4 py-2 rounded-xl bg-surface-container-low text-sm font-bold text-on-surface">{{ page }} / {{ totalPages }}</div>
+          <button class="w-10 h-10 flex items-center justify-center rounded-xl bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high transition-colors disabled:opacity-50" (click)="nextPage()" [disabled]="page >= totalPages || isLoading" type="button">
+            <span class="material-symbols-outlined scale-90">chevron_right</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-16">
+        <div class="bg-surface-container-low p-8 rounded-xl flex flex-col justify-between h-48 border-none">
+          <div class="flex justify-between items-start">
+            <span class="text-on-surface-variant font-bold text-xs uppercase tracking-widest">Net Cashflow</span>
+            <span class="material-symbols-outlined text-primary">trending_up</span>
+          </div>
+          <div>
+            <p class="text-4xl font-extrabold font-manrope text-on-surface">{{ netCashflow | number: '1.2-2' }}</p>
+            <p class="text-sm text-primary font-medium mt-1">Current page filtered total</p>
+          </div>
+        </div>
+
+        <div class="bg-surface-container-low p-8 rounded-xl flex flex-col justify-between h-48 border-none">
+          <div class="flex justify-between items-start">
+            <span class="text-on-surface-variant font-bold text-xs uppercase tracking-widest">Incoming Transactions</span>
+            <span class="material-symbols-outlined text-secondary">south_west</span>
+          </div>
+          <div>
+            <p class="text-4xl font-extrabold font-manrope text-on-surface">{{ positiveTransactions }}</p>
+            <p class="text-sm text-on-surface-variant font-medium mt-1">Credits on current page</p>
+          </div>
+        </div>
+
+        <div class="bg-primary text-on-primary p-8 rounded-xl flex flex-col justify-between h-48 border-none relative overflow-hidden">
+          <div class="relative z-10">
+            <span class="font-bold text-xs uppercase tracking-widest opacity-80">Transactions Loaded</span>
+            <p class="text-4xl font-extrabold font-manrope mt-6">{{ filteredEntries.length }}</p>
+          </div>
+          <div class="absolute -right-10 -bottom-10 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
