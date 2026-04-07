@@ -1,0 +1,48 @@
+import { NgIf } from '@angular/common';
+import { Component } from '@angular/core';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { Router, RouterLink } from '@angular/router';
+import { AuthService } from '../../services/auth.service';
+
+@Component({
+  selector: 'app-login-page',
+  standalone: true,
+  imports: [RouterLink, ReactiveFormsModule, NgIf],
+  templateUrl: './login-page.component.html'
+})
+export class LoginPageComponent {
+  isSubmitting = false;
+  errorMessage = '';
+
+  readonly loginForm = this.fb.nonNullable.group({
+    email: ['', [Validators.required, Validators.email]],
+    password: ['', [Validators.required]]
+  });
+
+  constructor(
+    private readonly fb: FormBuilder,
+    private readonly authService: AuthService,
+    private readonly router: Router
+  ) {}
+
+  onSubmit(): void {
+    if (this.loginForm.invalid || this.isSubmitting) {
+      this.loginForm.markAllAsTouched();
+      return;
+    }
+
+    this.errorMessage = '';
+    this.isSubmitting = true;
+
+    this.authService.login(this.loginForm.getRawValue()).subscribe({
+      next: () => {
+        this.isSubmitting = false;
+        this.router.navigate(['/dashboard']);
+      },
+      error: () => {
+        this.isSubmitting = false;
+        this.errorMessage = 'Login failed. Check your credentials and try again.';
+      }
+    });
+  }
+}

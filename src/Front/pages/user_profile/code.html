@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Profile Management | The Architectural Ledger</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "inverse-on-surface": "#f0f1f2",
+                    "surface-container-high": "#e7e8e9",
+                    "primary-fixed-dim": "#b2c5ff",
+                    "surface-container-lowest": "#ffffff",
+                    "surface-container": "#edeeef",
+                    "on-secondary-fixed": "#0f1c2d",
+                    "on-primary-fixed-variant": "#0040a2",
+                    "on-secondary": "#ffffff",
+                    "secondary": "#525f73",
+                    "primary-container": "#0052cc",
+                    "secondary-container": "#d6e3fb",
+                    "surface-container-low": "#f3f4f5",
+                    "on-primary-fixed": "#001848",
+                    "on-surface": "#191c1d",
+                    "on-tertiary": "#ffffff",
+                    "outline-variant": "#c3c6d6",
+                    "inverse-primary": "#b2c5ff",
+                    "on-secondary-container": "#586579",
+                    "tertiary-fixed-dim": "#ffb59b",
+                    "on-background": "#191c1d",
+                    "secondary-fixed-dim": "#bac7de",
+                    "primary": "#003d9b",
+                    "on-tertiary-container": "#ffc6b2",
+                    "inverse-surface": "#2e3132",
+                    "on-tertiary-fixed": "#380d00",
+                    "surface": "#f8f9fa",
+                    "tertiary": "#7b2600",
+                    "on-error-container": "#93000a",
+                    "on-primary-container": "#c4d2ff",
+                    "surface-bright": "#f8f9fa",
+                    "surface-container-highest": "#e1e3e4",
+                    "surface-dim": "#d9dadb",
+                    "on-surface-variant": "#434654",
+                    "error-container": "#ffdad6",
+                    "tertiary-container": "#a33500",
+                    "tertiary-fixed": "#ffdbcf",
+                    "on-error": "#ffffff",
+                    "error": "#ba1a1a",
+                    "on-primary": "#ffffff",
+                    "surface-tint": "#0c56d0",
+                    "secondary-fixed": "#d6e3fb",
+                    "surface-variant": "#e1e3e4",
+                    "background": "#f8f9fa",
+                    "outline": "#737685",
+                    "primary-fixed": "#dae2ff",
+                    "on-secondary-fixed-variant": "#3b485a",
+                    "on-tertiary-fixed-variant": "#812800"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "fontFamily": {
+                    "headline": ["Manrope"],
+                    "body": ["Inter"],
+                    "label": ["Inter"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body { font-family: 'Inter', sans-serif; }
+        h1, h2, h3, .font-headline { font-family: 'Manrope', sans-serif; }
+    </style>
+</head>
+<body class="bg-surface text-on-surface min-h-screen flex">
+<!-- SideNavBar Component -->
+<aside class="fixed left-0 top-0 h-full w-[280px] flex flex-col py-8 px-6 bg-white dark:bg-slate-900 shadow-[32px_8px_6%_#191c1d1a] z-50">
+<div class="mb-10">
+<h1 class="text-2xl font-bold tracking-tight text-[#191c1d] dark:text-slate-100">The Architect</h1>
+<p class="font-inter text-xs text-on-surface-variant uppercase tracking-widest mt-1">Wealth Management</p>
+</div>
+<nav class="flex-1 space-y-2">
+<!-- Dashboard Tab (Inactive) -->
+<a class="flex items-center gap-4 py-3 px-4 rounded-lg text-[#434654] dark:text-slate-400 font-normal hover:bg-[#f3f4f5] dark:hover:bg-slate-800 transition-colors duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-inter">Dashboard</span>
+</a>
+<!-- Wallet History Tab (Inactive) -->
+<a class="flex items-center gap-4 py-3 px-4 rounded-lg text-[#434654] dark:text-slate-400 font-normal hover:bg-[#f3f4f5] dark:hover:bg-slate-800 transition-colors duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="history">history</span>
+<span class="font-inter">Wallet History</span>
+</a>
+<!-- Profile Tab (Active) -->
+<a class="flex items-center gap-4 py-3 px-4 border-l-4 border-[#0052CC] text-[#0040a2] dark:text-[#d6e3fb] bg-[#f8f9fa] dark:bg-slate-800/50 font-semibold scale-98 transition-transform duration-150 ease-in-out" href="#">
+<span class="material-symbols-outlined" data-icon="person" style="font-variation-settings: 'FILL' 1;">person</span>
+<span class="font-inter">Profile</span>
+</a>
+</nav>
+<div class="pt-8 border-t border-outline-variant/15">
+<div class="flex items-center gap-4 mb-8 px-4">
+<div class="w-10 h-10 rounded-full bg-primary-container overflow-hidden">
+<img alt="User Profile Avatar" class="w-full h-full object-cover" data-alt="close-up portrait of a professional man in a tailored suit with a neutral background and cinematic lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAPHdi1PEsIj-51ahJ27aGCVmcGD_WAvBIIZNqwbj7ak9X0e0Lfy6-6eZD91cFc615qXk-QwJodB0ATBFSPnpHsDWeaEi1y7qwWn5V-FxqqXKcd5ZQPq_QpBPIk_Qb9Sr91Sos7gNb5LA_v1qgO2FUvrAj9ljKrsGYYKIt0Y-Ca92uQIqH6vLrFRzxk-nPGPkmgM_c4okDuEy_hudM5TDIHCmllg1rqQ5KB4I1x7uHqPXLsG9kH8hQlyA6qfMBTLZ7mZVySuHFXRsYb"/>
+</div>
+<div>
+<p class="font-manrope font-bold text-sm">Alexander Vance</p>
+<p class="font-inter text-xs text-on-surface-variant">Lead Architect</p>
+</div>
+</div>
+<a class="flex items-center gap-4 py-3 px-4 rounded-lg text-[#434654] dark:text-slate-400 font-normal hover:bg-[#f3f4f5] transition-colors duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="logout">logout</span>
+<span class="font-inter">Logout</span>
+</a>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 ml-[280px]">
+<!-- TopAppBar Component -->
+<header class="w-full h-16 sticky top-0 z-40 bg-[#f8f9fa] dark:bg-slate-950 flex items-center justify-between px-12">
+<div class="flex items-center gap-2">
+<span class="text-xl font-black text-[#191c1d] dark:text-slate-100 tracking-tight">The Architectural Ledger</span>
+</div>
+<div class="flex items-center gap-6">
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm" data-icon="search">search</span>
+<input class="bg-surface-container-highest border-none rounded-full py-1.5 pl-10 pr-4 text-sm w-64 focus:ring-2 focus:ring-surface-tint focus:bg-surface-container-lowest transition-all" placeholder="Search portfolio..." type="text"/>
+</div>
+<div class="flex items-center gap-4">
+<button class="material-symbols-outlined text-on-surface-variant hover:text-[#0052CC] transition-all" data-icon="notifications">notifications</button>
+<button class="material-symbols-outlined text-on-surface-variant hover:text-[#0052CC] transition-all" data-icon="settings">settings</button>
+</div>
+</div>
+</header>
+<!-- Canvas Container -->
+<div class="p-12 max-w-6xl mx-auto space-y-10">
+<!-- Page Header & Completion Metadata -->
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-6">
+<div>
+<h2 class="text-4xl font-extrabold font-headline tracking-tight text-on-surface">Account Settings</h2>
+<p class="text-on-surface-variant font-body mt-2">Manage your personal information and security preferences.</p>
+</div>
+<!-- Profile Completion Indicator (Asymmetric Bento Style) -->
+<div class="bg-surface-container-low p-5 rounded-xl flex items-center gap-6 shadow-sm">
+<div class="relative w-14 h-14">
+<svg class="w-full h-full transform -rotate-90">
+<circle class="text-outline-variant/30" cx="28" cy="28" fill="transparent" r="24" stroke="currentColor" stroke-width="4"></circle>
+<circle class="text-primary" cx="28" cy="28" fill="transparent" r="24" stroke="currentColor" stroke-dasharray="150" stroke-dashoffset="30" stroke-width="4"></circle>
+</svg>
+<span class="absolute inset-0 flex items-center justify-center text-xs font-bold text-primary">80%</span>
+</div>
+<div>
+<p class="text-xs font-bold font-headline uppercase tracking-widest text-on-surface-variant">Profile Progress</p>
+<p class="text-sm font-semibold text-primary">Complete your ID verification</p>
+</div>
+</div>
+</div>
+<!-- Bento Layout Content -->
+<div class="grid grid-cols-12 gap-8">
+<!-- Left Column: Form Section -->
+<div class="col-span-12 lg:col-span-8 space-y-8">
+<!-- Basic Information Card -->
+<div class="bg-surface-container-lowest rounded-xl p-8 transition-all">
+<h3 class="text-lg font-bold font-headline mb-8 border-b border-outline-variant/15 pb-4">Personal Details</h3>
+<div class="space-y-6">
+<!-- Avatar Upload Section -->
+<div class="flex items-center gap-8 mb-8 p-6 bg-surface-container-low rounded-xl border-none">
+<div class="relative group">
+<img alt="User avatar" class="w-24 h-24 rounded-full object-cover ring-4 ring-white shadow-lg" data-alt="high-quality studio headshot of a person, sharp focus, vibrant skin tones, soft bokeh background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDjTJjgKV4k_rbIWLlctsoIilOMY80BBknw2s7-N_melWzCXlDZcmY3uQ16CSv4Uk_XLb4oG1OP50aC1GitQwB9yKwk4fe0aMZk-YwJSmetP1nb8dFL3qvls1KWSDfj6dVMrtIA6xxt1kzaIM7iTlzaAEz_HjwLO3XfXzSOuAXLqR88gUMf76H_7eFf8VUlt0h1gdGggjtT8gcuV9xR-ckMgKVpcE-EFF9eeiLEBqYyeCOTo5EPpfmHnwWCGzZdQ44b9zEge9JyMfjM"/>
+<button class="absolute bottom-0 right-0 bg-primary text-white p-2 rounded-full shadow-lg hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-sm" data-icon="edit">edit</span>
+</button>
+</div>
+<div class="space-y-1">
+<h4 class="font-headline font-bold text-on-surface">Profile Picture</h4>
+<p class="text-xs text-on-surface-variant max-w-xs">PNG or JPG no larger than 5MB. Recommended resolution: 400x400px.</p>
+<div class="flex gap-4 mt-3">
+<button class="text-primary text-xs font-bold uppercase tracking-wider hover:underline">Upload New</button>
+<button class="text-error text-xs font-bold uppercase tracking-wider hover:underline">Remove</button>
+</div>
+</div>
+</div>
+<!-- Name Fields -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<div class="space-y-2">
+<label class="text-xs font-bold font-headline text-on-surface-variant uppercase tracking-wider">Full Name</label>
+<input class="w-full bg-surface-container-highest border-none rounded-lg py-3 px-4 focus:ring-2 focus:ring-surface-tint focus:bg-white transition-all text-sm font-medium" type="text" value="Alexander Vance"/>
+</div>
+<div class="space-y-2">
+<label class="text-xs font-bold font-headline text-on-surface-variant uppercase tracking-wider">Email Address</label>
+<input class="w-full bg-surface-container-highest border-none rounded-lg py-3 px-4 focus:ring-2 focus:ring-surface-tint focus:bg-white transition-all text-sm font-medium" type="email" value="alexander.vance@ledger.com"/>
+</div>
+</div>
+<div class="space-y-2">
+<label class="text-xs font-bold font-headline text-on-surface-variant uppercase tracking-wider">Professional Title</label>
+<input class="w-full bg-surface-container-highest border-none rounded-lg py-3 px-4 focus:ring-2 focus:ring-surface-tint focus:bg-white transition-all text-sm font-medium" type="text" value="Lead Wealth Architect"/>
+</div>
+</div>
+</div>
+<!-- Security Section Card -->
+<div class="bg-surface-container-lowest rounded-xl p-8">
+<div class="flex items-center justify-between mb-8 border-b border-outline-variant/15 pb-4">
+<h3 class="text-lg font-bold font-headline">Security &amp; Authentication</h3>
+<span class="bg-secondary-container text-on-secondary-container text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-widest">Enhanced Protection</span>
+</div>
+<div class="space-y-8">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<div class="space-y-2">
+<label class="text-xs font-bold font-headline text-on-surface-variant uppercase tracking-wider">Current Password</label>
+<div class="relative">
+<input class="w-full bg-surface-container-highest border-none rounded-lg py-3 px-4 focus:ring-2 focus:ring-surface-tint focus:bg-white transition-all text-sm font-medium" type="password" value="••••••••••••"/>
+<span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant cursor-pointer text-sm" data-icon="visibility">visibility</span>
+</div>
+</div>
+<div class="space-y-2">
+<label class="text-xs font-bold font-headline text-on-surface-variant uppercase tracking-wider">New Password</label>
+<input class="w-full bg-surface-container-highest border-none rounded-lg py-3 px-4 focus:ring-2 focus:ring-surface-tint focus:bg-white transition-all text-sm font-medium" placeholder="Min. 12 characters" type="password"/>
+</div>
+</div>
+<!-- 2FA Suggestion (Glassmorphism effect) -->
+<div class="bg-surface-container-low/80 backdrop-blur-md p-6 rounded-xl flex items-start gap-4">
+<div class="w-10 h-10 bg-primary-fixed-dim rounded-lg flex items-center justify-center flex-shrink-0">
+<span class="material-symbols-outlined text-primary" data-icon="lock_person">lock_person</span>
+</div>
+<div class="flex-1">
+<h4 class="text-sm font-bold font-headline mb-1">Two-Factor Authentication</h4>
+<p class="text-xs text-on-surface-variant leading-relaxed">Add an extra layer of security to your account. We'll ask for a code whenever you log in from a new device.</p>
+<button class="mt-4 text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-1 group">
+                                        Enable Now
+                                        <span class="material-symbols-outlined text-[14px] group-hover:translate-x-1 transition-transform" data-icon="chevron_right">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Action Buttons -->
+<div class="flex flex-col sm:flex-row items-center justify-end gap-6 pt-4">
+<button class="w-full sm:w-auto text-on-surface-variant text-sm font-bold uppercase tracking-widest hover:text-on-surface transition-colors px-6 py-3">
+                            Cancel Changes
+                        </button>
+<button class="w-full sm:w-auto bg-gradient-to-br from-primary to-primary-container text-white px-10 py-4 rounded-lg font-headline font-extrabold text-sm tracking-widest shadow-lg hover:brightness-110 active:scale-95 transition-all">
+                            SAVE CHANGES
+                        </button>
+</div>
+</div>
+<!-- Right Column: Sidebar Meta & Insights -->
+<div class="col-span-12 lg:col-span-4 space-y-8">
+<!-- Account Status Card -->
+<div class="bg-white rounded-xl p-8 shadow-sm space-y-6">
+<h4 class="text-xs font-bold font-headline text-on-surface-variant uppercase tracking-widest">Account Overview</h4>
+<div class="space-y-4">
+<div class="flex justify-between items-center py-3 border-b border-outline-variant/10">
+<span class="text-sm text-on-surface-variant">Member since</span>
+<span class="text-sm font-bold">Jan 2021</span>
+</div>
+<div class="flex justify-between items-center py-3 border-b border-outline-variant/10">
+<span class="text-sm text-on-surface-variant">Account Level</span>
+<span class="text-sm font-bold text-primary">Platinum Elite</span>
+</div>
+<div class="flex justify-between items-center py-3 border-b border-outline-variant/10">
+<span class="text-sm text-on-surface-variant">Last Login</span>
+<span class="text-sm font-bold">2 hours ago</span>
+</div>
+</div>
+<!-- Data Visual/Decoration -->
+<div class="mt-6 pt-6">
+<div class="h-32 w-full rounded-lg overflow-hidden bg-surface-container-low relative">
+<div class="absolute inset-0 bg-gradient-to-t from-primary/10 to-transparent"></div>
+<div class="absolute bottom-0 left-0 right-0 h-1/2 flex items-end justify-between px-4 pb-2 gap-1">
+<div class="w-full bg-primary/20 h-[40%] rounded-t-sm"></div>
+<div class="w-full bg-primary/40 h-[60%] rounded-t-sm"></div>
+<div class="w-full bg-primary/30 h-[45%] rounded-t-sm"></div>
+<div class="w-full bg-primary/60 h-[80%] rounded-t-sm"></div>
+<div class="w-full bg-primary/40 h-[55%] rounded-t-sm"></div>
+<div class="w-full bg-primary/100 h-[100%] rounded-t-sm"></div>
+</div>
+</div>
+<p class="text-[10px] text-on-surface-variant text-center mt-3 font-medium uppercase tracking-tighter">Activity frequency (last 30 days)</p>
+</div>
+</div>
+<!-- Danger Zone Card -->
+<div class="bg-error-container/20 rounded-xl p-8 border border-error/5">
+<h4 class="text-xs font-bold font-headline text-error uppercase tracking-widest mb-4">Deactivate Account</h4>
+<p class="text-xs text-on-surface-variant leading-relaxed mb-6">Temporarily disable your account or permanently delete your financial history. This action cannot be undone.</p>
+<button class="w-full py-3 px-4 border border-error text-error text-xs font-bold rounded-lg hover:bg-error hover:text-white transition-all uppercase tracking-widest">
+                            Manage Deactivation
+                        </button>
+</div>
+<!-- Support Card (Asymmetric) -->
+<div class="bg-surface-container-highest rounded-xl p-8 relative overflow-hidden group">
+<span class="material-symbols-outlined absolute -right-4 -bottom-4 text-8xl opacity-5 group-hover:scale-110 transition-transform duration-500" data-icon="help_center">help_center</span>
+<h4 class="text-sm font-bold font-headline mb-2">Need assistance?</h4>
+<p class="text-xs text-on-surface-variant mb-4">Our dedicated wealth managers are available 24/7 for account consultations.</p>
+<a class="inline-flex items-center gap-2 text-xs font-bold text-primary group" href="#">
+                            Contact Support
+                            <span class="material-symbols-outlined text-sm" data-icon="north_east">north_east</span>
+</a>
+</div>
+</div>
+</div>
+</div>
+</main>
+</body></html>

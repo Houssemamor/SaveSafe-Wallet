@@ -1,0 +1,164 @@
+<div class="bg-surface text-on-surface antialiased">
+  <aside class="fixed left-0 top-0 h-full w-[280px] bg-white dark:bg-slate-900 flex flex-col py-8 px-6 z-50 shadow-[32px_8px_6%_#191c1d] dark:shadow-none">
+    <div class="mb-12">
+      <h1 class="text-2xl font-bold tracking-tight text-[#191c1d] dark:text-slate-100 font-manrope">The Architect</h1>
+      <p class="font-inter text-xs text-on-surface-variant uppercase tracking-widest mt-1">Wealth Management</p>
+    </div>
+    <div class="flex items-center gap-4 mb-10 p-3 rounded-xl bg-surface-container-low">
+      <img alt="User Profile Avatar" class="w-10 h-10 rounded-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD2gEDJ1-gMr1O6scC-GGmnYFtuKxs0SjJRqTpuKx1yEPXcVsgno1P6hqzmrUT_ieeKFsHMrCPyQDg9AOMkbL3SjTSEN5OP0OJBBeE1AxQJqPytg1B8k_5NbX3uMoraJ1eF9BNOgp7ER-ZscXz5gbZWVAJTPQw5kc-uz0BC64aQmle1M95ItorDWGkPZpIQYLC76SgCBhguOxqbJHjAUjzLohuaIQjM5SQ1lPRRGSbuTvEDsHZLFc4iLQ3-Gk6kbje1HEkLSosxK51h" />
+      <div class="overflow-hidden">
+        <p class="font-manrope font-bold text-sm truncate">Alexander Vance</p>
+        <p class="font-inter text-xs text-on-surface-variant truncate">Principal Partner</p>
+      </div>
+    </div>
+    <nav class="flex-1 space-y-2">
+      <a class="flex items-center gap-3 py-3 px-4 rounded-lg text-[#434654] dark:text-slate-400 font-normal hover:bg-[#f3f4f5] dark:hover:bg-slate-800 transition-colors duration-200 group" routerLink="/dashboard">
+        <span class="material-symbols-outlined">dashboard</span>
+        <span class="font-inter text-sm">Dashboard</span>
+      </a>
+      <a class="flex items-center gap-3 py-3 px-4 border-l-4 border-[#0052CC] text-[#0040a2] dark:text-[#d6e3fb] bg-[#f8f9fa] dark:bg-slate-800/50 font-semibold group scale-98 transition-transform duration-150 ease-in-out" routerLink="/wallet-history">
+        <span class="material-symbols-outlined">history</span>
+        <span class="font-inter text-sm">Wallet History</span>
+      </a>
+      <a class="flex items-center gap-3 py-3 px-4 rounded-lg text-[#434654] dark:text-slate-400 font-normal hover:bg-[#f3f4f5] dark:hover:bg-slate-800 transition-colors duration-200 group" routerLink="/profile">
+        <span class="material-symbols-outlined">person</span>
+        <span class="font-inter text-sm">Profile</span>
+      </a>
+    </nav>
+    <div class="mt-auto">
+      <button class="w-full flex items-center gap-3 py-3 px-4 rounded-lg text-[#434654] dark:text-slate-400 font-normal hover:bg-[#f3f4f5] dark:hover:bg-slate-800 transition-colors duration-200" routerLink="/login">
+        <span class="material-symbols-outlined">logout</span>
+        <span class="font-inter text-sm">Logout</span>
+      </button>
+    </div>
+  </aside>
+
+  <main class="ml-[280px] min-h-screen">
+    <header class="w-full h-16 sticky top-0 z-40 bg-[#f8f9fa] dark:bg-slate-950 flex items-center justify-between px-8">
+      <div class="flex items-center gap-8">
+        <span class="text-xl font-black text-[#191c1d] dark:text-slate-100 font-manrope">The Architectural Ledger</span>
+        <nav class="hidden md:flex items-center gap-6">
+          <a class="text-[#434654] dark:text-slate-400 font-manrope text-sm font-medium hover:text-[#0052CC] transition-all" routerLink="/dashboard">Overview</a>
+          <a class="text-[#0052CC] font-bold border-b-2 border-[#0052CC] font-manrope text-sm font-medium h-16 flex items-center" routerLink="/wallet-history">Ledger</a>
+          <a class="text-[#434654] dark:text-slate-400 font-manrope text-sm font-medium hover:text-[#0052CC] transition-all" href="#">Assets</a>
+        </nav>
+      </div>
+      <div class="flex items-center gap-4">
+        <div class="relative hidden lg:block">
+          <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline scale-75">search</span>
+          <input class="bg-surface-container-highest border-none rounded-xl pl-10 pr-4 py-2 text-sm focus:ring-2 focus:ring-surface-tint w-64 transition-all" placeholder="Search transactions..." type="text" />
+        </div>
+        <button class="material-symbols-outlined text-on-surface-variant opacity-80 active:opacity-100 hover:text-primary transition-all p-2">notifications</button>
+        <button class="material-symbols-outlined text-on-surface-variant opacity-80 active:opacity-100 hover:text-primary transition-all p-2">settings</button>
+      </div>
+    </header>
+
+    <div class="p-8 max-w-7xl mx-auto">
+      <div class="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
+        <div>
+          <h2 class="text-4xl font-extrabold font-manrope tracking-tight text-on-surface mb-2">Wallet History</h2>
+          <p class="text-on-surface-variant font-body">Manage your architectural investments and cash flow.</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <div class="bg-surface-container-low p-1.5 rounded-xl flex gap-1">
+            <button class="px-4 py-1.5 rounded-lg bg-surface-container-lowest shadow-sm text-sm font-semibold text-primary">All Activity</button>
+            <button class="px-4 py-1.5 rounded-lg text-sm font-medium text-on-surface-variant hover:bg-surface-container-high transition-colors">Income</button>
+            <button class="px-4 py-1.5 rounded-lg text-sm font-medium text-on-surface-variant hover:bg-surface-container-high transition-colors">Expenses</button>
+          </div>
+          <button class="bg-surface-container-low px-4 py-2.5 rounded-xl flex items-center gap-2 hover:bg-surface-container-high transition-colors">
+            <span class="material-symbols-outlined text-[18px]">calendar_today</span>
+            <span class="text-sm font-medium">Last 30 Days</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="bg-surface-container-low rounded-full overflow-hidden mb-8">
+        <div class="bg-surface-container-lowest overflow-hidden">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-surface-container-low text-on-surface-variant text-[11px] uppercase tracking-[0.15em] font-bold">
+                <th class="px-8 py-5">Date</th>
+                <th class="px-6 py-5">Description</th>
+                <th class="px-6 py-5">Category</th>
+                <th class="px-6 py-5">Status</th>
+                <th class="px-8 py-5 text-right">Amount</th>
+              </tr>
+            </thead>
+            <tbody class="font-body text-sm divide-y divide-outline-variant/10">
+              <tr class="hover:bg-surface-container-low transition-colors duration-150 group">
+                <td class="px-8 py-6 font-medium text-on-surface">Oct 24, 2023</td>
+                <td class="px-6 py-6"><div class="flex flex-col"><span class="font-bold text-on-surface">Metropolitan Museum Redesign</span><span class="text-xs text-on-surface-variant mt-0.5">Project ID: ARCH-9921</span></div></td>
+                <td class="px-6 py-6"><span class="px-3 py-1 bg-secondary-container text-on-secondary-container rounded-lg text-xs font-semibold">Consulting</span></td>
+                <td class="px-6 py-6"><div class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-surface-tint"></span><span class="font-medium">Complete</span></div></td>
+                <td class="px-8 py-6 text-right font-manrope font-extrabold text-primary text-base">+$12,450.00</td>
+              </tr>
+              <tr class="hover:bg-surface-container-low transition-colors duration-150 group">
+                <td class="px-8 py-6 font-medium text-on-surface">Oct 22, 2023</td>
+                <td class="px-6 py-6"><div class="flex flex-col"><span class="font-bold text-on-surface">Autodesk Subscription</span><span class="text-xs text-on-surface-variant mt-0.5">Annual Professional Suite</span></div></td>
+                <td class="px-6 py-6"><span class="px-3 py-1 bg-surface-container-highest text-on-surface-variant rounded-lg text-xs font-semibold">Software</span></td>
+                <td class="px-6 py-6"><div class="flex items-center gap-2 text-on-surface-variant"><span class="w-2 h-2 rounded-full bg-outline-variant"></span><span class="font-medium">Complete</span></div></td>
+                <td class="px-8 py-6 text-right font-manrope font-extrabold text-error text-base">-$2,100.00</td>
+              </tr>
+              <tr class="hover:bg-surface-container-low transition-colors duration-150 group">
+                <td class="px-8 py-6 font-medium text-on-surface">Oct 20, 2023</td>
+                <td class="px-6 py-6"><div class="flex flex-col"><span class="font-bold text-on-surface">Skyline Tower Commission</span><span class="text-xs text-on-surface-variant mt-0.5">Phase 2 Milestone Payment</span></div></td>
+                <td class="px-6 py-6"><span class="px-3 py-1 bg-secondary-container text-on-secondary-container rounded-lg text-xs font-semibold">Development</span></td>
+                <td class="px-6 py-6 text-tertiary"><div class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-tertiary"></span><span class="font-medium">Pending</span></div></td>
+                <td class="px-8 py-6 text-right font-manrope font-extrabold text-primary text-base">+$45,000.00</td>
+              </tr>
+              <tr class="hover:bg-surface-container-low transition-colors duration-150 group">
+                <td class="px-8 py-6 font-medium text-on-surface">Oct 18, 2023</td>
+                <td class="px-6 py-6"><div class="flex flex-col"><span class="font-bold text-on-surface">RenderCloud Compute</span><span class="text-xs text-on-surface-variant mt-0.5">GPU Farm Usage - Project Skyline</span></div></td>
+                <td class="px-6 py-6"><span class="px-3 py-1 bg-surface-container-highest text-on-surface-variant rounded-lg text-xs font-semibold">Infrastructure</span></td>
+                <td class="px-6 py-6"><div class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-surface-tint"></span><span class="font-medium">Complete</span></div></td>
+                <td class="px-8 py-6 text-right font-manrope font-extrabold text-error text-base">-$425.50</td>
+              </tr>
+              <tr class="hover:bg-surface-container-low transition-colors duration-150 group">
+                <td class="px-8 py-6 font-medium text-on-surface">Oct 15, 2023</td>
+                <td class="px-6 py-6"><div class="flex flex-col"><span class="font-bold text-on-surface">Interior Design Consult - Soho</span><span class="text-xs text-on-surface-variant mt-0.5">Hourly Billing</span></div></td>
+                <td class="px-6 py-6"><span class="px-3 py-1 bg-secondary-container text-on-secondary-container rounded-lg text-xs font-semibold">Consulting</span></td>
+                <td class="px-6 py-6"><div class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-surface-tint"></span><span class="font-medium">Complete</span></div></td>
+                <td class="px-8 py-6 text-right font-manrope font-extrabold text-primary text-base">+$850.00</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-between">
+        <p class="text-xs text-on-surface-variant font-medium">Showing <span class="text-on-surface">1 - 5</span> of <span class="text-on-surface">42</span> transactions</p>
+        <div class="flex items-center gap-2">
+          <button class="w-10 h-10 flex items-center justify-center rounded-xl bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high transition-colors">
+            <span class="material-symbols-outlined scale-90">chevron_left</span>
+          </button>
+          <div class="flex items-center bg-surface-container-low p-1 rounded-xl">
+            <button class="w-10 h-10 flex items-center justify-center rounded-lg bg-surface-container-lowest shadow-sm text-sm font-bold text-primary">1</button>
+            <button class="w-10 h-10 flex items-center justify-center rounded-lg text-sm font-medium text-on-surface-variant hover:bg-surface-container-high">2</button>
+            <button class="w-10 h-10 flex items-center justify-center rounded-lg text-sm font-medium text-on-surface-variant hover:bg-surface-container-high">3</button>
+            <span class="w-10 h-10 flex items-center justify-center text-on-surface-variant">...</span>
+            <button class="w-10 h-10 flex items-center justify-center rounded-lg text-sm font-medium text-on-surface-variant hover:bg-surface-container-high">8</button>
+          </div>
+          <button class="w-10 h-10 flex items-center justify-center rounded-xl bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high transition-colors">
+            <span class="material-symbols-outlined scale-90">chevron_right</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-16">
+        <div class="bg-surface-container-low p-8 rounded-full flex flex-col justify-between h-48 border-none">
+          <div class="flex justify-between items-start"><span class="text-on-surface-variant font-bold text-xs uppercase tracking-widest">Net Cashflow</span><span class="material-symbols-outlined text-primary">trending_up</span></div>
+          <div><p class="text-4xl font-extrabold font-manrope text-on-surface">$56,174</p><p class="text-sm text-primary font-medium mt-1">+14.2% from last month</p></div>
+        </div>
+        <div class="bg-surface-container-low p-8 rounded-full flex flex-col justify-between h-48 border-none">
+          <div class="flex justify-between items-start"><span class="text-on-surface-variant font-bold text-xs uppercase tracking-widest">Active Commissions</span><span class="material-symbols-outlined text-secondary">architecture</span></div>
+          <div><p class="text-4xl font-extrabold font-manrope text-on-surface">12</p><p class="text-sm text-on-surface-variant font-medium mt-1">4 awaiting payment</p></div>
+        </div>
+        <div class="bg-primary text-on-primary p-8 rounded-full flex flex-col justify-between h-48 border-none relative overflow-hidden">
+          <div class="relative z-10"><span class="font-bold text-xs uppercase tracking-widest opacity-80">Portfolio Value</span><p class="text-4xl font-extrabold font-manrope mt-6">$1.4M</p></div>
+          <div class="relative z-10 flex justify-between items-end"><button class="text-xs font-bold border-b border-on-primary/30 pb-1 hover:border-on-primary transition-all">View Asset Distribution</button></div>
+          <div class="absolute -right-10 -bottom-10 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>

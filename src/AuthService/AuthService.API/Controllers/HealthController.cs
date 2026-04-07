@@ -13,7 +13,7 @@ public class HealthController : ControllerBase
         _healthCheck = healthCheck;
 
     [HttpGet]
-    public async Task<IActionResult> GetHealth()
+    public async Task <IActionResult> GetHealth()
     {
         var report = await _healthCheck.CheckHealthAsync();
         var result = new

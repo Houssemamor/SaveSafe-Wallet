@@ -1,0 +1,118 @@
+<div class="bg-surface font-body text-on-surface antialiased">
+  <main class="min-h-screen flex flex-col items-center justify-center p-6 relative overflow-hidden">
+    <div class="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-secondary-container opacity-20 rounded-full blur-[120px]"></div>
+    <div class="absolute bottom-[-10%] left-[-10%] w-[600px] h-[600px] bg-primary-container opacity-10 rounded-full blur-[150px]"></div>
+
+    <div class="w-full max-w-[480px] relative z-10">
+      <div class="mb-12 text-center">
+        <h1 class="text-3xl font-headline font-black tracking-tight text-on-surface">The Architectural Ledger</h1>
+        <p class="mt-2 text-on-surface-variant font-body">Wealth management for the digital architect.</p>
+      </div>
+
+      <div class="bg-surface-container-lowest rounded-xl p-10 shadow-[32px_8px_60px_rgba(25,28,29,0.06)]">
+        <header class="mb-8">
+          <h2 class="text-2xl font-headline font-bold text-on-surface mb-2">Welcome Back</h2>
+          <p class="text-on-surface-variant text-sm">Please enter your credentials to access your portfolio.</p>
+        </header>
+
+        <form class="space-y-6" [formGroup]="loginForm" (ngSubmit)="onSubmit()">
+          <div class="space-y-2">
+            <label class="block text-xs font-label font-medium uppercase tracking-wider text-on-surface-variant" for="email">Email Address</label>
+            <div class="relative group">
+              <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-outline">
+                <span class="material-symbols-outlined text-lg">mail</span>
+              </div>
+              <input class="w-full h-14 pl-12 pr-4 bg-surface-container-highest border-none rounded-lg text-on-surface placeholder:text-outline focus:ring-2 focus:ring-surface-tint focus:bg-surface-container-lowest transition-all duration-200" id="email" placeholder="name@firm.com" type="email" formControlName="email" />
+            </div>
+          </div>
+
+          <div class="space-y-2">
+            <div class="flex justify-between items-center">
+              <label class="block text-xs font-label font-medium uppercase tracking-wider text-on-surface-variant" for="password">Password</label>
+              <a class="text-xs font-label font-semibold text-primary hover:underline underline-offset-4" href="#">Forgot password?</a>
+            </div>
+            <div class="relative group">
+              <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-outline">
+                <span class="material-symbols-outlined text-lg">lock</span>
+              </div>
+              <input class="w-full h-14 pl-12 pr-4 bg-surface-container-highest border-none rounded-lg text-on-surface placeholder:text-outline focus:ring-2 focus:ring-surface-tint focus:bg-surface-container-lowest transition-all duration-200" id="password" placeholder="••••••••" type="password" formControlName="password" />
+            </div>
+          </div>
+
+          <div class="flex items-center">
+            <input class="h-5 w-5 rounded border-outline-variant text-primary focus:ring-primary-container bg-surface-container-low" id="remember-me" name="remember-me" type="checkbox" />
+            <label class="ml-3 block text-sm font-label text-on-surface-variant" for="remember-me">Stay signed in for 30 days</label>
+          </div>
+
+          <button class="w-full h-14 bg-gradient-to-br from-primary to-primary-container text-on-primary font-headline font-bold rounded-lg transition-all duration-200 hover:opacity-90 active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-60" type="submit" [disabled]="isSubmitting">
+            {{ isSubmitting ? 'Authenticating...' : 'Secure Login' }}
+            <span class="material-symbols-outlined text-lg">arrow_forward</span>
+          </button>
+
+          <p *ngIf="errorMessage" class="text-sm text-error font-label font-medium">{{ errorMessage }}</p>
+        </form>
+
+        <div class="mt-10 relative">
+          <div aria-hidden="true" class="absolute inset-0 flex items-center">
+            <div class="w-full border-t border-outline-variant opacity-20"></div>
+          </div>
+          <div class="relative flex justify-center text-xs uppercase tracking-widest">
+            <span class="px-4 bg-surface-container-lowest text-outline font-label font-semibold">Or Authenticate With</span>
+          </div>
+        </div>
+
+        <div class="mt-8 grid grid-cols-2 gap-4">
+          <button class="h-12 flex items-center justify-center gap-3 rounded-lg border border-outline-variant border-opacity-20 text-on-surface hover:bg-surface-container-low transition-colors duration-150">
+            <img alt="Google icon" class="w-4 h-4 opacity-70" src="https://lh3.googleusercontent.com/aida-public/AB6AXuADzOT5_ocrh7JNPOiIDWTzqmjcjZ-4JjbmXQhSWA6Mx1H-2cT-oYcFo09qOuUhwMvShPYiQi-BLrfHwHf6_RjOx7NO4mpH2Bd2i8dodN0Nh2hHDIo6mzY8ApzwlXe5iAvj_2O03WtQdZKNDcswCVo_Q5WCcUl6RyrITIft4agW2t25LGeWxs50CmsYOBdD33H_5nkyh4avEJNmePw2TmdcybxouId0FlJMkb34bhmrbPZ6ZqMsP9CiGpKn19gJT8I7JebdR8w-bU2h" />
+            <span class="text-sm font-label font-medium">Google</span>
+          </button>
+          <button class="h-12 flex items-center justify-center gap-3 rounded-lg border border-outline-variant border-opacity-20 text-on-surface hover:bg-surface-container-low transition-colors duration-150">
+            <span class="material-symbols-outlined text-lg">passkey</span>
+            <span class="text-sm font-label font-medium">Passkey</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="mt-8 text-center">
+        <p class="text-on-surface-variant text-sm font-label">
+          New to the architecture?
+          <a class="text-primary font-bold hover:underline underline-offset-4 ml-1" routerLink="/register">Establish an Account</a>
+        </p>
+      </div>
+    </div>
+
+    <div class="hidden lg:grid absolute bottom-12 left-12 grid-cols-2 gap-4 w-[400px]">
+      <div class="p-4 bg-surface-container-low rounded-xl flex items-center gap-4">
+        <div class="w-10 h-10 rounded-full bg-secondary-container flex items-center justify-center text-primary">
+          <span class="material-symbols-outlined">security</span>
+        </div>
+        <div class="text-xs">
+          <p class="font-bold text-on-surface">Encryption Standard</p>
+          <p class="text-on-surface-variant">AES-256 Protocol</p>
+        </div>
+      </div>
+      <div class="p-4 bg-surface-container-low rounded-xl flex items-center gap-4">
+        <div class="w-10 h-10 rounded-full bg-tertiary-container flex items-center justify-center text-tertiary-fixed">
+          <span class="material-symbols-outlined">verified_user</span>
+        </div>
+        <div class="text-xs">
+          <p class="font-bold text-on-surface">ISO Certified</p>
+          <p class="text-on-surface-variant">Fintech Compliant</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="hidden xl:block absolute right-0 top-0 bottom-0 w-1/4">
+      <div class="h-full w-full bg-surface-container-low overflow-hidden">
+        <img class="h-full w-full object-cover opacity-40 grayscale mix-blend-multiply" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDNeUQ7QO0P9wurZr7O-Gs_O0DJyXjzWU1qkIr8QZGBE_hhiN7jI6mACVqC_nLrEc5ZiQHucDvcWIRKClUdN_QB6ZmmWv7BksdPxhnkITf7sIYJrJRHWjEynDPIrJ6s-uocl5bKzpTuQ8PBPrTFVm2y7FANd_w0ZaCZXHLMLgorWDVdG8925gnvnRlFZhQcLNQLKm_v82JXYbQBBIyUhUBAbkMVjjV10hTSByTz-J2F208HqQjrN68ID566Eq7YSsH_ZK0DLyLi74Z1" />
+      </div>
+    </div>
+  </main>
+
+  <div class="fixed bottom-8 right-8 z-50">
+    <button class="flex items-center gap-2 px-4 py-2 bg-white shadow-lg rounded-full text-xs font-label font-bold text-on-surface-variant hover:text-primary transition-colors">
+      <span class="material-symbols-outlined text-sm">help_outline</span>
+      Consult Support
+    </button>
+  </div>
+</div>

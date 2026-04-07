@@ -19,6 +19,11 @@ publish/
 out/
 dist/
 
+# Angular
+src/Front/node_modules/
+src/Front/.angular/
+*.log
+
 # Docker
 docker-compose.override.yml.local
 
