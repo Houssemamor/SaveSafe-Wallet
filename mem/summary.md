@@ -27,9 +27,12 @@
 		- `features/dashboard`: dashboard page.
 		- `features/profile`: models, data-access service, profile page.
 		- `features/wallet-history`: models, data-access service, history page.
-		- `features/requirements`: sprint requirements page.
 	- Updated all import paths plus app routes/config to match the new layout.
 	- Removed obsolete legacy folders under `src/frontend/src/app` (`config`, `guards`, `interceptors`, `models`, `pages`, `services`).
+- Frontend requirements-page decision (2026-04-08):
+	- User confirmed the in-app Sprint 2 requirements page is not needed.
+	- Removed `/requirements` route and deleted `src/frontend/src/app/features/requirements`.
+	- Validation after removal: `npm run build` passed in `src/frontend`.
 - Validation after refactor:
 	- `npm run build` passed in `src/frontend`.
 - Docker startup incident and fixes (2026-04-08):
@@ -47,3 +50,25 @@
 	- Final validation: `docker compose build auth-service wallet-service` succeeded; `docker compose up -d` succeeded; `docker compose ps` shows all services up and healthy where healthchecks exist.
 - Residual Sprint 2 gap:
 	- Google OAuth login endpoint is not implemented in backend (`/api/auth/google` missing), so frontend OAuth remains non-functional.
+
+- Sprint 2 missing-implementation plan (2026-04-08):
+	- Objective: close the remaining OAuth and Sprint 2 validation gaps without changing the approved MVP baseline behavior.
+	- Backend (AuthService):
+		- Add `POST /api/auth/google` endpoint in `AuthController` with request DTO carrying Google ID token.
+		- Validate Google ID token (issuer, audience, expiration) and map identity to local user.
+		- Provision local user on first Google login with default `User` role and active status.
+		- Reuse existing JWT/session issuance flow to return standard auth response.
+		- Add explicit error mapping for invalid token, disabled account, and provider mismatch cases.
+	- Frontend (Angular):
+		- Wire Google button on login/register pages to OAuth flow entry-point and backend endpoint.
+		- Persist returned JWT/session via existing session service and redirect to dashboard.
+		- Show user-facing error state for OAuth failures; keep form login path unchanged.
+		- Keep feature behind environment toggle until backend endpoint is deployed.
+	- Verification and tests:
+		- AuthService: unit tests for token validation service and controller integration tests for success/failure paths.
+		- Frontend: component/service tests for OAuth button handler and redirect/session persistence.
+		- Run CI build/test stages for frontend + auth service, and smoke test in docker compose.
+	- Definition of Done checkpoints:
+		- OAuth login works end-to-end in local docker environment.
+		- Existing email/password login and protected routes remain regression-free.
+		- README and memory summary note OAuth status and enablement flag.

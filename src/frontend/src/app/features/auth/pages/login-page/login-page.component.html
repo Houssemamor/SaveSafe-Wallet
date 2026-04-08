@@ -5,14 +5,14 @@
 
     <div class="w-full max-w-[480px] relative z-10">
       <div class="mb-12 text-center">
-        <h1 class="text-3xl font-headline font-black tracking-tight text-on-surface">The Architectural Ledger</h1>
-        <p class="mt-2 text-on-surface-variant font-body">Wealth management for the digital architect.</p>
+        <h1 class="text-3xl font-headline font-black tracking-tight text-on-surface">SaveSafe Wallet</h1>
+        <p class="mt-2 text-on-surface-variant font-body">Secure wallet management for modern teams.</p>
       </div>
 
       <div class="bg-surface-container-lowest rounded-xl p-10 shadow-[32px_8px_60px_rgba(25,28,29,0.06)]">
         <header class="mb-8">
           <h2 class="text-2xl font-headline font-bold text-on-surface mb-2">Welcome Back</h2>
-          <p class="text-on-surface-variant text-sm">Please enter your credentials to access your portfolio.</p>
+          <p class="text-on-surface-variant text-sm">Please enter your credentials to access your wallet.</p>
         </header>
 
         <form class="space-y-6" [formGroup]="loginForm" (ngSubmit)="onSubmit()">
@@ -22,7 +22,7 @@
               <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-outline">
                 <span class="material-symbols-outlined text-lg">mail</span>
               </div>
-              <input class="w-full h-14 pl-12 pr-4 bg-surface-container-highest border-none rounded-lg text-on-surface placeholder:text-outline focus:ring-2 focus:ring-surface-tint focus:bg-surface-container-lowest transition-all duration-200" id="email" placeholder="name@firm.com" type="email" formControlName="email" />
+              <input class="w-full h-14 pl-12 pr-4 bg-surface-container-highest border-none rounded-lg text-on-surface placeholder:text-outline focus:ring-2 focus:ring-surface-tint focus:bg-surface-container-lowest transition-all duration-200" id="email" placeholder="name@savesafe.app" type="email" formControlName="email" />
             </div>
           </div>
 
@@ -57,7 +57,7 @@
             <div class="w-full border-t border-outline-variant opacity-20"></div>
           </div>
           <div class="relative flex justify-center text-xs uppercase tracking-widest">
-            <span class="px-4 bg-surface-container-lowest text-outline font-label font-semibold">Or Authenticate With</span>
+            <span class="px-4 bg-surface-container-lowest text-outline font-label font-semibold">Or Continue With</span>
           </div>
         </div>
 
@@ -75,8 +75,8 @@
 
       <div class="mt-8 text-center">
         <p class="text-on-surface-variant text-sm font-label">
-          New to the architecture?
-          <a class="text-primary font-bold hover:underline underline-offset-4 ml-1" routerLink="/register">Establish an Account</a>
+          New to SaveSafe?
+          <a class="text-primary font-bold hover:underline underline-offset-4 ml-1" routerLink="/register">Create an Account</a>
         </p>
       </div>
     </div>

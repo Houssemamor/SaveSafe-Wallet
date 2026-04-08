@@ -1,8 +1,8 @@
 <div class="bg-surface text-on-surface min-h-screen flex">
   <aside class="fixed left-0 top-0 h-full w-[280px] bg-white dark:bg-slate-900 shadow-[32px_8px_6%_#191c1d] dark:shadow-none flex flex-col py-8 px-6 z-50">
     <div class="mb-12">
-      <h1 class="text-2xl font-bold tracking-tight text-[#191c1d] dark:text-slate-100">The Architect</h1>
-      <p class="font-inter text-xs text-on-surface-variant uppercase tracking-widest mt-1 opacity-70">Wealth Management</p>
+      <h1 class="text-2xl font-bold tracking-tight text-[#191c1d] dark:text-slate-100">SaveSafe</h1>
+      <p class="font-inter text-xs text-on-surface-variant uppercase tracking-widest mt-1 opacity-70">Wallet Platform</p>
     </div>
     <nav class="flex-grow space-y-2">
       <a class="flex items-center gap-3 py-3 px-4 rounded-r-lg border-l-4 border-[#0052CC] text-[#0040a2] dark:text-[#d6e3fb] bg-[#f8f9fa] dark:bg-slate-800/50 font-semibold transition-transform duration-150 ease-in-out scale-98" routerLink="/dashboard">
@@ -22,7 +22,7 @@
       <div class="flex items-center gap-3 mb-8 px-2">
         <img alt="User Profile Avatar" class="w-10 h-10 rounded-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBmnOkf5YGfv9JNXN3JPUEvExQ-oAmZRwRG82eF_DtMgdxeQbFr9etTz5-v4ZpqKCqTydPW12HHcLKPQje9fOgFPx2dYOmXmNx0ta1eSNsZGC6MRJ5TkCP7Vrl_DteTNX88K_slXjy_RG0mJLOB7N6NzHiSnAUFrPIOufWZNKMJJjzYa3Oe5zv2WcgrhSCxZjqbAmq6BMXypqk2wNy39_9viRmYLseE65ozfljjcYDmXGkzz_GR3FTYS9envz0KSPeB4dVJLP7jt6zL" />
         <div>
-          <p class="font-manrope font-bold text-sm">{{ user?.name || 'Portfolio User' }}</p>
+          <p class="font-manrope font-bold text-sm">{{ user?.name || 'SaveSafe User' }}</p>
           <p class="font-inter text-xs text-on-surface-variant">{{ user?.email || 'No email loaded' }}</p>
         </div>
       </div>
@@ -36,12 +36,12 @@
   <main class="flex-grow ml-[280px]">
     <header class="w-full h-16 sticky top-0 z-40 bg-[#f8f9fa] dark:bg-slate-950 flex items-center justify-between px-8">
       <div class="flex items-center gap-4">
-        <h2 class="text-xl font-black text-[#191c1d] dark:text-slate-100 uppercase tracking-tighter">The Architectural Ledger</h2>
+        <h2 class="text-xl font-black text-[#191c1d] dark:text-slate-100 uppercase tracking-tighter">SaveSafe Wallet</h2>
       </div>
       <div class="flex items-center gap-6">
         <div class="hidden md:flex items-center bg-surface-container-highest px-4 py-2 rounded-xl w-64 transition-all focus-within:bg-white focus-within:ring-2 ring-surface-tint/20">
           <span class="material-symbols-outlined text-on-surface-variant text-sm">search</span>
-          <input class="bg-transparent border-none focus:ring-0 text-sm w-full placeholder:text-on-surface-variant/50" placeholder="Search assets..." type="text" />
+          <input class="bg-transparent border-none focus:ring-0 text-sm w-full placeholder:text-on-surface-variant/50" placeholder="Search transactions..." type="text" />
         </div>
         <div class="flex items-center gap-4 text-[#434654] dark:text-slate-400">
           <button class="material-symbols-outlined hover:text-[#0052CC] transition-all opacity-80 active:opacity-100">notifications</button>
@@ -59,7 +59,7 @@
           <div>
             <div class="flex justify-between items-start">
               <div>
-                <span class="text-on-surface-variant font-label text-xs uppercase tracking-widest font-semibold">Total Liquidity</span>
+                <span class="text-on-surface-variant font-label text-xs uppercase tracking-widest font-semibold">Available Balance</span>
                 <div class="mt-2 flex items-baseline gap-2">
                   <span class="text-surface-tint/40 text-4xl font-headline font-bold">$</span>
                   <h3 class="text-6xl font-headline font-extrabold tracking-tight text-on-surface">{{ liquidityIntegerPart }}<span class="text-3xl opacity-40">.{{ liquidityDecimalPart }}</span></h3>
@@ -74,34 +74,34 @@
           </div>
           <div class="grid grid-cols-3 gap-8 pt-8 mt-auto border-t border-outline-variant/10">
             <div>
-              <p class="text-on-surface-variant text-xs font-medium">Staked Assets</p>
-              <p class="text-xl font-headline font-bold text-on-surface">$842.1k</p>
+              <p class="text-on-surface-variant text-xs font-medium">Pending Transfers</p>
+              <p class="text-xl font-headline font-bold text-on-surface">$8,421</p>
             </div>
             <div>
-              <p class="text-on-surface-variant text-xs font-medium">Yield Earned</p>
+              <p class="text-on-surface-variant text-xs font-medium">Monthly Inflow</p>
               <p class="text-xl font-headline font-bold text-on-surface">$12,402</p>
             </div>
             <div>
-              <p class="text-on-surface-variant text-xs font-medium">Risk Score</p>
-              <p class="text-xl font-headline font-bold text-tertiary">Low</p>
+              <p class="text-on-surface-variant text-xs font-medium">Security Level</p>
+              <p class="text-xl font-headline font-bold text-tertiary">High</p>
             </div>
           </div>
         </div>
 
         <div class="col-span-12 lg:col-span-4 flex flex-col gap-4">
           <div class="bg-surface-container-low rounded-xl p-6 flex flex-col justify-between flex-grow">
-            <h4 class="font-manrope font-bold text-on-surface">Architectural Controls</h4>
+            <h4 class="font-manrope font-bold text-on-surface">Wallet Actions</h4>
             <div class="space-y-3 mt-4">
               <button class="w-full py-4 px-6 bg-gradient-to-br from-primary to-primary-container text-white rounded-lg font-manrope font-bold text-sm flex justify-between items-center group">
-                <span>Execute Transfer</span>
+                <span>Send Transfer</span>
                 <span class="material-symbols-outlined transition-transform group-hover:translate-x-1">arrow_forward</span>
               </button>
               <button class="w-full py-4 px-6 bg-surface-container-lowest text-on-surface rounded-lg font-manrope font-bold text-sm flex justify-between items-center hover:bg-surface-container-high transition-colors">
-                <span>Export Ledger</span>
+                <span>Download Activity</span>
                 <span class="material-symbols-outlined">download</span>
               </button>
               <button class="w-full py-4 px-6 bg-surface-container-lowest text-on-surface rounded-lg font-manrope font-bold text-sm flex justify-between items-center hover:bg-surface-container-high transition-colors">
-                <span>Portfolio Rebalance</span>
+                <span>Transfer Between Wallets</span>
                 <span class="material-symbols-outlined">account_balance_wallet</span>
               </button>
             </div>
@@ -112,7 +112,7 @@
       <div class="grid grid-cols-12 gap-8">
         <div class="col-span-12 lg:col-span-7 space-y-6">
           <div class="flex justify-between items-end px-2">
-            <h4 class="text-xl font-headline font-bold">Transaction Blueprint</h4>
+            <h4 class="text-xl font-headline font-bold">Recent Transactions</h4>
             <a class="text-primary text-xs font-bold hover:underline" routerLink="/wallet-history">View All History</a>
           </div>
           <div class="bg-surface-container-low rounded-xl overflow-hidden">
@@ -122,12 +122,12 @@
                   <span class="material-symbols-outlined">payments</span>
                 </div>
                 <div>
-                  <p class="font-manrope font-bold text-on-surface">Equity Acquisition - AAPL</p>
-                  <p class="text-xs text-on-surface-variant font-medium">Today, 10:42 AM • Securities</p>
+                  <p class="font-manrope font-bold text-on-surface">Outgoing Transfer - Main Wallet</p>
+                  <p class="text-xs text-on-surface-variant font-medium">Today, 10:42 AM • Transfer</p>
                 </div>
               </div>
               <div class="text-right">
-                <p class="font-headline font-extrabold text-on-surface">-$12,400.00</p>
+                <p class="font-headline font-extrabold text-on-surface">-$1,240.00</p>
                 <p class="text-[10px] text-on-surface-variant uppercase tracking-widest font-bold">Confirmed</p>
               </div>
             </div>
@@ -137,8 +137,8 @@
                   <span class="material-symbols-outlined">account_balance</span>
                 </div>
                 <div>
-                  <p class="font-manrope font-bold text-on-surface">Dividend Inflow - SPY</p>
-                  <p class="text-xs text-on-surface-variant font-medium">Yesterday • Passive Income</p>
+                  <p class="font-manrope font-bold text-on-surface">Incoming Deposit - Payroll</p>
+                  <p class="text-xs text-on-surface-variant font-medium">Yesterday • Deposit</p>
                 </div>
               </div>
               <div class="text-right">
@@ -152,7 +152,7 @@
                   <span class="material-symbols-outlined">swap_horiz</span>
                 </div>
                 <div>
-                  <p class="font-manrope font-bold text-on-surface">Internal Rebalancing</p>
+                  <p class="font-manrope font-bold text-on-surface">Internal Wallet Transfer</p>
                   <p class="text-xs text-on-surface-variant font-medium">Oct 24 • Wallet Transfer</p>
                 </div>
               </div>
@@ -165,7 +165,7 @@
         </div>
 
         <div class="col-span-12 lg:col-span-5 space-y-6">
-          <h4 class="text-xl font-headline font-bold px-2">Asset Allocation</h4>
+          <h4 class="text-xl font-headline font-bold px-2">Balance Distribution</h4>
           <div class="bg-surface-container-lowest rounded-xl p-8 h-[380px] flex flex-col">
             <div class="flex-grow flex items-center justify-center relative">
               <div class="w-48 h-48 rounded-full border-[16px] border-surface-container flex items-center justify-center relative">
@@ -181,21 +181,21 @@
               <div class="flex items-center justify-between">
                 <div class="flex items-center gap-2">
                   <div class="w-3 h-3 rounded-full bg-primary"></div>
-                  <span class="text-sm font-medium">Public Equities</span>
+                  <span class="text-sm font-medium">Primary Wallet</span>
                 </div>
                 <span class="text-sm font-bold">64%</span>
               </div>
               <div class="flex items-center justify-between">
                 <div class="flex items-center gap-2">
                   <div class="w-3 h-3 rounded-full bg-secondary"></div>
-                  <span class="text-sm font-medium">Real Estate</span>
+                  <span class="text-sm font-medium">Savings Wallet</span>
                 </div>
                 <span class="text-sm font-bold">22%</span>
               </div>
               <div class="flex items-center justify-between">
                 <div class="flex items-center gap-2">
                   <div class="w-3 h-3 rounded-full bg-outline-variant"></div>
-                  <span class="text-sm font-medium">Liquid Cash</span>
+                  <span class="text-sm font-medium">Reserve Cash</span>
                 </div>
                 <span class="text-sm font-bold">14%</span>
               </div>
