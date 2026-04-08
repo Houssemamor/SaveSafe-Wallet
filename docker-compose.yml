@@ -140,8 +140,8 @@ services:
   # ── Auth Service ─────────────────────────────────────────────────────────────
   auth-service:
     build:
-      context: ./src/AuthService/AuthService.API
-      dockerfile: Dockerfile
+      context: ./src/AuthService
+      dockerfile: AuthService.API/Dockerfile
     container_name: ssw-auth-service
     depends_on:
       postgres:
@@ -169,8 +169,8 @@ services:
   # ── Wallet Service ───────────────────────────────────────────────────────────
   wallet-service:
     build:
-      context: ./src/WalletService/WalletService.API
-      dockerfile: Dockerfile
+      context: ./src/WalletService
+      dockerfile: WalletService.API/Dockerfile
     container_name: ssw-wallet-service
     depends_on:
       postgres:

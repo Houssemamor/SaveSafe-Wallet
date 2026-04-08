@@ -1,0 +1,49 @@
+# Workspace Summary
+
+- Date: 2026-04-07
+- Initial context: User requested Sprint 2 conformity audit for frontend, ISO-oriented restructuring, and Docker integration for frontend.
+- Completed frontend changes:
+	- Added users API config and created user profile model/service for GET/PUT profile endpoints.
+	- Extended wallet model/service for paginated history endpoint.
+	- Updated JWT interceptor to handle 401 by clearing session and redirecting to login.
+	- Reworked wallet history page to consume API data with filters (type/date/search) and pagination controls.
+	- Reworked profile page to load profile data, update name, and show account metadata.
+	- Added frontend Docker support: Dockerfile, nginx reverse proxy config, .dockerignore, docker-compose frontend service, README updates.
+- Validation evidence:
+	- `npm run build` passed in src/frontend.
+	- `docker compose config` passed at repository root.
+	- `docker compose build frontend` blocked because Docker Desktop engine is not running.
+	- `npm run test` blocked because Angular test target is not configured in angular.json.
+- Date: 2026-04-08
+- Repository structure decision: renamed frontend directory to src/frontend for naming consistency while keeping all services under src.
+- Branching and checkpoint:
+	- Created and switched to branch `Frontend`.
+	- Committed migration checkpoint: `d54e282` with frontend path normalization and Docker path updates.
+- Completed requested follow-up restructuring:
+	- Deleted temporary static folder `src/frontend/pages` (non-runtime mock pages/assets).
+	- Refactored Angular app to feature-first layout under `src/frontend/src/app`:
+		- `core`: config, guards, interceptor, session service.
+		- `features/auth`: models, data-access service, login/register pages.
+		- `features/dashboard`: dashboard page.
+		- `features/profile`: models, data-access service, profile page.
+		- `features/wallet-history`: models, data-access service, history page.
+		- `features/requirements`: sprint requirements page.
+	- Updated all import paths plus app routes/config to match the new layout.
+	- Removed obsolete legacy folders under `src/frontend/src/app` (`config`, `guards`, `interceptors`, `models`, `pages`, `services`).
+- Validation after refactor:
+	- `npm run build` passed in `src/frontend`.
+- Docker startup incident and fixes (2026-04-08):
+	- Initial `docker compose up -d` failed for `wallet-service` due Docker build context mismatch (`COPY WalletService.API/...` not found).
+	- Fixed `docker-compose.yml` service build config:
+		- `auth-service` context -> `./src/AuthService`, dockerfile -> `AuthService.API/Dockerfile`.
+		- `wallet-service` context -> `./src/WalletService`, dockerfile -> `WalletService.API/Dockerfile`.
+	- Next failure: `NETSDK1064` package missing during Docker publish with `--no-restore`.
+	- Fixed Dockerfiles by allowing publish restore (`dotnet publish ...` without `--no-restore`) for auth and wallet services.
+	- Next failure: frontend Docker build failed on Angular font inlining (Google Fonts fetch blocked in build env).
+	- Fixed `src/frontend/angular.json` production optimization to disable font inlining (`optimization.fonts = false`).
+	- Next failure: stale `ssw-*` container name conflicts; removed conflicting stale containers and restarted compose.
+	- Next failure: auth/wallet crash-looped due runtime mismatch (`net8.0` apps on `aspnet:9.0`).
+	- Fixed both service Dockerfiles to `.NET 8` images (`sdk:8.0`, `aspnet:8.0`).
+	- Final validation: `docker compose build auth-service wallet-service` succeeded; `docker compose up -d` succeeded; `docker compose ps` shows all services up and healthy where healthchecks exist.
+- Residual Sprint 2 gap:
+	- Google OAuth login endpoint is not implemented in backend (`/api/auth/google` missing), so frontend OAuth remains non-functional.
