@@ -1,0 +1,136 @@
+<div class="min-h-screen bg-slate-50 text-slate-900">
+  <header class="border-b border-slate-200 bg-white">
+    <div class="mx-auto max-w-7xl px-6 py-5 flex items-center justify-between">
+      <div>
+        <h1 class="text-2xl font-headline font-bold">Admin Security Dashboard</h1>
+        <p class="text-sm text-slate-600">Centralized monitoring and access audit for SaveSafe.</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <a class="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium hover:bg-slate-100" href="http://localhost:3000" rel="noopener" target="_blank">Open Grafana</a>
+        <button class="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700" (click)="logout()" type="button">Logout</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="mx-auto max-w-7xl px-6 py-8 space-y-8">
+    <section class="rounded-lg border border-slate-200 bg-white p-6">
+      <p class="text-xs uppercase tracking-wide text-slate-500">Authenticated admin</p>
+      <p class="text-lg font-semibold">{{ user?.name || 'Admin' }}</p>
+      <p class="text-sm text-slate-600">{{ user?.email || '' }}</p>
+    </section>
+
+    <p *ngIf="isLoading" class="rounded-lg border border-slate-200 bg-white p-6 text-sm text-slate-600">Loading dashboard data...</p>
+    <p *ngIf="errorMessage" class="rounded-lg border border-red-200 bg-red-50 p-6 text-sm text-red-700">{{ errorMessage }}</p>
+
+    <section *ngIf="summary" class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <article class="rounded-lg border border-slate-200 bg-white p-5">
+        <p class="text-xs uppercase tracking-wide text-slate-500">Total Users</p>
+        <p class="mt-2 text-3xl font-bold">{{ summary.totalUsers }}</p>
+        <p class="mt-2 text-xs text-slate-600">Active: {{ summary.activeUsers }} | Suspended: {{ summary.suspendedUsers }} | Deleted: {{ summary.deletedUsers }}</p>
+      </article>
+      <article class="rounded-lg border border-slate-200 bg-white p-5">
+        <p class="text-xs uppercase tracking-wide text-slate-500">Login Events (24h)</p>
+        <p class="mt-2 text-3xl font-bold">{{ summary.totalLoginEventsLast24Hours }}</p>
+        <p class="mt-2 text-xs text-slate-600">Failed: {{ summary.failedLoginEventsLast24Hours }}</p>
+      </article>
+      <article class="rounded-lg border border-slate-200 bg-white p-5">
+        <p class="text-xs uppercase tracking-wide text-slate-500">Flagged Events (24h)</p>
+        <p class="mt-2 text-3xl font-bold">{{ summary.flaggedEventsLast24Hours }}</p>
+      </article>
+      <article class="rounded-lg border border-slate-200 bg-white p-5">
+        <p class="text-xs uppercase tracking-wide text-slate-500">Distinct Source IPs (24h)</p>
+        <p class="mt-2 text-3xl font-bold">{{ summary.distinctSourceIpsLast24Hours }}</p>
+      </article>
+    </section>
+
+    <section class="grid grid-cols-1 gap-8 lg:grid-cols-2">
+      <article class="rounded-lg border border-slate-200 bg-white p-6">
+        <h2 class="text-lg font-semibold">Failed Login Analysis</h2>
+        <p class="mt-1 text-sm text-slate-600">Top source IPs with failed authentication attempts.</p>
+        <div class="mt-4 overflow-x-auto">
+          <table class="min-w-full text-sm">
+            <thead>
+              <tr class="border-b border-slate-200 text-left text-slate-500">
+                <th class="px-2 py-2">IP Address</th>
+                <th class="px-2 py-2">Failed Attempts</th>
+                <th class="px-2 py-2">Last Attempt</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let item of failedLogins" class="border-b border-slate-100">
+                <td class="px-2 py-2 font-mono">{{ item.ipAddress }}</td>
+                <td class="px-2 py-2">{{ item.failedAttempts }}</td>
+                <td class="px-2 py-2">{{ formatDate(item.lastAttemptAt) }}</td>
+              </tr>
+              <tr *ngIf="failedLogins.length === 0">
+                <td class="px-2 py-3 text-slate-500" colspan="3">No failed logins found.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+
+      <article class="rounded-lg border border-slate-200 bg-white p-6">
+        <h2 class="text-lg font-semibold">Recent Access Audit</h2>
+        <p class="mt-1 text-sm text-slate-600">Latest authentication events across users.</p>
+        <div class="mt-4 overflow-x-auto">
+          <table class="min-w-full text-sm">
+            <thead>
+              <tr class="border-b border-slate-200 text-left text-slate-500">
+                <th class="px-2 py-2">User</th>
+                <th class="px-2 py-2">Status</th>
+                <th class="px-2 py-2">IP</th>
+                <th class="px-2 py-2">Time</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let event of loginEvents" class="border-b border-slate-100">
+                <td class="px-2 py-2">{{ event.userEmail }}</td>
+                <td class="px-2 py-2">
+                  <span [class]="event.success ? 'text-green-700' : 'text-red-700'">{{ event.success ? 'Success' : (event.failureReason || 'Failed') }}</span>
+                </td>
+                <td class="px-2 py-2 font-mono">{{ event.ipAddress || 'unknown' }}</td>
+                <td class="px-2 py-2">{{ formatDate(event.timestamp) }}</td>
+              </tr>
+              <tr *ngIf="loginEvents.length === 0">
+                <td class="px-2 py-3 text-slate-500" colspan="4">No access events found.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+
+    <section class="rounded-lg border border-slate-200 bg-white p-6">
+      <h2 class="text-lg font-semibold">User Access Snapshot</h2>
+      <p class="mt-1 text-sm text-slate-600">Latest registered users with role and account status.</p>
+      <div class="mt-4 overflow-x-auto">
+        <table class="min-w-full text-sm">
+          <thead>
+            <tr class="border-b border-slate-200 text-left text-slate-500">
+              <th class="px-2 py-2">Email</th>
+              <th class="px-2 py-2">Name</th>
+              <th class="px-2 py-2">Role</th>
+              <th class="px-2 py-2">Status</th>
+              <th class="px-2 py-2">MFA</th>
+              <th class="px-2 py-2">Last Login</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let item of users" class="border-b border-slate-100">
+              <td class="px-2 py-2">{{ item.email }}</td>
+              <td class="px-2 py-2">{{ item.name }}</td>
+              <td class="px-2 py-2">{{ item.role }}</td>
+              <td class="px-2 py-2">{{ item.accountStatus }}</td>
+              <td class="px-2 py-2">{{ item.mfaEnabled ? 'Enabled' : 'Disabled' }}</td>
+              <td class="px-2 py-2">{{ formatDate(item.lastLoginAt) }}</td>
+            </tr>
+            <tr *ngIf="users.length === 0">
+              <td class="px-2 py-3 text-slate-500" colspan="6">No users found.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>

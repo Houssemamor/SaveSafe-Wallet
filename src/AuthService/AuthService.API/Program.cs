@@ -48,6 +48,8 @@ builder.Services.AddAuthorization();
 // ── Application Services ────────────────────────────────────────────────────
 builder.Services.AddScoped<IAuthService, AuthService.API.Services.AuthService>();
 builder.Services.AddScoped<ITokenService, TokenService>();
+builder.Services.AddScoped<IAdminService, AdminService>();
+builder.Services.AddScoped<IDefaultAdminSeeder, DefaultAdminSeeder>();
 builder.Services.AddHttpClient<IWalletProvisioningService, WalletProvisioningService>(client =>
 {
     client.BaseAddress = new Uri(
@@ -79,6 +81,9 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
     await db.Database.MigrateAsync();
+
+    var defaultAdminSeeder = scope.ServiceProvider.GetRequiredService<IDefaultAdminSeeder>();
+    await defaultAdminSeeder.SeedIfMissingAsync();
 }
 
 app.UseSerilogRequestLogging();

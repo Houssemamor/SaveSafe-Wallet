@@ -51,6 +51,23 @@
 - Residual Sprint 2 gap:
 	- Google OAuth login endpoint is not implemented in backend (`/api/auth/google` missing), so frontend OAuth remains non-functional.
 
+- Date: 2026-04-15
+- Admin feature set implemented (Option A):
+	- Added backend admin API under `/api/admin` with RBAC protection (`RequireRole(Admin)`).
+	- New endpoints: `security-summary`, `login-events`, `failed-logins`, `users`.
+	- Added `AdminService` query layer with bounded limits and read-only projections.
+	- Added startup default-admin bootstrapper (`DefaultAdminSeeder`) executed after migrations.
+	- Default admin values are configurable via `DefaultAdmin:*` config and docker env vars.
+	- Added Angular admin feature module structure (models, data-access service, dashboard page).
+	- Added role-based frontend route guard and `/admin` route restricted to `Admin` role.
+	- Updated login redirect: Admin users go to `/admin`, others to `/dashboard`.
+	- Updated `.env.example`, `docker-compose.yml`, and `README.md` with default admin configuration details.
+- Validation evidence (2026-04-15):
+	- `dotnet build` passed for `src/AuthService/AuthService.API`.
+	- `npm run build` passed for `src/frontend`.
+	- `docker compose up -d --build auth-service frontend` completed and containers are up.
+	- Verified admin login returns role `Admin`; admin summary endpoint returned data.
+
 - Sprint 2 missing-implementation plan (2026-04-08):
 	- Objective: close the remaining OAuth and Sprint 2 validation gaps without changing the approved MVP baseline behavior.
 	- Backend (AuthService):

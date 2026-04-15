@@ -1,5 +1,6 @@
 export const API_CONFIG = {
   authBaseUrl: '/api/auth',
   usersBaseUrl: '/api/users',
-  walletBaseUrl: '/api/wallet'
+  walletBaseUrl: '/api/wallet',
+  adminBaseUrl: '/api/admin'
 };

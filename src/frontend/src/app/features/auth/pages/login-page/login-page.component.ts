@@ -3,6 +3,7 @@ import { Component } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../data-access/auth.service';
+import { SessionService } from '../../../../core/session/session.service';
 
 @Component({
   selector: 'app-login-page',
@@ -22,6 +23,7 @@ export class LoginPageComponent {
   constructor(
     private readonly fb: FormBuilder,
     private readonly authService: AuthService,
+    private readonly sessionService: SessionService,
     private readonly router: Router
   ) {}
 
@@ -37,7 +39,8 @@ export class LoginPageComponent {
     this.authService.login(this.loginForm.getRawValue()).subscribe({
       next: () => {
         this.isSubmitting = false;
-        this.router.navigate(['/dashboard']);
+        const role = this.sessionService.currentUser?.role?.toLowerCase();
+        this.router.navigate([role === 'admin' ? '/admin' : '/dashboard']);
       },
       error: () => {
         this.isSubmitting = false;

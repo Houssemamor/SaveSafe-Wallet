@@ -57,10 +57,17 @@ docker compose ps
 
 Wait ~30 seconds for Kafka to become ready. Then check:
 - Frontend: http://localhost:4200
+- Admin Dashboard: http://localhost:4200/admin
 - Auth Service: http://localhost:5001/health
 - Wallet Service: http://localhost:5002/health
 - Swagger (Auth): http://localhost:5001/swagger (dev mode only)
 - Grafana: http://localhost:3000 (login: admin / admin)
+
+Default admin bootstrap account (created automatically if no admin exists):
+- Email: `admin@savesafe.local`
+- Password: `Admin@12345!`
+
+You can override these values with `DEFAULT_ADMIN_EMAIL`, `DEFAULT_ADMIN_NAME`, and `DEFAULT_ADMIN_PASSWORD` in `.env`.
 
 ---
 

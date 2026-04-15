@@ -162,6 +162,9 @@ services:
       Jwt__Audience: savesafe-clients
       Services__WalletServiceUrl: http://wallet-service:8080
       InternalApi__ApiKey: ${INTERNAL_API_KEY}
+      DefaultAdmin__Email: ${DEFAULT_ADMIN_EMAIL:-admin@savesafe.local}
+      DefaultAdmin__Name: ${DEFAULT_ADMIN_NAME:-Default Administrator}
+      DefaultAdmin__Password: ${DEFAULT_ADMIN_PASSWORD:-Admin@12345!}
     networks:
       - ssw-network
     restart: unless-stopped
