@@ -10,6 +10,8 @@ public interface IAuthService
         RegisterRequestDto request, string? ipAddress, string? userAgent);
     Task<(AuthResponseDto response, string rawRefreshToken)> LoginAsync(
         LoginRequestDto request, string? ipAddress, string? userAgent);
+    Task<(AuthResponseDto response, string rawRefreshToken)> GoogleLoginAsync(
+        string idToken, string? ipAddress, string? userAgent);
     Task<(AuthResponseDto response, string rawRefreshToken)> RefreshAsync(string rawRefreshToken);
     Task LogoutAsync(string rawRefreshToken);
     Task<UserProfileDto> GetUserProfileAsync(Guid userId);
@@ -146,6 +148,101 @@ public class AuthService : IAuthService
         await _users.UpdateLastLoginAsync(user.Id, now);
 
         return (BuildAuthResponse(user, _tokenService.GenerateAccessToken(user)), rawRefreshToken);
+    }
+
+    public async Task<(AuthResponseDto response, string rawRefreshToken)> GoogleLoginAsync(
+        string idToken, string? ipAddress, string? userAgent)
+    {
+        try
+        {
+            // Verify the Google ID token
+            var payload = await Google.Apis.Auth.GoogleJsonWebSignature.ValidateAsync(idToken);
+
+            if (payload == null)
+                throw new UnauthorizedAccessException("Invalid Google token.");
+
+            var normalizedEmail = payload.Email.Trim().ToLowerInvariant();
+            var user = await _users.GetByEmailAsync(normalizedEmail);
+            var now = DateTime.UtcNow;
+
+            // Create login event for tracking
+            var loginEvent = new LoginEventRecord(
+                EventId: Guid.NewGuid(),
+                UserId: user?.Id ?? Guid.Empty,
+                UserEmail: normalizedEmail,
+                UserName: payload.Name,
+                IpAddress: ipAddress,
+                Country: null,
+                Success: false,
+                FailureReason: null,
+                IsFlagged: false,
+                Timestamp: now,
+                UserAgent: userAgent);
+
+            if (user is null)
+            {
+                // Create new user from Google account
+                user = new User
+                {
+                    Email = normalizedEmail,
+                    Name = payload.Name,
+                    PasswordHash = string.Empty, // No password for Google accounts
+                    CreatedAt = now,
+                    UpdatedAt = now,
+                    AccountStatus = UserAccountStatus.Active,
+                    Role = UserRole.User
+                };
+
+                var (rawRefreshToken, refreshTokenRecord) = CreateRefreshToken(user.Id, now);
+
+                try
+                {
+                    await _registrationStore.RegisterAsync(user, normalizedEmail, refreshTokenRecord);
+                }
+                catch (InvalidOperationException)
+                {
+                    throw;
+                }
+
+                _logger.LogInformation("User registered via Google: {UserId} ({Email})", user.Id, user.Email);
+
+                // Best-effort wallet provisioning
+                await _walletProvisioning.CreateWalletForUserAsync(user.Id);
+
+                loginEvent = loginEvent with { Success = true, UserId = user.Id };
+                await _loginEvents.AddAsync(loginEvent);
+
+                return (BuildAuthResponse(user, _tokenService.GenerateAccessToken(user)), rawRefreshToken);
+            }
+            else
+            {
+                // Existing user - log them in
+                if (user.AccountStatus != UserAccountStatus.Active)
+                    throw new UnauthorizedAccessException("Account is not active.");
+
+                // Rotate: revoke all existing active refresh tokens for this user.
+                await _refreshTokens.RevokeAllActiveForUserAsync(user.Id);
+
+                var (rawRefreshToken, refreshTokenRecord) = CreateRefreshToken(user.Id, now);
+                await _refreshTokens.CreateAsync(refreshTokenRecord);
+
+                loginEvent = loginEvent with { Success = true, UserId = user.Id };
+                await _loginEvents.AddAsync(loginEvent);
+
+                await _users.UpdateLastLoginAsync(user.Id, now);
+
+                return (BuildAuthResponse(user, _tokenService.GenerateAccessToken(user)), rawRefreshToken);
+            }
+        }
+        catch (Google.Apis.Auth.InvalidJwtException)
+        {
+            throw new UnauthorizedAccessException("Invalid Google token.");
+        }
+        catch (Exception ex) when (ex is not UnauthorizedAccessException)
+        {
+            _logger.LogError(ex, "Google login failed");
+            throw new UnauthorizedAccessException("Google login failed.");
+        }
     }
 
     public async Task<(AuthResponseDto response, string rawRefreshToken)> RefreshAsync(

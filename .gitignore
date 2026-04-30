@@ -14,6 +14,11 @@ project.lock.json
 .env.local
 .env.*.local
 
+# Environment files with actual secrets
+src/frontend/.env
+src/frontend/src/environments/environment.ts
+src/frontend/src/environments/environment.prod.ts
+
 # Build artifacts
 publish/
 out/

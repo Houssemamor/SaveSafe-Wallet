@@ -94,6 +94,31 @@ You can override these values with `DEFAULT_ADMIN_EMAIL`, `DEFAULT_ADMIN_NAME`, 
 2. Copy the Web API Key and set `FIREBASE_WEB_API_KEY` in `.env`.
 3. If you add Firebase Web SDK to Angular, wire the key into the environment config.
 
+### Google OAuth Authentication
+
+The application supports Google OAuth authentication. To enable it:
+
+1. **Setup Firebase Configuration**:
+   ```bash
+   # Run setup script
+   ./setup-firebase.sh        # Linux/Mac
+   setup-firebase.bat          # Windows
+   ```
+
+2. **Configure Firebase Console**:
+   - Go to Firebase Console → Authentication → Sign-in method
+   - Enable **Google** sign-in
+   - Add authorized domains: `localhost`, `127.0.0.1`
+
+3. **Update Environment Files**:
+   - Copy Firebase config to `src/frontend/.env`
+   - Update `src/frontend/src/environments/environment.ts`
+
+4. **Test Google Login**:
+   - Navigate to `http://localhost:4200/login`
+   - Click "Continue with Google"
+   - Complete OAuth flow
+
 ---
 
 ## API Examples

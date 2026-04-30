@@ -42,6 +42,21 @@ public class AuthController : ControllerBase
         return Ok(response);
     }
 
+    /// <summary>Authenticate with Google OAuth. Returns JWT access token.</summary>
+    [HttpPost("google-login")]
+    [ProducesResponseType(typeof(AuthResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> GoogleLogin([FromBody] GoogleLoginRequestDto request)
+    {
+        var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
+        var ua = HttpContext.Request.Headers.UserAgent.ToString();
+
+        var (response, rawRefreshToken) = await _authService.GoogleLoginAsync(request.IdToken, ip, ua);
+        SetRefreshTokenCookie(rawRefreshToken);
+        return Ok(response);
+    }
+
     /// <summary>Use the refresh token cookie to get a new access token.</summary>
     [HttpPost("refresh")]
     [ProducesResponseType(typeof(AuthResponseDto), StatusCodes.Status200OK)]

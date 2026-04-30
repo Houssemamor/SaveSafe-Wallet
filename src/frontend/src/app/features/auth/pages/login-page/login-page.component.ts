@@ -63,11 +63,23 @@ export class LoginPageComponent {
     this.isGoogleSubmitting = true;
     this.errorMessage = '';
 
-    // TODO: Implement Google OAuth login
-    // For now, this is a placeholder for the Google login functionality
-    setTimeout(() => {
-      this.isGoogleSubmitting = false;
-      this.errorMessage = 'Google login is not yet implemented. Please use email/password login.';
-    }, 1000);
+    this.authService.googleLogin().subscribe({
+      next: () => {
+        this.isGoogleSubmitting = false;
+        const role = this.sessionService.currentUser?.role?.toLowerCase();
+        this.router.navigate([role === 'admin' ? '/admin' : '/dashboard']);
+      },
+      error: (error) => {
+        this.isGoogleSubmitting = false;
+        console.error('Google login error:', error);
+        if (error.status === 400) {
+          this.errorMessage = 'Google login failed. Please make sure your Google account is properly configured.';
+        } else if (error.status === 401) {
+          this.errorMessage = 'Authentication failed. Please try again.';
+        } else {
+          this.errorMessage = 'Google login is currently unavailable. Please use email/password login.';
+        }
+      }
+    });
   }
 }

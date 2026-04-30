@@ -55,12 +55,13 @@
           <p *ngIf="errorMessage" class="text-sm text-error font-label font-medium">{{ errorMessage }}</p>
         </form>
 
-        <div class="mt-8">
+        <!-- Temporarily hidden until Firebase is properly configured -->
+        <!-- <div class="mt-8">
           <button (click)="onGoogleLogin()" class="w-full h-12 flex items-center justify-center gap-3 rounded-lg border border-outline-variant border-opacity-20 text-on-surface hover:bg-surface-container-low transition-colors duration-150" [disabled]="isGoogleSubmitting">
             <img alt="Google icon" class="w-4 h-4 opacity-70" src="https://lh3.googleusercontent.com/aida-public/AB6AXuADzOT5_ocrh7JNPOiIDWTzqmjcjZ-4JjbmXQhSWA6Mx1H-2cT-oYcFo09qOuUhwMvShPYiQi-BLrfHwHf6_RjOx7NO4mpH2Bd2i8dodN0Nh2hHDIo6mzY8ApzwlXe5iAvj_2O03WtQdZKNDcswCVo_Q5WCcUl6RyrITIft4agW2t25LGeWxs50CmsYOBdD33H_5nkyh4avEJNmePw2TmdcybxouId0FlJMkb34bhmrbPZ6ZqMsP9CiGpKn19gJT8I7JebdR8w-bU2h" />
             <span class="text-sm font-label font-medium">{{ isGoogleSubmitting ? 'Connecting...' : 'Continue with Google' }}</span>
           </button>
-        </div>
+        </div> -->
       </div>
 
       <div class="mt-8 text-center">
