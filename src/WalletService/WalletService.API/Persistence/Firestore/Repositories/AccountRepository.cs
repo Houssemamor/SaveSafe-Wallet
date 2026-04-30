@@ -64,12 +64,12 @@ public sealed class AccountRepository : IAccountRepository
             {
                 var index = indexSnapshot.ConvertTo<AccountUserIndexDocument>();
                 var accountSnapshot = await transaction.GetSnapshotAsync(Accounts.Document(index.AccountId), ct);
-                var accountDoc = accountSnapshot.ConvertTo<AccountDocument>();
-                accountDoc.Id = accountSnapshot.Id;
+                var existingAccountDoc = accountSnapshot.ConvertTo<AccountDocument>();
+                existingAccountDoc.Id = accountSnapshot.Id;
 
                 return new AccountCreateResult(
-                    Guid.Parse(accountDoc.Id),
-                    accountDoc.AccountNumber,
+                    Guid.Parse(existingAccountDoc.Id),
+                    existingAccountDoc.AccountNumber,
                     Created: false);
             }
 
@@ -117,7 +117,7 @@ public sealed class AccountRepository : IAccountRepository
             transaction.Create(ledgerDoc, openingEntry);
 
             return new AccountCreateResult(accountId, accountNumber, Created: true);
-        }, ct);
+        }, null, ct);
     }
 
     private static Account ToEntity(AccountDocument doc) =>

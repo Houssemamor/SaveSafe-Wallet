@@ -29,7 +29,6 @@ public sealed class LedgerRepository : ILedgerRepository
 
         var query = collection
             .OrderByDescending(FieldCreatedAt)
-            .OrderBy(FieldPath.DocumentId, Direction.Descending)
             .Limit(pageSize);
 
         if (LedgerPageTokenCodec.TryDecode(pageToken, out var token))

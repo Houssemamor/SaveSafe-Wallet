@@ -46,7 +46,7 @@ public sealed class AuthRegistrationStore : IAuthRegistrationStore
             transaction.Create(userDoc, UserDocumentMapper.ToDocument(user));
             transaction.Create(emailDoc, emailIndex);
             transaction.Create(tokenDoc, ToDocument(refreshToken));
-        }, ct);
+        }, null, ct);
     }
 
     private static RefreshTokenDocument ToDocument(RefreshTokenRecord token) =>

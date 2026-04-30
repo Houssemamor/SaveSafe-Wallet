@@ -56,7 +56,7 @@ public sealed class RefreshTokenRepository : IRefreshTokenRepository
             transaction.Create(newTokenDoc, ToDocument(newToken with { UserId = userId }));
 
             return userId;
-        }, ct);
+        }, null, ct);
     }
 
     public async Task RevokeAsync(string tokenHash, CancellationToken ct = default)
@@ -71,7 +71,7 @@ public sealed class RefreshTokenRepository : IRefreshTokenRepository
         await docRef.UpdateAsync(new Dictionary<string, object>
         {
             [FieldIsRevoked] = true
-        }, ct);
+        }, null, ct);
     }
 
     public async Task RevokeAllActiveForUserAsync(Guid userId, CancellationToken ct = default)

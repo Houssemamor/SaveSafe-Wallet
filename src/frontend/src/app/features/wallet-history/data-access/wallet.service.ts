@@ -15,7 +15,7 @@ export class WalletService {
   getHistory(pageSize: number, pageToken?: string | null): Observable<WalletHistoryResponse> {
     const params: Record<string, string | number> = { pageSize };
     if (pageToken) {
-      params.pageToken = pageToken;
+      params['pageToken'] = pageToken;
     }
 
     return this.http.get<WalletHistoryResponse>(`${API_CONFIG.walletBaseUrl}/history`, {

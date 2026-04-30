@@ -28,18 +28,13 @@ public class RateLimitMiddleware
             Window = TimeSpan.FromMinutes(1),
             SegmentsPerWindow = 10,
             QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-            QueueLimit = 10,
-            QueueLimitReached = (context) =>
-            {
-                _logger.LogWarning("Rate limit queue reached for {RemoteIpAddress}", context.HttpContext.Connection.RemoteIpAddress);
-                return new RateLimitLeaseInfo(true, "Rate limit queue reached");
-            }
+            QueueLimit = 10
         });
     }
 
     public async Task InvokeAsync(HttpContext context)
     {
-        using var lease = await _rateLimiter.AttemptAcquireAsync();
+        using var lease = await _rateLimiter.AcquireAsync();
 
         if (lease.IsAcquired)
         {

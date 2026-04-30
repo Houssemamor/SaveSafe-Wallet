@@ -46,7 +46,7 @@ public sealed class FailedLoginByIpRepository : IFailedLoginByIpRepository
                 [FieldFailedAttempts] = newCount,
                 [FieldLastAttemptAt] = timestamp
             });
-        }, ct);
+        }, null, ct);
     }
 
     public async Task<IReadOnlyList<FailedLoginByIpRecord>> GetTopAsync(int top, CancellationToken ct = default)

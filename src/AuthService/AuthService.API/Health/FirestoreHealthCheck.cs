@@ -20,7 +20,7 @@ public sealed class FirestoreHealthCheck : IHealthCheck
         {
             // Read-only probe to verify credentials and connectivity.
             var db = _dbProvider.GetDb();
-            await db.Collection("__healthcheck__").Limit(1).GetSnapshotAsync(cancellationToken);
+            await db.Collection("healthcheck").Limit(1).GetSnapshotAsync(cancellationToken);
             return HealthCheckResult.Healthy();
         }
         catch (Exception ex)

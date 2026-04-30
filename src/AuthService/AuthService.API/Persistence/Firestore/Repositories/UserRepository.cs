@@ -82,7 +82,7 @@ public sealed class UserRepository : IUserRepository
 
             transaction.Create(userDoc, UserDocumentMapper.ToDocument(user));
             transaction.Create(emailDoc, emailIndex);
-        }, ct);
+        }, null, ct);
     }
 
     public async Task UpdateAsync(User user, CancellationToken ct = default)
@@ -99,7 +99,7 @@ public sealed class UserRepository : IUserRepository
             [FieldUpdatedAt] = lastLoginAt
         };
 
-        await Users.Document(userId.ToString()).UpdateAsync(updates, ct);
+        await Users.Document(userId.ToString()).UpdateAsync(updates, null, ct);
     }
 
     public async Task<IReadOnlyList<User>> GetRecentUsersAsync(int limit, CancellationToken ct = default)
