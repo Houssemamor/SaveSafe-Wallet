@@ -26,6 +26,9 @@ export class WalletHistoryPageComponent implements OnInit {
   page = 1;
   pageSize = 10;
   totalCount = 0;
+  pageToken: string | null = null;
+  nextPageToken: string | null = null;
+  pageTokens: Array<string | null> = [null];
 
   activityFilter: ActivityFilter = 'all';
   dateFilter: DateFilter = '30d';
@@ -88,15 +91,17 @@ export class WalletHistoryPageComponent implements OnInit {
     }
 
     this.page -= 1;
+    this.pageToken = this.pageTokens[this.page - 1] ?? null;
     this.loadHistory();
   }
 
   nextPage(): void {
-    if (this.page >= this.totalPages || this.isLoading) {
+    if (!this.nextPageToken || this.page >= this.totalPages || this.isLoading) {
       return;
     }
 
     this.page += 1;
+    this.pageToken = this.nextPageToken;
     this.loadHistory();
   }
 
@@ -131,10 +136,12 @@ export class WalletHistoryPageComponent implements OnInit {
     this.isLoading = true;
     this.errorMessage = '';
 
-    this.walletService.getHistory(this.page, this.pageSize).subscribe({
+    this.walletService.getHistory(this.pageSize, this.pageToken).subscribe({
       next: (response) => {
         this.entries = response.entries;
         this.totalCount = response.totalCount;
+        this.nextPageToken = response.nextPageToken;
+        this.pageTokens[this.page] = response.nextPageToken;
         this.applyFilters();
         this.isLoading = false;
       },

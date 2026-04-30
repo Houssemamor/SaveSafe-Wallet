@@ -3,34 +3,12 @@ networks:
     driver: bridge
 
 volumes:
-  postgres_data:
   redis_data:
   kafka_data:
   grafana_data:
   loki_data:
 
 services:
-
-  # ── PostgreSQL ──────────────────────────────────────────────────────────────
-  postgres:
-    image: docker.io/postgres:16-alpine
-    container_name: ssw-postgres
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-ssw_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ssw_secret}
-      POSTGRES_DB: ${POSTGRES_DB:-savesafe}
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ssw_user} -d ${POSTGRES_DB:-savesafe}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - ssw-network
-    restart: unless-stopped
 
   # ── Redis ───────────────────────────────────────────────────────────────────
   redis:
@@ -144,8 +122,6 @@ services:
       dockerfile: AuthService.API/Dockerfile
     container_name: ssw-auth-service
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
       wallet-service:
@@ -155,16 +131,22 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://+:8080
-      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-savesafe};Username=${POSTGRES_USER:-ssw_user};Password=${POSTGRES_PASSWORD:-ssw_secret};Search Path=auth"
       ConnectionStrings__Redis: "redis:6379,password=${REDIS_PASSWORD:-ssw_redis_secret}"
+      Firestore__ProjectId: ${FIRESTORE_PROJECT_ID}
+      Firestore__CredentialsPath: /secrets/firebase.json
+      GOOGLE_APPLICATION_CREDENTIALS: /secrets/firebase.json
       Jwt__Key: ${JWT_SECRET_KEY}
       Jwt__Issuer: savesafe-auth
       Jwt__Audience: savesafe-clients
       Services__WalletServiceUrl: http://wallet-service:8080
       InternalApi__ApiKey: ${INTERNAL_API_KEY}
-      DefaultAdmin__Email: ${DEFAULT_ADMIN_EMAIL:-admin@savesafe.local}
-      DefaultAdmin__Name: ${DEFAULT_ADMIN_NAME:-Default Administrator}
-      DefaultAdmin__Password: ${DEFAULT_ADMIN_PASSWORD:-Admin@12345!}
+      DefaultAdmin__Email: ${DEFAULT_ADMIN_EMAIL}
+      DefaultAdmin__Name: ${DEFAULT_ADMIN_NAME}
+      DefaultAdmin__Password: ${DEFAULT_ADMIN_PASSWORD}
+      RateLimit__PerMinute: ${RATE_LIMIT_PER_MINUTE:-100}
+      RateLimit__PerHour: ${RATE_LIMIT_PER_HOUR:-1000}
+    volumes:
+      - ${FIRESTORE_CREDENTIALS_PATH:-./secrets/firebase.json}:/secrets/firebase.json:ro
     networks:
       - ssw-network
     restart: unless-stopped
@@ -176,18 +158,22 @@ services:
       dockerfile: WalletService.API/Dockerfile
     container_name: ssw-wallet-service
     depends_on:
-      postgres:
-        condition: service_healthy
     ports:
       - "5002:8080"
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://+:8080
-      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-savesafe};Username=${POSTGRES_USER:-ssw_user};Password=${POSTGRES_PASSWORD:-ssw_secret};Search Path=wallet"
+      Firestore__ProjectId: ${FIRESTORE_PROJECT_ID}
+      Firestore__CredentialsPath: /secrets/firebase.json
+      GOOGLE_APPLICATION_CREDENTIALS: /secrets/firebase.json
       Jwt__Key: ${JWT_SECRET_KEY}
       Jwt__Issuer: savesafe-auth
       Jwt__Audience: savesafe-clients
       InternalApi__ApiKey: ${INTERNAL_API_KEY}
+      RateLimit__PerMinute: ${RATE_LIMIT_PER_MINUTE:-100}
+      RateLimit__PerHour: ${RATE_LIMIT_PER_HOUR:-1000}
+    volumes:
+      - ${FIRESTORE_CREDENTIALS_PATH:-./secrets/firebase.json}:/secrets/firebase.json:ro
     networks:
       - ssw-network
     restart: unless-stopped

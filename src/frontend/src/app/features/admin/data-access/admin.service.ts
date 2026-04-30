@@ -17,6 +17,12 @@ export class AdminService {
     return this.http.get<AdminSecuritySummary>(`${API_CONFIG.adminBaseUrl}/security-summary`);
   }
 
+  refreshSecuritySummary(): Observable<AdminSecuritySummary> {
+    return this.http.post<AdminSecuritySummary>(
+      `${API_CONFIG.adminBaseUrl}/security-summary/refresh`,
+      {});
+  }
+
   getLoginEvents(limit = 50): Observable<AdminLoginEvent[]> {
     const params = new HttpParams().set('limit', limit);
     return this.http.get<AdminLoginEvent[]>(`${API_CONFIG.adminBaseUrl}/login-events`, { params });

@@ -89,3 +89,6 @@
 		- OAuth login works end-to-end in local docker environment.
 		- Existing email/password login and protected routes remain regression-free.
 		- README and memory summary note OAuth status and enablement flag.
+
+- Date: 2026-04-30
+- Docker compose: removed the postgres service, its volume entry, and postgres depends_on references to prep for Firestore migration.

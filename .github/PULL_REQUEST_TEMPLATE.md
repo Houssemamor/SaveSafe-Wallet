@@ -18,6 +18,5 @@ Closes #<!-- issue number -->
 ## Checklist
 - [ ] Branch follows naming convention: `feature/SSW-XX-description` or `fix/SSW-XX-description`
 - [ ] No secrets or `.env` files committed
-- [ ] EF Core migration included if schema changed
 - [ ] README updated if a new endpoint was added
 - [ ] No `appsettings.Development.json` with real credentials committed

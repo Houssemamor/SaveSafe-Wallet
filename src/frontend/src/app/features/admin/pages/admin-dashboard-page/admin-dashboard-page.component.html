@@ -7,6 +7,9 @@
       </div>
       <div class="flex items-center gap-3">
         <a class="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium hover:bg-slate-100" href="http://localhost:3000" rel="noopener" target="_blank">Open Grafana</a>
+        <button class="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium hover:bg-slate-100 disabled:opacity-60" (click)="refreshSummary()" [disabled]="isRefreshing" type="button">
+          {{ isRefreshing ? 'Refreshing...' : 'Refresh Summary' }}
+        </button>
         <button class="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700" (click)="logout()" type="button">Logout</button>
       </div>
     </div>

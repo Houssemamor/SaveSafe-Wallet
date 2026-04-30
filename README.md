@@ -2,7 +2,7 @@
 
 Secure web-based banking & wallet platform with AI anti-pirating system.
 
-**Stack**: .NET 9 (C# microservices) · PostgreSQL · Redis · Kafka · Grafana · Loki · Angular (Sprint 2+)
+**Stack**: .NET 8 (C# microservices) · Firestore (Firebase) · Redis · Kafka · Grafana · Loki · Angular (Sprint 2+)
 
 **Team**: AMOR Houssem · KHEDHIRI Montaha · BEN SLIMA Wissem · BAHROUNI Seif
 **Supervisor**: Mme. Ines AGREBI
@@ -16,7 +16,7 @@ Secure web-based banking & wallet platform with AI anti-pirating system.
 | Frontend (Angular) | 4200 | login/register/dashboard/profile/wallet history |
 | Auth Service | 5001 | register, login, refresh, logout · JWT · RBAC |
 | Wallet Service | 5002 | wallet balance · ledger · internal provisioning |
-| PostgreSQL | 5432 | `auth` and `wallet` schemas |
+| Firestore (Firebase) | cloud | primary database |
 | Redis | 6379 | sessions, rate-limiting (Sprint 4) |
 | Kafka + Zookeeper | 9092 | async messaging (Sprint 3) |
 | Grafana | 3000 | dashboards (admin: `admin`/`admin`) |
@@ -28,9 +28,10 @@ Secure web-based banking & wallet platform with AI anti-pirating system.
 
 - **Docker Desktop** ≥ 4.x (Docker Compose v2 included)
 - **Git**
+- **Firebase project** with Firestore enabled (service account JSON)
 
-> .NET 9 SDK and PostgreSQL are **not** needed locally — everything runs in containers.
-> Install .NET 9 SDK only if you want to run services outside Docker.
+> .NET 8 SDK is **not** needed locally — everything runs in containers.
+> Install .NET 8 SDK only if you want to run services outside Docker.
 
 ---
 
@@ -43,7 +44,9 @@ cd projectDev
 
 # 2. Create your local .env (never commit this file)
 cp .env.example .env
-# Edit .env and set a strong JWT_SECRET_KEY (min 32 chars) and INTERNAL_API_KEY
+# Edit .env and set JWT_SECRET_KEY, INTERNAL_API_KEY, FIRESTORE_PROJECT_ID,
+# and FIRESTORE_CREDENTIALS_PATH (path to your service account JSON)
+# Place the service account JSON at ./secrets/firebase.json unless you override the path
 
 # 3. Start the full stack
 docker compose up -d
@@ -68,6 +71,28 @@ Default admin bootstrap account (created automatically if no admin exists):
 - Password: `Admin@12345!`
 
 You can override these values with `DEFAULT_ADMIN_EMAIL`, `DEFAULT_ADMIN_NAME`, and `DEFAULT_ADMIN_PASSWORD` in `.env`.
+
+---
+
+## Firestore Credentials and API Key
+
+### Service account (backend)
+
+1. Create a Firebase project and enable Firestore.
+2. Create a service account and download the JSON key.
+3. Place the JSON at `./secrets/firebase.json` (this folder is gitignored).
+4. Set `.env` values:
+  - `FIRESTORE_PROJECT_ID`
+  - `FIRESTORE_CREDENTIALS_PATH` (defaults to `./secrets/firebase.json`)
+5. If running outside Docker, export either:
+  - `Firestore__ProjectId` and `Firestore__CredentialsPath`, or
+  - `GOOGLE_APPLICATION_CREDENTIALS` (path to the JSON file)
+
+### Firebase Web API key (frontend)
+
+1. In Firebase console, open Project settings → General.
+2. Copy the Web API Key and set `FIREBASE_WEB_API_KEY` in `.env`.
+3. If you add Firebase Web SDK to Angular, wire the key into the environment config.
 
 ---
 
@@ -167,8 +192,8 @@ curl -X POST http://localhost:5001/api/auth/logout \
 ## Development Setup (running outside Docker)
 
 ```bash
-# Start only infrastructure
-docker compose up postgres redis -d
+# Start only infrastructure (optional)
+docker compose up redis -d
 
 # Auth Service
 cd src/AuthService/AuthService.API
@@ -179,25 +204,20 @@ cd src/WalletService/WalletService.API
 dotnet run
 ```
 
-The `appsettings.json` in each service is pre-configured to connect to `localhost:5432`.
+Before running locally, set `Firestore__ProjectId` and `Firestore__CredentialsPath`
+or `GOOGLE_APPLICATION_CREDENTIALS` in your shell.
 
 ---
 
-## Database Migrations
+## Firestore Indexes
 
-EF Core migrations run **automatically on service startup** via `MigrateAsync()`.
+Create the following indexes in Firestore for production workloads:
 
-To generate a new migration after schema changes:
-
-```bash
-# Auth Service
-cd src/AuthService/AuthService.API
-dotnet ef migrations add <MigrationName>
-
-# Wallet Service
-cd src/WalletService/WalletService.API
-dotnet ef migrations add <MigrationName>
-```
+- `users` collection: order by `createdAt` (descending)
+- `loginEvents` collection: order by `timestamp` (descending)
+- `failedLoginsByIp` collection: order by `failedAttempts` (descending), then `lastAttemptAt` (descending)
+- `refreshTokens` collection: filter by `userId` and `isRevoked`
+- `accounts/{accountId}/ledgerEntries` subcollection: order by `createdAt` (descending)
 
 ---
 
@@ -212,8 +232,8 @@ projectDev/
 │   ├── loki/loki-config.yaml
 │   └── grafana/provisioning/           # Auto-provisions Loki datasource
 ├── src/
-│   ├── AuthService/                    # .NET 9 WebAPI — auth, RBAC, JWT
-│   └── WalletService/                  # .NET 9 WebAPI — wallet, ledger
+│   ├── AuthService/                    # .NET 8 WebAPI — auth, RBAC, JWT
+│   └── WalletService/                  # .NET 8 WebAPI — wallet, ledger
 ├── docker-compose.yml
 ├── .env.example                        # Template — copy to .env
 └── README.md

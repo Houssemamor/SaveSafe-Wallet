@@ -26,6 +26,7 @@ src/frontend/.angular/
 
 # Docker
 docker-compose.override.yml.local
+secrets/
 
 # Logs
 *.log

@@ -33,6 +33,9 @@ public class Account
     [Column("updated_at")]
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
+    // Stored as metadata in Firestore to avoid expensive ledger counts.
+    public long LedgerCount { get; set; } = 0;
+
     public ICollection<LedgerEntry> LedgerEntries { get; set; } = new List<LedgerEntry>();
 }
 

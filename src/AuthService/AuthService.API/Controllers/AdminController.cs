@@ -28,6 +28,14 @@ public class AdminController : ControllerBase
         return Ok(summary);
     }
 
+    [HttpPost("security-summary/refresh")]
+    [ProducesResponseType(typeof(AdminSecuritySummaryDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> RefreshSecuritySummary()
+    {
+        var summary = await _adminService.RefreshSecuritySummaryAsync();
+        return Ok(summary);
+    }
+
     [HttpGet("login-events")]
     [ProducesResponseType(typeof(IReadOnlyList<AdminLoginEventDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetLoginEvents([FromQuery] int limit = 50)

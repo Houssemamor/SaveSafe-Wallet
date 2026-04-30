@@ -38,16 +38,16 @@ public class WalletController : ControllerBase
     [HttpGet("history")]
     [ProducesResponseType(typeof(WalletHistoryResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> GetHistory([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+    public async Task<IActionResult> GetHistory([FromQuery] string? pageToken = null, [FromQuery] int pageSize = 10)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (userId is null) return Unauthorized();
 
         // Validate pagination parameters
-        if (page < 1) page = 1;
         if (pageSize < 1 || pageSize > 100) pageSize = 10;
 
-        var history = await _walletService.GetWalletHistoryAsync(Guid.Parse(userId), page, pageSize);
+        var history = await _walletService.GetWalletHistoryAsync(
+            Guid.Parse(userId), pageToken, pageSize);
         if (history is null)
             return NotFound(new { message = "Wallet not found for this user." });
 

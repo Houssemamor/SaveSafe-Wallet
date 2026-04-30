@@ -17,7 +17,7 @@ export interface WalletHistoryEntry {
 
 export interface WalletHistoryResponse {
   entries: WalletHistoryEntry[];
-  page: number;
   pageSize: number;
   totalCount: number;
+  nextPageToken: string | null;
 }

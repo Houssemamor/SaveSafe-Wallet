@@ -1,7 +1,6 @@
-using Microsoft.EntityFrameworkCore;
-using WalletService.API.Data;
 using WalletService.API.DTOs;
 using WalletService.API.Entities;
+using WalletService.API.Persistence;
 
 namespace WalletService.API.Services;
 
@@ -9,71 +8,49 @@ public interface IWalletService
 {
     Task<Guid> CreateAccountAsync(Guid userId, string currency = "USD");
     Task<WalletBalanceResponseDto?> GetBalanceAsync(Guid userId);
-    Task<WalletHistoryResponseDto?> GetWalletHistoryAsync(Guid userId, int page = 1, int pageSize = 10);
+    Task<WalletHistoryResponseDto?> GetWalletHistoryAsync(Guid userId, string? pageToken, int pageSize = 10);
 }
 
 public class WalletService : IWalletService
 {
-    private readonly WalletDbContext _db;
+    private readonly IAccountRepository _accounts;
+    private readonly ILedgerRepository _ledger;
     private readonly ILogger<WalletService> _logger;
 
-    public WalletService(WalletDbContext db, ILogger<WalletService> logger)
+    public WalletService(
+        IAccountRepository accounts,
+        ILedgerRepository ledger,
+        ILogger<WalletService> logger)
     {
-        _db = db;
+        _accounts = accounts;
+        _ledger = ledger;
         _logger = logger;
     }
 
     public async Task<Guid> CreateAccountAsync(Guid userId, string currency = "USD")
     {
-        // Idempotent: if account already exists, return its id
-        var existing = await _db.Accounts
-            .FirstOrDefaultAsync(a => a.UserId == userId);
-        if (existing is not null)
+        // Idempotent: ensure a single account per user via the user->account index.
+        var result = await _accounts.GetOrCreateAsync(userId, currency);
+
+        if (result.Created)
+        {
+            _logger.LogInformation(
+                "Account {AccountNumber} created for user {UserId}",
+                result.AccountNumber, userId);
+        }
+        else
         {
             _logger.LogInformation(
                 "Account already exists for user {UserId}, returning existing {AccountId}",
-                userId, existing.Id);
-            return existing.Id;
+                userId, result.AccountId);
         }
 
-        // Generate sequential account number
-        var count = await _db.Accounts.CountAsync();
-        var accountNumber = $"SSW-{(count + 1):D10}";
-
-        var account = new Account
-        {
-            UserId = userId,
-            AccountNumber = accountNumber,
-            Type = AccountType.Savings,
-            Currency = currency.ToUpperInvariant(),
-            Balance = 0.00m
-        };
-        _db.Accounts.Add(account);
-
-        // Opening ledger entry - records that the account was created at zero balance
-        var openingEntry = new LedgerEntry
-        {
-            AccountId = account.Id,
-            Type = LedgerEntryType.Credit,
-            Amount = 0.00m,
-            BalanceAfter = 0.00m,
-            Description = "Account opened"
-        };
-        _db.LedgerEntries.Add(openingEntry);
-
-        await _db.SaveChangesAsync();
-
-        _logger.LogInformation(
-            "Account {AccountNumber} created for user {UserId}", accountNumber, userId);
-
-        return account.Id;
+        return result.AccountId;
     }
 
     public async Task<WalletBalanceResponseDto?> GetBalanceAsync(Guid userId)
     {
-        var account = await _db.Accounts
-            .AsNoTracking()
-            .FirstOrDefaultAsync(a => a.UserId == userId);
+        var account = await _accounts.GetByUserIdAsync(userId);
 
         if (account is null) return null;
 
@@ -87,25 +64,16 @@ public class WalletService : IWalletService
     }
 
     /// <summary>Retrieve paginated wallet transaction history (ledger entries). Used by GET /api/wallet/history.</summary>
-    public async Task<WalletHistoryResponseDto?> GetWalletHistoryAsync(Guid userId, int page = 1, int pageSize = 10)
+    public async Task<WalletHistoryResponseDto?> GetWalletHistoryAsync(
+        Guid userId, string? pageToken, int pageSize = 10)
     {
-        var account = await _db.Accounts
-            .AsNoTracking()
-            .FirstOrDefaultAsync(a => a.UserId == userId);
+        var account = await _accounts.GetByUserIdAsync(userId);
 
         if (account is null) return null;
 
-        var totalCount = await _db.LedgerEntries
-            .AsNoTracking()
-            .Where(le => le.AccountId == account.Id)
-            .CountAsync();
+        var page = await _ledger.GetPageAsync(account.Id, pageSize, pageToken);
 
-        var entries = await _db.LedgerEntries
-            .AsNoTracking()
-            .Where(le => le.AccountId == account.Id)
-            .OrderByDescending(le => le.CreatedAt)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
+        var entries = page.Entries
             .Select(le => new LedgerHistoryItemDto(
                 le.Id,
                 le.Type.ToString(),
@@ -114,13 +82,13 @@ public class WalletService : IWalletService
                 le.Description,
                 le.CreatedAt
             ))
-            .ToListAsync();
+            .ToList();
 
         return new WalletHistoryResponseDto(
             Entries: entries,
-            Page: page,
             PageSize: pageSize,
-            TotalCount: totalCount
+            TotalCount: (int)account.LedgerCount,
+            NextPageToken: page.NextPageToken
         );
     }
 }

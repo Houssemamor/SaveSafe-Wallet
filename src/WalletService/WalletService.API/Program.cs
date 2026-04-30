@@ -1,10 +1,13 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Serilog;
 using Serilog.Sinks.Grafana.Loki;
-using WalletService.API.Data;
+using WalletService.API.Health;
+using WalletService.API.Middleware;
+using WalletService.API.Persistence;
+using WalletService.API.Persistence.Firestore;
+using WalletService.API.Persistence.Firestore.Repositories;
 using WalletService.API.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -19,11 +22,12 @@ Log.Logger = new LoggerConfiguration()
     .CreateLogger();
 builder.Host.UseSerilog();
 
-// ── Database ────────────────────────────────────────────────────────────────
-builder.Services.AddDbContext<WalletDbContext>(opts =>
-    opts.UseNpgsql(
-        builder.Configuration.GetConnectionString("DefaultConnection"),
-        npgsql => npgsql.MigrationsHistoryTable("__ef_migrations", "wallet")));
+// ── Firestore ───────────────────────────────────────────────────────────────
+builder.Services.Configure<FirestoreOptions>(
+    builder.Configuration.GetSection("Firestore"));
+builder.Services.AddSingleton<IFirestoreDbProvider, FirestoreDbProvider>();
+builder.Services.AddSingleton<IAccountRepository, AccountRepository>();
+builder.Services.AddSingleton<ILedgerRepository, LedgerRepository>();
 
 // ── JWT Authentication (validates tokens issued by Auth Service) ────────────
 var jwtKey = builder.Configuration["Jwt:Key"]!;
@@ -54,19 +58,12 @@ builder.Services.AddSwaggerGen(c =>
     c.SwaggerDoc("v1", new() { Title = "SSW Wallet Service", Version = "v1" });
 });
 builder.Services.AddHealthChecks()
-    .AddNpgSql(builder.Configuration.GetConnectionString("DefaultConnection")!,
-        name: "postgres");
+    .AddCheck<FirestoreHealthCheck>("firestore");
 
 var app = builder.Build();
 
-// ── Auto-migrate on startup ─────────────────────────────────────────────────
-using (var scope = app.Services.CreateScope())
-{
-    var db = scope.ServiceProvider.GetRequiredService<WalletDbContext>();
-    await db.Database.MigrateAsync();
-}
-
 app.UseSerilogRequestLogging();
+app.UseMiddleware<RateLimitMiddleware>();
 
 if (app.Environment.IsDevelopment())
 {

@@ -27,6 +27,7 @@ export class AdminDashboardPageComponent implements OnInit {
   users: AdminUser[] = [];
 
   isLoading = true;
+  isRefreshing = false;
   errorMessage = '';
 
   constructor(
@@ -79,6 +80,24 @@ export class AdminDashboardPageComponent implements OnInit {
       error: () => {
         this.errorMessage = 'Unable to load admin dashboard data.';
         this.isLoading = false;
+      }
+    });
+  }
+
+  refreshSummary(): void {
+    if (this.isRefreshing) {
+      return;
+    }
+
+    this.isRefreshing = true;
+    this.adminService.refreshSecuritySummary().subscribe({
+      next: (summary) => {
+        this.summary = summary;
+        this.isRefreshing = false;
+      },
+      error: () => {
+        this.errorMessage = 'Unable to refresh security summary.';
+        this.isRefreshing = false;
       }
     });
   }

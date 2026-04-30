@@ -13,7 +13,7 @@ public record LedgerHistoryItemDto(
 /// <summary>Paginated wallet history response.</summary>
 public record WalletHistoryResponseDto(
     IEnumerable<LedgerHistoryItemDto> Entries,
-    int Page,
     int PageSize,
-    int TotalCount
+    int TotalCount,
+    string? NextPageToken
 );
