@@ -14,6 +14,8 @@ import { SessionService } from '../../../../core/session/session.service';
 export class LoginPageComponent {
   isSubmitting = false;
   errorMessage = '';
+  showPassword = false;
+  isGoogleSubmitting = false;
 
   readonly loginForm = this.fb.nonNullable.group({
     email: ['', [Validators.required, Validators.email]],
@@ -26,6 +28,10 @@ export class LoginPageComponent {
     private readonly sessionService: SessionService,
     private readonly router: Router
   ) {}
+
+  togglePasswordVisibility(): void {
+    this.showPassword = !this.showPassword;
+  }
 
   onSubmit(): void {
     if (this.loginForm.invalid || this.isSubmitting) {
@@ -47,5 +53,21 @@ export class LoginPageComponent {
         this.errorMessage = 'Login failed. Check your credentials and try again.';
       }
     });
+  }
+
+  onGoogleLogin(): void {
+    if (this.isGoogleSubmitting) {
+      return;
+    }
+
+    this.isGoogleSubmitting = true;
+    this.errorMessage = '';
+
+    // TODO: Implement Google OAuth login
+    // For now, this is a placeholder for the Google login functionality
+    setTimeout(() => {
+      this.isGoogleSubmitting = false;
+      this.errorMessage = 'Google login is not yet implemented. Please use email/password login.';
+    }, 1000);
   }
 }

@@ -35,7 +35,10 @@
               <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-outline">
                 <span class="material-symbols-outlined text-lg">lock</span>
               </div>
-              <input class="w-full h-14 pl-12 pr-4 bg-surface-container-highest border-none rounded-lg text-on-surface placeholder:text-outline focus:ring-2 focus:ring-surface-tint focus:bg-surface-container-lowest transition-all duration-200" id="password" placeholder="••••••••" type="password" formControlName="password" />
+              <input class="w-full h-14 pl-12 pr-12 bg-surface-container-highest border-none rounded-lg text-on-surface placeholder:text-outline focus:ring-2 focus:ring-surface-tint focus:bg-surface-container-lowest transition-all duration-200" id="password" placeholder="••••••••" [type]="showPassword ? 'text' : 'password'" formControlName="password" />
+              <button type="button" (click)="togglePasswordVisibility()" class="absolute inset-y-0 right-0 pr-4 flex items-center text-outline hover:text-on-surface transition-colors">
+                <span class="material-symbols-outlined text-lg">{{ showPassword ? 'visibility_off' : 'visibility' }}</span>
+              </button>
             </div>
           </div>
 
@@ -52,23 +55,10 @@
           <p *ngIf="errorMessage" class="text-sm text-error font-label font-medium">{{ errorMessage }}</p>
         </form>
 
-        <div class="mt-10 relative">
-          <div aria-hidden="true" class="absolute inset-0 flex items-center">
-            <div class="w-full border-t border-outline-variant opacity-20"></div>
-          </div>
-          <div class="relative flex justify-center text-xs uppercase tracking-widest">
-            <span class="px-4 bg-surface-container-lowest text-outline font-label font-semibold">Or Continue With</span>
-          </div>
-        </div>
-
-        <div class="mt-8 grid grid-cols-2 gap-4">
-          <button class="h-12 flex items-center justify-center gap-3 rounded-lg border border-outline-variant border-opacity-20 text-on-surface hover:bg-surface-container-low transition-colors duration-150">
+        <div class="mt-8">
+          <button (click)="onGoogleLogin()" class="w-full h-12 flex items-center justify-center gap-3 rounded-lg border border-outline-variant border-opacity-20 text-on-surface hover:bg-surface-container-low transition-colors duration-150" [disabled]="isGoogleSubmitting">
             <img alt="Google icon" class="w-4 h-4 opacity-70" src="https://lh3.googleusercontent.com/aida-public/AB6AXuADzOT5_ocrh7JNPOiIDWTzqmjcjZ-4JjbmXQhSWA6Mx1H-2cT-oYcFo09qOuUhwMvShPYiQi-BLrfHwHf6_RjOx7NO4mpH2Bd2i8dodN0Nh2hHDIo6mzY8ApzwlXe5iAvj_2O03WtQdZKNDcswCVo_Q5WCcUl6RyrITIft4agW2t25LGeWxs50CmsYOBdD33H_5nkyh4avEJNmePw2TmdcybxouId0FlJMkb34bhmrbPZ6ZqMsP9CiGpKn19gJT8I7JebdR8w-bU2h" />
-            <span class="text-sm font-label font-medium">Google</span>
-          </button>
-          <button class="h-12 flex items-center justify-center gap-3 rounded-lg border border-outline-variant border-opacity-20 text-on-surface hover:bg-surface-container-low transition-colors duration-150">
-            <span class="material-symbols-outlined text-lg">passkey</span>
-            <span class="text-sm font-label font-medium">Passkey</span>
+            <span class="text-sm font-label font-medium">{{ isGoogleSubmitting ? 'Connecting...' : 'Continue with Google' }}</span>
           </button>
         </div>
       </div>
