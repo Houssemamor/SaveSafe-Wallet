@@ -5,6 +5,12 @@
     "changeOrigin": true,
     "logLevel": "debug"
   },
+  "/api/admin": {
+    "target": "http://localhost:5001",
+    "secure": false,
+    "changeOrigin": true,
+    "logLevel": "debug"
+  },
   "/api/wallet": {
     "target": "http://localhost:5002",
     "secure": false,

@@ -101,4 +101,61 @@ export class AdminDashboardPageComponent implements OnInit {
       }
     });
   }
+
+  suspendUser(userId: string): void {
+    if (!confirm('Are you sure you want to suspend this user?')) {
+      return;
+    }
+
+    this.adminService.suspendUser(userId).subscribe({
+      next: () => {
+        this.loadDashboard(); // Reload to show updated status
+      },
+      error: () => {
+        this.errorMessage = 'Unable to suspend user.';
+      }
+    });
+  }
+
+  activateUser(userId: string): void {
+    if (!confirm('Are you sure you want to activate this user?')) {
+      return;
+    }
+
+    this.adminService.activateUser(userId).subscribe({
+      next: () => {
+        this.loadDashboard(); // Reload to show updated status
+      },
+      error: () => {
+        this.errorMessage = 'Unable to activate user.';
+      }
+    });
+  }
+
+  deleteUser(userId: string): void {
+    if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+      return;
+    }
+
+    this.adminService.deleteUser(userId).subscribe({
+      next: () => {
+        this.loadDashboard(); // Reload to show updated user list
+      },
+      error: () => {
+        this.errorMessage = 'Unable to delete user.';
+      }
+    });
+  }
+
+  canSuspendUser(user: AdminUser): boolean {
+    return user.accountStatus === 'Active';
+  }
+
+  canActivateUser(user: AdminUser): boolean {
+    return user.accountStatus === 'Suspended';
+  }
+
+  canDeleteUser(user: AdminUser): boolean {
+    return user.accountStatus !== 'Deleted';
+  }
 }

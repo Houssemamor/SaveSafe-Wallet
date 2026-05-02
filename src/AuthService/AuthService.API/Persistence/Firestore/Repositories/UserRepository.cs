@@ -1,6 +1,7 @@
 using AuthService.API.Entities;
 using AuthService.API.Persistence.Firestore.Documents;
 using Google.Cloud.Firestore;
+using Microsoft.Extensions.Logging;
 
 namespace AuthService.API.Persistence.Firestore.Repositories;
 
@@ -13,10 +14,12 @@ public sealed class UserRepository : IUserRepository
     private const string FieldLastLoginAt = "lastLoginAt";
 
     private readonly IFirestoreDbProvider _dbProvider;
+    private readonly ILogger<UserRepository> _logger;
 
-    public UserRepository(IFirestoreDbProvider dbProvider)
+    public UserRepository(IFirestoreDbProvider dbProvider, ILogger<UserRepository> logger)
     {
         _dbProvider = dbProvider;
+        _logger = logger;
     }
 
     private FirestoreDb Db => _dbProvider.GetDb();
@@ -105,18 +108,43 @@ public sealed class UserRepository : IUserRepository
     public async Task<IReadOnlyList<User>> GetRecentUsersAsync(int limit, CancellationToken ct = default)
     {
         var safeLimit = Math.Clamp(limit, 1, 500);
-        var snapshot = await Users.OrderByDescending(FieldCreatedAt)
-            .Limit(safeLimit)
-            .GetSnapshotAsync(ct);
 
-        return snapshot.Documents
-            .Select(doc =>
+        _logger.LogInformation("Querying Firestore for recent users with limit: {Limit}", safeLimit);
+
+        try
+        {
+            var snapshot = await Users.OrderByDescending(FieldCreatedAt)
+                .Limit(safeLimit)
+                .GetSnapshotAsync(ct);
+
+            _logger.LogInformation("Firestore query returned {Count} documents", snapshot.Count);
+
+            if (snapshot.Count == 0)
             {
-                var userDoc = doc.ConvertTo<UserDocument>();
-                userDoc.Id = doc.Id;
-                return UserDocumentMapper.ToEntity(userDoc);
-            })
-            .ToList();
+                _logger.LogWarning("No users found in Firestore collection");
+            }
+
+            var users = snapshot.Documents
+                .Select(doc =>
+                {
+                    var userDoc = doc.ConvertTo<UserDocument>();
+                    userDoc.Id = doc.Id;
+                    var user = UserDocumentMapper.ToEntity(userDoc);
+                    _logger.LogDebug("Converted user: {UserId}, {Email}, {Role}, {Status}",
+                        user.Id, user.Email, user.Role, user.AccountStatus);
+                    return user;
+                })
+                .ToList();
+
+            _logger.LogInformation("Converted {Count} documents to User entities", users.Count);
+
+            return users;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error querying users from Firestore");
+            throw;
+        }
     }
 
     public async Task<UserCounts> GetUserCountsAsync(CancellationToken ct = default)

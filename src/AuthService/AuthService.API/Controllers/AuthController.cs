@@ -1,3 +1,4 @@
+using AuthService.API.Attributes;
 using AuthService.API.DTOs;
 using AuthService.API.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -10,8 +11,13 @@ namespace AuthService.API.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
+    private readonly IUserService _userService;
 
-    public AuthController(IAuthService authService) => _authService = authService;
+    public AuthController(IAuthService authService, IUserService userService)
+    {
+        _authService = authService;
+        _userService = userService;
+    }
 
     /// <summary>Register a new user account. Auto-creates a wallet.</summary>
     [HttpPost("register")]
@@ -100,5 +106,22 @@ public class AuthController : ControllerBase
             SameSite = SameSiteMode.Strict,
             Expires = DateTimeOffset.UtcNow.AddDays(7)
         });
+    }
+
+    /// <summary>Internal API: Look up user by email for service-to-service communication.</summary>
+    [HttpGet("internal/user/by-email/{email}")]
+    [InternalApi]
+    [ProducesResponseType(typeof(InternalUserLookupDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetUserByEmailInternal(string email)
+    {
+        var userId = await _userService.GetUserIdByEmailAsync(email);
+        if (userId is null)
+        {
+            return NotFound(new InternalUserLookupDto(null, null, null));
+        }
+
+        var userName = await _userService.GetUserNameAsync(userId.Value);
+        return Ok(new InternalUserLookupDto(userId, userName, email));
     }
 }

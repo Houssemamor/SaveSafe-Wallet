@@ -54,7 +54,6 @@ public sealed class FailedLoginByIpRepository : IFailedLoginByIpRepository
         var safeTop = Math.Clamp(top, 1, 100);
         var snapshot = await FailedLogins
             .OrderByDescending(FieldFailedAttempts)
-            .OrderByDescending(FieldLastAttemptAt)
             .Limit(safeTop)
             .GetSnapshotAsync(ct);
 

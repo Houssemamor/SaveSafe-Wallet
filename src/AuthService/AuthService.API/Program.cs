@@ -25,6 +25,8 @@ builder.Host.UseSerilog();
 // ── Firestore ───────────────────────────────────────────────────────────────
 builder.Services.Configure<FirestoreOptions>(
     builder.Configuration.GetSection("Firestore"));
+builder.Services.Configure<InternalApiOptions>(
+    builder.Configuration.GetSection("InternalApi"));
 builder.Services.AddSingleton<IFirestoreDbProvider, FirestoreDbProvider>();
 builder.Services.AddSingleton<IUserRepository, UserRepository>();
 builder.Services.AddSingleton<IRefreshTokenRepository, RefreshTokenRepository>();
@@ -58,6 +60,7 @@ builder.Services.AddScoped<IAuthService, AuthService.API.Services.AuthService>()
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<IDefaultAdminSeeder, DefaultAdminSeeder>();
+builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddHttpClient<IWalletProvisioningService, WalletProvisioningService>(client =>
 {
     client.BaseAddress = new Uri(

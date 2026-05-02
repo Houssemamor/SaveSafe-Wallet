@@ -117,6 +117,7 @@
               <th class="px-2 py-2">Status</th>
               <th class="px-2 py-2">MFA</th>
               <th class="px-2 py-2">Last Login</th>
+              <th class="px-2 py-2">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -124,12 +125,38 @@
               <td class="px-2 py-2">{{ item.email }}</td>
               <td class="px-2 py-2">{{ item.name }}</td>
               <td class="px-2 py-2">{{ item.role }}</td>
-              <td class="px-2 py-2">{{ item.accountStatus }}</td>
+              <td class="px-2 py-2">
+                <span [class]="item.accountStatus === 'Active' ? 'text-green-700' : (item.accountStatus === 'Suspended' ? 'text-orange-700' : 'text-red-700')">
+                  {{ item.accountStatus }}
+                </span>
+              </td>
               <td class="px-2 py-2">{{ item.mfaEnabled ? 'Enabled' : 'Disabled' }}</td>
               <td class="px-2 py-2">{{ formatDate(item.lastLoginAt) }}</td>
+              <td class="px-2 py-2">
+                <div class="flex gap-2">
+                  <button *ngIf="canSuspendUser(item)"
+                    class="px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded hover:bg-orange-200 transition-colors"
+                    (click)="suspendUser(item.userId)"
+                    type="button">
+                    Suspend
+                  </button>
+                  <button *ngIf="canActivateUser(item)"
+                    class="px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200 transition-colors"
+                    (click)="activateUser(item.userId)"
+                    type="button">
+                    Activate
+                  </button>
+                  <button *ngIf="canDeleteUser(item)"
+                    class="px-2 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors"
+                    (click)="deleteUser(item.userId)"
+                    type="button">
+                    Delete
+                  </button>
+                </div>
+              </td>
             </tr>
             <tr *ngIf="users.length === 0">
-              <td class="px-2 py-3 text-slate-500" colspan="6">No users found.</td>
+              <td class="px-2 py-3 text-slate-500" colspan="7">No users found.</td>
             </tr>
           </tbody>
         </table>

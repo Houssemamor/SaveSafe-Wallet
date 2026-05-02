@@ -67,6 +67,11 @@
             <button class="px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors" [ngClass]="dateFilter === '30d' ? 'bg-surface-container-lowest shadow-sm text-primary' : 'text-on-surface-variant hover:bg-surface-container-high'" (click)="setDateFilter('30d')" type="button">Last 30 Days</button>
             <button class="px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors" [ngClass]="dateFilter === 'all' ? 'bg-surface-container-lowest shadow-sm text-primary' : 'text-on-surface-variant hover:bg-surface-container-high'" (click)="setDateFilter('all')" type="button">All Time</button>
           </div>
+
+          <button (click)="onDownloadHistory()" class="px-4 py-1.5 bg-primary text-white rounded-lg text-sm font-semibold hover:bg-primary/90 transition-colors flex items-center gap-2" [disabled]="isDownloading" type="button">
+            <span class="material-symbols-outlined text-sm">download</span>
+            {{ isDownloading ? 'Downloading...' : 'Export CSV' }}
+          </button>
         </div>
       </div>
 

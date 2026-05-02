@@ -66,6 +66,9 @@ public class AuthService : IAuthService
             Email = normalizedEmail,
             Name = request.Name,
             PasswordHash = passwordHash,
+            AccountStatus = UserAccountStatus.Active,
+            Role = UserRole.User,
+            MfaEnabled = false,
             CreatedAt = now,
             UpdatedAt = now
         };
@@ -82,7 +85,8 @@ public class AuthService : IAuthService
             throw;
         }
 
-        _logger.LogInformation("User registered: {UserId} ({Email})", user.Id, user.Email);
+        _logger.LogInformation("User registered: {UserId} ({Email}) with Role: {Role}, Status: {Status}",
+            user.Id, user.Email, user.Role, user.AccountStatus);
 
         // Best-effort wallet provisioning - registration is not rolled back on failure.
         await _walletProvisioning.CreateWalletForUserAsync(user.Id);

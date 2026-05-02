@@ -37,4 +37,16 @@ export class AdminService {
     const params = new HttpParams().set('limit', limit);
     return this.http.get<AdminUser[]>(`${API_CONFIG.adminBaseUrl}/users`, { params });
   }
+
+  suspendUser(userId: string): Observable<void> {
+    return this.http.post<void>(`${API_CONFIG.adminBaseUrl}/users/${userId}/suspend`, {});
+  }
+
+  activateUser(userId: string): Observable<void> {
+    return this.http.post<void>(`${API_CONFIG.adminBaseUrl}/users/${userId}/activate`, {});
+  }
+
+  deleteUser(userId: string): Observable<void> {
+    return this.http.delete<void>(`${API_CONFIG.adminBaseUrl}/users/${userId}`);
+  }
 }

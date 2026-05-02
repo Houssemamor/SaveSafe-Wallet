@@ -1,6 +1,7 @@
 using AuthService.API.DTOs;
 using AuthService.API.Entities;
 using AuthService.API.Persistence;
+using Microsoft.Extensions.Logging;
 
 namespace AuthService.API.Services;
 
@@ -11,6 +12,9 @@ public interface IAdminService
     Task<IReadOnlyList<AdminLoginEventDto>> GetLoginEventsAsync(int limit);
     Task<IReadOnlyList<AdminFailedLoginByIpDto>> GetFailedLoginsByIpAsync(int top);
     Task<IReadOnlyList<AdminUserDto>> GetUsersAsync(int limit);
+    Task SuspendUserAsync(Guid userId);
+    Task ActivateUserAsync(Guid userId);
+    Task DeleteUserAsync(Guid userId);
 }
 
 public class AdminService : IAdminService
@@ -20,19 +24,22 @@ public class AdminService : IAdminService
     private readonly IFailedLoginByIpRepository _failedLoginsByIp;
     private readonly IAdminStatsRepository _adminStats;
     private readonly IAdminStatsRefresher _adminStatsRefresher;
+    private readonly ILogger<AdminService> _logger;
 
     public AdminService(
         IUserRepository users,
         ILoginEventRepository loginEvents,
         IFailedLoginByIpRepository failedLoginsByIp,
         IAdminStatsRepository adminStats,
-        IAdminStatsRefresher adminStatsRefresher)
+        IAdminStatsRefresher adminStatsRefresher,
+        ILogger<AdminService> logger)
     {
         _users = users;
         _loginEvents = loginEvents;
         _failedLoginsByIp = failedLoginsByIp;
         _adminStats = adminStats;
         _adminStatsRefresher = adminStatsRefresher;
+        _logger = logger;
     }
 
     public async Task<AdminSecuritySummaryDto> GetSecuritySummaryAsync()
@@ -89,7 +96,12 @@ public class AdminService : IAdminService
     {
         var safeLimit = Math.Clamp(limit, 1, 500);
 
+        _logger.LogInformation("Fetching recent users with limit: {Limit}", safeLimit);
+
         var users = await _users.GetRecentUsersAsync(safeLimit);
+
+        _logger.LogInformation("Retrieved {Count} users from database", users.Count);
+
         return users
             .Select(u => new AdminUserDto(
                 u.Id,
@@ -101,6 +113,48 @@ public class AdminService : IAdminService
                 u.CreatedAt,
                 u.LastLoginAt))
             .ToList();
+    }
+
+    public async Task SuspendUserAsync(Guid userId)
+    {
+        var user = await _users.GetByIdAsync(userId);
+        if (user is null)
+            throw new KeyNotFoundException($"User {userId} not found.");
+
+        if (user.AccountStatus == UserAccountStatus.Suspended)
+            return; // Already suspended
+
+        user.AccountStatus = UserAccountStatus.Suspended;
+        user.UpdatedAt = DateTime.UtcNow;
+        await _users.UpdateAsync(user);
+    }
+
+    public async Task ActivateUserAsync(Guid userId)
+    {
+        var user = await _users.GetByIdAsync(userId);
+        if (user is null)
+            throw new KeyNotFoundException($"User {userId} not found.");
+
+        if (user.AccountStatus == UserAccountStatus.Active)
+            return; // Already active
+
+        user.AccountStatus = UserAccountStatus.Active;
+        user.UpdatedAt = DateTime.UtcNow;
+        await _users.UpdateAsync(user);
+    }
+
+    public async Task DeleteUserAsync(Guid userId)
+    {
+        var user = await _users.GetByIdAsync(userId);
+        if (user is null)
+            throw new KeyNotFoundException($"User {userId} not found.");
+
+        if (user.AccountStatus == UserAccountStatus.Deleted)
+            return; // Already deleted
+
+        user.AccountStatus = UserAccountStatus.Deleted;
+        user.UpdatedAt = DateTime.UtcNow;
+        await _users.UpdateAsync(user);
     }
 
     private static AdminSecuritySummaryDto MapSnapshot(AdminStatsSnapshot snapshot) =>

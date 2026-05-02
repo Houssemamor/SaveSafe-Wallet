@@ -34,6 +34,10 @@ export class WalletHistoryPageComponent implements OnInit {
   dateFilter: DateFilter = '30d';
   searchTerm = '';
 
+  // Download functionality
+  isDownloading = false;
+  downloadError = '';
+
   constructor(
     private readonly walletService: WalletService,
     private readonly sessionService: SessionService,
@@ -130,6 +134,45 @@ export class WalletHistoryPageComponent implements OnInit {
     });
 
     return `${this.isCredit(entry) ? '+' : '-'}$${amount}`;
+  }
+
+  onDownloadHistory(): void {
+    if (this.isDownloading) return;
+
+    this.isDownloading = true;
+    this.downloadError = '';
+
+    // Calculate date range based on current filter
+    const endDate = new Date();
+    const startDate = new Date();
+
+    if (this.dateFilter === '30d') {
+      startDate.setDate(startDate.getDate() - 30);
+    } else {
+      // For 'all' filter, use a reasonable range (e.g., last year)
+      startDate.setFullYear(startDate.getFullYear() - 1);
+    }
+
+    this.walletService.exportHistory(
+      startDate.toISOString().split('T')[0],
+      endDate.toISOString().split('T')[0]
+    ).subscribe({
+      next: (blob: Blob) => {
+        this.isDownloading = false;
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `wallet-history-${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      },
+      error: () => {
+        this.isDownloading = false;
+        this.downloadError = 'Failed to download history. Please try again.';
+      }
+    });
   }
 
   private loadHistory(): void {

@@ -13,4 +13,10 @@ public interface ILedgerRepository
         int pageSize,
         string? pageToken,
         CancellationToken ct = default);
+
+    Task<IReadOnlyList<LedgerEntry>> GetAllByAccountIdAsync(
+        Guid accountId,
+        CancellationToken ct = default);
+
+    Task CreateAsync(LedgerEntry entry, CancellationToken ct = default);
 }

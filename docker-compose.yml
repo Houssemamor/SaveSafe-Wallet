@@ -169,6 +169,7 @@ services:
       Jwt__Issuer: savesafe-auth
       Jwt__Audience: savesafe-clients
       InternalApi__ApiKey: ${INTERNAL_API_KEY}
+      Services__AuthServiceUrl: http://auth-service:8080
       RateLimit__PerMinute: ${RATE_LIMIT_PER_MINUTE:-100}
       RateLimit__PerHour: ${RATE_LIMIT_PER_HOUR:-1000}
     volumes:

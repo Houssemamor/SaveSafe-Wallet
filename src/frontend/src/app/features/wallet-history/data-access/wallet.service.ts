@@ -22,4 +22,23 @@ export class WalletService {
       params
     });
   }
+
+  transferFunds(recipientEmail: string, amount: number, description?: string): Observable<any> {
+    return this.http.post(`${API_CONFIG.walletBaseUrl}/transfer`, {
+      recipientEmail,
+      amount,
+      description
+    });
+  }
+
+  exportHistory(startDate?: string, endDate?: string): Observable<Blob> {
+    const params: Record<string, string> = {};
+    if (startDate) params['startDate'] = startDate;
+    if (endDate) params['endDate'] = endDate;
+
+    return this.http.get(`${API_CONFIG.walletBaseUrl}/export`, {
+      params,
+      responseType: 'blob'
+    });
+  }
 }

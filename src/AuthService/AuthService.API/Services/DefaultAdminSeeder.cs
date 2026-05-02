@@ -26,19 +26,28 @@ public class DefaultAdminSeeder : IDefaultAdminSeeder
 
     public async Task SeedIfMissingAsync(CancellationToken cancellationToken = default)
     {
+        _logger.LogInformation("Checking if admin user exists...");
+
         var hasAdmin = await _users.AnyWithRoleAsync(UserRole.Admin, cancellationToken);
         if (hasAdmin)
         {
+            _logger.LogInformation("Admin user already exists, skipping seeding");
             return;
         }
+
+        _logger.LogWarning("No admin user found, proceeding with admin seeding");
 
         var configuredEmail = (_configuration["DefaultAdmin:Email"] ?? "admin@savesafe.local").Trim().ToLowerInvariant();
         var configuredName = (_configuration["DefaultAdmin:Name"] ?? "Default Administrator").Trim();
         var configuredPassword = _configuration["DefaultAdmin:Password"] ?? "Admin@12345!";
 
+        _logger.LogInformation("Configured admin email: {Email}", configuredEmail);
+
         var existingUser = await _users.GetByEmailAsync(configuredEmail, cancellationToken);
         if (existingUser is not null)
         {
+            _logger.LogInformation("Found existing user with email {Email}, promoting to admin", configuredEmail);
+
             existingUser.Role = UserRole.Admin;
             existingUser.AccountStatus = UserAccountStatus.Active;
             existingUser.PasswordHash = BCrypt.Net.BCrypt.HashPassword(configuredPassword, workFactor: 12);
@@ -52,6 +61,8 @@ public class DefaultAdminSeeder : IDefaultAdminSeeder
 
             return;
         }
+
+        _logger.LogInformation("Creating new admin user with email {Email}", configuredEmail);
 
         var adminUser = new User
         {

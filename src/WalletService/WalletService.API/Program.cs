@@ -25,6 +25,8 @@ builder.Host.UseSerilog();
 // ── Firestore ───────────────────────────────────────────────────────────────
 builder.Services.Configure<FirestoreOptions>(
     builder.Configuration.GetSection("Firestore"));
+builder.Services.Configure<InternalApiOptions>(
+    builder.Configuration.GetSection("InternalApi"));
 builder.Services.AddSingleton<IFirestoreDbProvider, FirestoreDbProvider>();
 builder.Services.AddSingleton<IAccountRepository, AccountRepository>();
 builder.Services.AddSingleton<ILedgerRepository, LedgerRepository>();
@@ -50,6 +52,13 @@ builder.Services.AddAuthorization();
 
 // ── Application Services ────────────────────────────────────────────────────
 builder.Services.AddScoped<IWalletService, WalletService.API.Services.WalletService>();
+builder.Services.AddScoped<IUserLookupService, UserLookupService>();
+builder.Services.AddHttpClient<IUserLookupService, UserLookupService>(client =>
+{
+    client.BaseAddress = new Uri(
+        builder.Configuration["Services:AuthServiceUrl"] ?? "http://auth-service:8080");
+    client.Timeout = TimeSpan.FromSeconds(10);
+});
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();

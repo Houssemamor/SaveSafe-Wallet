@@ -120,6 +120,25 @@ public sealed class AccountRepository : IAccountRepository
         }, null, ct);
     }
 
+    public async Task UpdateAsync(Account account, CancellationToken ct = default)
+    {
+        var docRef = Accounts.Document(account.Id.ToString());
+        var doc = new AccountDocument
+        {
+            Id = account.Id.ToString(),
+            UserId = account.UserId.ToString(),
+            AccountNumber = account.AccountNumber,
+            Type = account.Type.ToString(),
+            Currency = account.Currency,
+            Balance = (double)account.Balance,
+            LedgerCount = account.LedgerCount,
+            CreatedAt = account.CreatedAt,
+            UpdatedAt = account.UpdatedAt
+        };
+
+        await docRef.SetAsync(doc);
+    }
+
     private static Account ToEntity(AccountDocument doc) =>
         new()
         {

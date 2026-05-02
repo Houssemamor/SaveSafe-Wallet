@@ -18,7 +18,7 @@ if not exist "src\frontend\.env" (
     copy src\frontend\.env.example src\frontend\.env
     echo .env file created
 ) else (
-    echo ℹ .env file already exists
+    echo .env file already exists
 )
 
 REM Create environment files if they don't exist

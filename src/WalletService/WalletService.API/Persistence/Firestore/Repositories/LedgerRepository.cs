@@ -75,6 +75,41 @@ public sealed class LedgerRepository : ILedgerRepository
         return LedgerPageTokenCodec.Encode(token);
     }
 
+    public async Task<IReadOnlyList<LedgerEntry>> GetAllByAccountIdAsync(Guid accountId, CancellationToken ct = default)
+    {
+        var collection = Db.Collection(FirestoreCollections.Accounts)
+            .Document(accountId.ToString())
+            .Collection(FirestoreCollections.LedgerEntries);
+
+        var snapshot = await collection
+            .OrderByDescending(FieldCreatedAt)
+            .GetSnapshotAsync(ct);
+
+        return snapshot.Documents
+            .Select(ToEntity)
+            .ToList();
+    }
+
+    public async Task CreateAsync(LedgerEntry entry, CancellationToken ct = default)
+    {
+        var collection = Db.Collection(FirestoreCollections.Accounts)
+            .Document(entry.AccountId.ToString())
+            .Collection(FirestoreCollections.LedgerEntries);
+
+        var doc = new LedgerEntryDocument
+        {
+            Id = entry.Id.ToString(),
+            AccountId = entry.AccountId.ToString(),
+            Type = entry.Type.ToString(),
+            Amount = (double)entry.Amount,
+            BalanceAfter = (double)entry.BalanceAfter,
+            Description = entry.Description,
+            CreatedAt = entry.CreatedAt
+        };
+
+        await collection.Document(doc.Id).SetAsync(doc);
+    }
+
     private static decimal ToDecimal(double value) =>
         Math.Round((decimal)value, 3, MidpointRounding.AwayFromZero);
 }

@@ -53,4 +53,50 @@ public class WalletController : ControllerBase
 
         return Ok(history);
     }
+
+    /// <summary>Transfer funds to another user's wallet.</summary>
+    [HttpPost("transfer")]
+    [ProducesResponseType(typeof(WalletTransferResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> TransferFunds([FromBody] WalletTransferRequestDto request)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userId is null) return Unauthorized();
+
+        var result = await _walletService.TransferFundsAsync(
+            Guid.Parse(userId),
+            request.RecipientEmail,
+            request.Amount,
+            request.Description);
+
+        if (!result.Success)
+            return BadRequest(new { message = result.ErrorMessage });
+
+        return Ok(result);
+    }
+
+    /// <summary>Export wallet transaction history as CSV.</summary>
+    [HttpGet("export")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ExportHistory([FromQuery] string? startDate = null, [FromQuery] string? endDate = null)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userId is null) return Unauthorized();
+
+        var csvData = await _walletService.ExportTransactionHistoryAsync(
+            Guid.Parse(userId),
+            startDate,
+            endDate);
+
+        if (string.IsNullOrEmpty(csvData))
+            return NotFound(new { message = "No transactions found for export." });
+
+        var fileName = $"wallet-history-{DateTime.UtcNow:yyyyMMdd-HHmmss}.csv";
+        return File(
+            System.Text.Encoding.UTF8.GetBytes(csvData),
+            "text/csv",
+            fileName);
+    }
 }

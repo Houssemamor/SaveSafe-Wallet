@@ -59,4 +59,57 @@ public class AdminController : ControllerBase
         var users = await _adminService.GetUsersAsync(limit);
         return Ok(users);
     }
+
+    /// <summary>Suspend a user account.</summary>
+    [HttpPost("users/{userId}/suspend")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> SuspendUser(Guid userId)
+    {
+        await _adminService.SuspendUserAsync(userId);
+        return NoContent();
+    }
+
+    /// <summary>Activate a suspended user account.</summary>
+    [HttpPost("users/{userId}/activate")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ActivateUser(Guid userId)
+    {
+        await _adminService.ActivateUserAsync(userId);
+        return NoContent();
+    }
+
+    /// <summary>Delete a user account (soft delete).</summary>
+    [HttpDelete("users/{userId}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteUser(Guid userId)
+    {
+        await _adminService.DeleteUserAsync(userId);
+        return NoContent();
+    }
+
+    /// <summary>Debug endpoint to check user count and database status.</summary>
+    [HttpGet("debug/user-count")]
+    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetUserCountDebug()
+    {
+        var users = await _adminService.GetUsersAsync(1000);
+        return Ok(new
+        {
+            TotalCount = users.Count,
+            Users = users.Select(u => new
+            {
+                u.UserId,
+                u.Email,
+                u.Name,
+                u.Role,
+                u.AccountStatus,
+                u.MfaEnabled,
+                u.CreatedAt,
+                u.LastLoginAt
+            }).ToList()
+        });
+    }
 }
