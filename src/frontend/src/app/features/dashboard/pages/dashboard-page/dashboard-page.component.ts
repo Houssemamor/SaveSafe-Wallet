@@ -673,18 +673,22 @@ export class DashboardPageComponent implements OnInit {
     this.isDeletingWallet = true;
     this.walletDeletionError = '';
 
+    // Save wallet name before deletion for success notification
+    const walletName = this.walletToDelete.name;
+
     this.walletService.deleteWallet(this.walletToDelete.id).subscribe({
       next: () => {
         this.isDeletingWallet = false;
         this.loadWallets(); // Refresh wallet list
         this.loadBalanceDistribution(); // Refresh balance distribution
         this.closeWalletDeletionModal();
-        // Show success notification
-        this.notificationService.showSuccess(`Wallet "${this.walletToDelete?.name}" deleted successfully.`);
+        // Show success notification with saved wallet name
+        this.notificationService.showSuccess(`Wallet "${walletName}" deleted successfully.`);
       },
-      error: () => {
+      error: (error) => {
         this.isDeletingWallet = false;
-        this.walletDeletionError = 'Failed to delete wallet. Please try again.';
+        // Display specific error message from backend
+        this.walletDeletionError = error.message || 'Failed to delete wallet. Please try again.';
       }
     });
   }

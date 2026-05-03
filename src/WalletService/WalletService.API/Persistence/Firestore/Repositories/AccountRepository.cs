@@ -161,10 +161,13 @@ public sealed class AccountRepository : IAccountRepository
 
     /// <summary>
     /// Get all accounts for a user (multi-wallet support)
+    /// Only returns active accounts
     /// </summary>
     public async Task<IEnumerable<Account>> GetAccountsByUserIdAsync(string userId, CancellationToken ct = default)
     {
-        var query = Accounts.WhereEqualTo("userId", userId);
+        var query = Accounts
+            .WhereEqualTo("userId", userId)
+            .WhereEqualTo("isActive", true);
         var snapshot = await query.GetSnapshotAsync(ct);
 
         var accounts = new List<Account>();

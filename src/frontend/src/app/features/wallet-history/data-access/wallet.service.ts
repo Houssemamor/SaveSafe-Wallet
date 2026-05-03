@@ -1,6 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
+import { map, catchError } from 'rxjs/operators';
 import { API_CONFIG } from '../../../core/config/api.config';
 import { WalletBalanceResponse, WalletHistoryResponse } from '../models/wallet.models';
 
@@ -106,7 +107,21 @@ export class WalletService {
    * @returns Observable of void
    */
   deleteWallet(walletId: string): Observable<void> {
-    return this.http.delete<void>(`${API_CONFIG.walletBaseUrl}/wallets/${walletId}`);
+    return this.http.delete<void>(`${API_CONFIG.walletBaseUrl}/wallets/${walletId}`, {
+      observe: 'response'
+    }).pipe(
+      map(response => {
+        if (response.status === 204) {
+          return undefined;
+        }
+        throw new Error('Unexpected response status');
+      }),
+      catchError(error => {
+        // Extract error message from backend response if available
+        const errorMessage = error.error?.message || error.error || 'Failed to delete wallet';
+        throw new Error(typeof errorMessage === 'string' ? errorMessage : 'Failed to delete wallet');
+      })
+    );
   }
 
   /**
