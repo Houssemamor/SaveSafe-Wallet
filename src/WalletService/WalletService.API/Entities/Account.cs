@@ -11,21 +11,37 @@ public class Account
     public Guid Id { get; set; } = Guid.NewGuid();
 
     [Column("user_id")]
-    public Guid UserId { get; set; }
+    public string UserId { get; set; } = string.Empty;
 
     [Required, MaxLength(20)]
     [Column("account_number")]
     public string AccountNumber { get; set; } = default!;
 
     [Column("type")]
-    public AccountType Type { get; set; } = AccountType.Savings;
+    public string? Type { get; set; } = AccountType.Savings.ToString();
 
     [MaxLength(3)]
     [Column("currency")]
-    public string Currency { get; set; } = "USD";
+    public string? Currency { get; set; } = "USD";
 
     [Column("balance", TypeName = "numeric(18,4)")]
     public decimal Balance { get; set; } = 0.00m;
+
+    /// <summary>
+    /// Wallet name for user-friendly display
+    /// </summary>
+    [MaxLength(50)]
+    public string? Name { get; set; }
+
+    /// <summary>
+    /// Whether the wallet is active for transactions
+    /// </summary>
+    public bool IsActive { get; set; } = true;
+
+    /// <summary>
+    /// Whether this is the default wallet for the user
+    /// </summary>
+    public bool IsDefault { get; set; } = false;
 
     [Column("created_at")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

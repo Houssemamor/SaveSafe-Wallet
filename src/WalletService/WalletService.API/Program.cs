@@ -52,6 +52,7 @@ builder.Services.AddAuthorization();
 
 // ── Application Services ────────────────────────────────────────────────────
 builder.Services.AddScoped<IWalletService, WalletService.API.Services.WalletService>();
+builder.Services.AddScoped<IWalletManagementService, WalletManagementService>();
 builder.Services.AddScoped<IUserLookupService, UserLookupService>();
 builder.Services.AddHttpClient<IUserLookupService, UserLookupService>(client =>
 {

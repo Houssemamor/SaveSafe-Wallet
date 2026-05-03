@@ -23,6 +23,24 @@ public sealed class AccountDocument
     [FirestoreProperty("balance")]
     public double Balance { get; set; }
 
+    /// <summary>
+    /// Wallet name for user-friendly display
+    /// </summary>
+    [FirestoreProperty("name")]
+    public string? Name { get; set; }
+
+    /// <summary>
+    /// Whether the wallet is active for transactions
+    /// </summary>
+    [FirestoreProperty("isActive")]
+    public bool IsActive { get; set; } = true;
+
+    /// <summary>
+    /// Whether this is the default wallet for the user
+    /// </summary>
+    [FirestoreProperty("isDefault")]
+    public bool IsDefault { get; set; } = false;
+
     [FirestoreProperty("ledgerCount")]
     public long LedgerCount { get; set; }
 

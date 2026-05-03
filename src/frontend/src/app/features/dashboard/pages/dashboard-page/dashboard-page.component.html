@@ -41,11 +41,11 @@
       <div class="flex items-center gap-6">
         <div class="hidden md:flex items-center bg-surface-container-highest px-4 py-2 rounded-xl w-64 transition-all focus-within:bg-white focus-within:ring-2 ring-surface-tint/20">
           <span class="material-symbols-outlined text-on-surface-variant text-sm">search</span>
-          <input class="bg-transparent border-none focus:ring-0 text-sm w-full placeholder:text-on-surface-variant/50" placeholder="Search transactions..." type="text" />
+          <input class="bg-transparent border-none focus:ring-0 text-sm w-full placeholder:text-on-surface-variant/50" placeholder="Search transactions..." type="text" (input)="onSearch($any($event.target).value)" />
         </div>
         <div class="flex items-center gap-4 text-[#434654] dark:text-slate-400">
-          <button class="material-symbols-outlined hover:text-[#0052CC] transition-all opacity-80 active:opacity-100">notifications</button>
-          <button class="material-symbols-outlined hover:text-[#0052CC] transition-all opacity-80 active:opacity-100">settings</button>
+          <button class="material-symbols-outlined hover:text-[#0052CC] transition-all opacity-80 active:opacity-100" (click)="onNotificationsClick()" type="button">notifications</button>
+          <button class="material-symbols-outlined hover:text-[#0052CC] transition-all opacity-80 active:opacity-100" (click)="onSettingsClick()" type="button">settings</button>
           <div class="h-8 w-[1px] bg-outline-variant opacity-20"></div>
           <img alt="User profile" class="w-8 h-8 rounded-full border border-outline-variant/30" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBXbExD_jIoHKvzz__QXpL6MaV1Tig86OFHQzrxJ_fcAID7MGFlXFc3O6UzLKOODaAyPB4W8wOXSQ5QVnRknkfHVP8NztyG38gr8S8p_z8mYcRUA6eMx6cJoQ21C4tjbvvXirQelngWzYXKOWO4oT05DTWr7IkGkzHyursuNo3Y5v8YvVgy9ep7uVOAnMMEX7nDDIdRjJL6ZvCbe32XME-U_1DsCHK-Z2pI0N1pH_g1ZcSG7TvIpMpQuTFc73OKJfcX2U0l7ZEmn1St" />
         </div>
@@ -75,22 +75,33 @@
           <div class="grid grid-cols-3 gap-8 pt-8 mt-auto border-t border-outline-variant/10">
             <div>
               <p class="text-on-surface-variant text-xs font-medium">Pending Transfers</p>
-              <p class="text-xl font-headline font-bold text-on-surface">$8,421</p>
+              <p class="text-xl font-headline font-bold text-on-surface" *ngIf="!isLoadingStats && stats">${{ stats.pendingTransfers | number: '1.2-2' }}</p>
+              <p class="text-xl font-headline font-bold text-on-surface-variant" *ngIf="isLoadingStats">Loading...</p>
+              <p class="text-sm text-error" *ngIf="statsError">{{ statsError }}</p>
             </div>
             <div>
               <p class="text-on-surface-variant text-xs font-medium">Monthly Inflow</p>
-              <p class="text-xl font-headline font-bold text-on-surface">$12,402</p>
+              <p class="text-xl font-headline font-bold text-on-surface" *ngIf="!isLoadingStats && stats">${{ stats.monthlyInflow | number: '1.2-2' }}</p>
+              <p class="text-xl font-headline font-bold text-on-surface-variant" *ngIf="isLoadingStats">Loading...</p>
+              <p class="text-sm text-error" *ngIf="statsError">{{ statsError }}</p>
             </div>
             <div>
               <p class="text-on-surface-variant text-xs font-medium">Security Level</p>
-              <p class="text-xl font-headline font-bold text-tertiary">High</p>
+              <p class="text-xl font-headline font-bold text-tertiary" *ngIf="!isLoadingStats && stats">{{ stats.securityLevel }}</p>
+              <p class="text-xl font-headline font-bold text-on-surface-variant" *ngIf="isLoadingStats">Loading...</p>
+              <p class="text-sm text-error" *ngIf="statsError">{{ statsError }}</p>
             </div>
           </div>
         </div>
 
         <div class="col-span-12 lg:col-span-4 flex flex-col gap-4">
           <div class="bg-surface-container-low rounded-xl p-6 flex flex-col justify-between flex-grow">
-            <h4 class="font-manrope font-bold text-on-surface">Wallet Actions</h4>
+            <div class="flex justify-between items-center mb-4">
+              <h4 class="font-manrope font-bold text-on-surface">Wallet Actions</h4>
+              <button (click)="openWalletCreationModal()" class="text-primary text-sm font-bold hover:underline" type="button">
+                + Create Wallet
+              </button>
+            </div>
             <div class="space-y-3 mt-4">
               <button (click)="openTransferModal()" class="w-full py-4 px-6 bg-gradient-to-br from-primary to-primary-container text-white rounded-lg font-manrope font-bold text-sm flex justify-between items-center group">
                 <span>Send Transfer</span>
@@ -100,7 +111,7 @@
                 <span>{{ isDownloading ? 'Downloading...' : 'Download Activity' }}</span>
                 <span class="material-symbols-outlined">download</span>
               </button>
-              <button class="w-full py-4 px-6 bg-surface-container-lowest text-on-surface rounded-lg font-manrope font-bold text-sm flex justify-between items-center hover:bg-surface-container-high transition-colors">
+              <button (click)="openWalletTransferModal()" class="w-full py-4 px-6 bg-surface-container-lowest text-on-surface rounded-lg font-manrope font-bold text-sm flex justify-between items-center hover:bg-surface-container-high transition-colors" type="button">
                 <span>Transfer Between Wallets</span>
                 <span class="material-symbols-outlined">account_balance_wallet</span>
               </button>
@@ -116,49 +127,23 @@
             <a class="text-primary text-xs font-bold hover:underline" routerLink="/wallet-history">View All History</a>
           </div>
           <div class="bg-surface-container-low rounded-xl overflow-hidden">
-            <div class="flex items-center justify-between p-6 hover:bg-surface-container-highest transition-colors">
+            <p *ngIf="isLoadingRecentTransactions" class="p-6 text-sm text-on-surface-variant">Loading recent transactions...</p>
+            <p *ngIf="recentTransactionsError" class="p-6 text-sm text-error">{{ recentTransactionsError }}</p>
+            <div *ngIf="!isLoadingRecentTransactions && recentTransactions.length === 0" class="p-6 text-sm text-on-surface-variant">No recent transactions found.</div>
+
+            <div *ngFor="let entry of recentTransactions" class="flex items-center justify-between p-6 hover:bg-surface-container-highest transition-colors">
               <div class="flex items-center gap-4">
-                <div class="w-12 h-12 rounded-full bg-secondary-container flex items-center justify-center text-on-secondary-container">
-                  <span class="material-symbols-outlined">payments</span>
+                <div class="w-12 h-12 rounded-full" [ngClass]="entry.type.toLowerCase() === 'credit' ? 'bg-secondary-container flex items-center justify-center text-on-secondary-container' : 'bg-surface-container-highest flex items-center justify-center text-on-surface-variant'">
+                  <span class="material-symbols-outlined">{{ entry.type.toLowerCase() === 'credit' ? 'payments' : 'swap_horiz' }}</span>
                 </div>
                 <div>
-                  <p class="font-manrope font-bold text-on-surface">Outgoing Transfer - Main Wallet</p>
-                  <p class="text-xs text-on-surface-variant font-medium">Today, 10:42 AM • Transfer</p>
+                  <p class="font-manrope font-bold text-on-surface">{{ getTransactionTypeText(entry) }} - {{ entry.description || 'Wallet operation' }}</p>
+                  <p class="text-xs text-on-surface-variant font-medium">{{ formatTransactionDate(entry) }} • {{ getTransactionTypeText(entry) }}</p>
                 </div>
               </div>
               <div class="text-right">
-                <p class="font-headline font-extrabold text-on-surface">-$1,240.00</p>
-                <p class="text-[10px] text-on-surface-variant uppercase tracking-widest font-bold">Confirmed</p>
-              </div>
-            </div>
-            <div class="flex items-center justify-between p-6 bg-white/40 hover:bg-surface-container-highest transition-colors">
-              <div class="flex items-center gap-4">
-                <div class="w-12 h-12 rounded-full bg-tertiary-container/10 flex items-center justify-center text-tertiary">
-                  <span class="material-symbols-outlined">account_balance</span>
-                </div>
-                <div>
-                  <p class="font-manrope font-bold text-on-surface">Incoming Deposit - Payroll</p>
-                  <p class="text-xs text-on-surface-variant font-medium">Yesterday • Deposit</p>
-                </div>
-              </div>
-              <div class="text-right">
-                <p class="font-headline font-extrabold text-surface-tint">+$842.15</p>
-                <p class="text-[10px] text-on-surface-variant uppercase tracking-widest font-bold">Settled</p>
-              </div>
-            </div>
-            <div class="flex items-center justify-between p-6 hover:bg-surface-container-highest transition-colors">
-              <div class="flex items-center gap-4">
-                <div class="w-12 h-12 rounded-full bg-secondary-container flex items-center justify-center text-on-secondary-container">
-                  <span class="material-symbols-outlined">swap_horiz</span>
-                </div>
-                <div>
-                  <p class="font-manrope font-bold text-on-surface">Internal Wallet Transfer</p>
-                  <p class="text-xs text-on-surface-variant font-medium">Oct 24 • Wallet Transfer</p>
-                </div>
-              </div>
-              <div class="text-right">
-                <p class="font-headline font-extrabold text-on-surface">-$2,000.00</p>
-                <p class="text-[10px] text-on-surface-variant uppercase tracking-widest font-bold">Confirmed</p>
+                <p class="font-headline font-extrabold" [ngClass]="entry.type.toLowerCase() === 'credit' ? 'text-surface-tint' : 'text-on-surface'">{{ formatTransactionAmount(entry) }}</p>
+                <p class="text-[10px] text-on-surface-variant uppercase tracking-widest font-bold">{{ getTransactionStatus(entry).text }}</p>
               </div>
             </div>
           </div>
@@ -167,37 +152,79 @@
         <div class="col-span-12 lg:col-span-5 space-y-6">
           <h4 class="text-xl font-headline font-bold px-2">Balance Distribution</h4>
           <div class="bg-surface-container-lowest rounded-xl p-8 h-[380px] flex flex-col">
-            <div class="flex-grow flex items-center justify-center relative">
+            <p *ngIf="isLoadingDistribution" class="text-sm text-on-surface-variant">Loading balance distribution...</p>
+            <p *ngIf="distributionError" class="text-sm text-error">{{ distributionError }}</p>
+
+            <div *ngIf="!isLoadingDistribution && balanceDistribution.length > 0" class="flex-grow flex items-center justify-center relative">
               <div class="w-48 h-48 rounded-full border-[16px] border-surface-container flex items-center justify-center relative">
-                <div class="absolute inset-0 rounded-full border-[16px] border-primary border-t-transparent border-l-transparent -rotate-45"></div>
-                <div class="absolute inset-0 rounded-full border-[16px] border-secondary border-b-transparent border-r-transparent rotate-12"></div>
+                <ng-container *ngFor="let item of balanceDistribution; let i = index">
+                  <div class="absolute inset-0 rounded-full border-[16px] [item.color] border-t-transparent border-l-transparent" [style.transform]="'rotate(' + (getRotationForIndex(i, balanceDistribution.length)) + 'deg)'"></div>
+                </ng-container>
                 <div class="text-center">
-                  <p class="text-xs text-on-surface-variant font-bold uppercase tracking-widest">Diversified</p>
-                  <p class="text-2xl font-black text-on-surface">82%</p>
+                  <p class="text-xs text-on-surface-variant font-bold uppercase tracking-widest">Total</p>
+                  <p class="text-2xl font-black text-on-surface">{{ getTotalBalance() | number: '1.0-0' }}</p>
                 </div>
               </div>
             </div>
-            <div class="space-y-4 pt-6">
-              <div class="flex items-center justify-between">
+            <div *ngIf="!isLoadingDistribution && balanceDistribution.length > 0" class="space-y-4 pt-6 max-h-48 overflow-y-auto">
+              <div *ngFor="let item of balanceDistribution" class="flex items-center justify-between">
                 <div class="flex items-center gap-2">
-                  <div class="w-3 h-3 rounded-full bg-primary"></div>
-                  <span class="text-sm font-medium">Primary Wallet</span>
+                  <div class="w-3 h-3 rounded-full" [ngClass]="item.color"></div>
+                  <span class="text-sm font-medium">{{ item.walletName }}</span>
                 </div>
-                <span class="text-sm font-bold">64%</span>
+                <span class="text-sm font-bold">${{ item.balance | number: '1.2-2' }} ({{ item.percentage | number: '1.0-1' }}%)</span>
               </div>
-              <div class="flex items-center justify-between">
-                <div class="flex items-center gap-2">
-                  <div class="w-3 h-3 rounded-full bg-secondary"></div>
-                  <span class="text-sm font-medium">Savings Wallet</span>
+            </div>
+            <div *ngIf="!isLoadingDistribution && balanceDistribution.length === 0" class="flex-grow flex items-center justify-center">
+              <p class="text-sm text-on-surface-variant">No active wallets with balance found.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Wallet Management Section -->
+        <div class="col-span-12 space-y-6">
+          <div class="flex justify-between items-end px-2">
+            <h4 class="text-xl font-headline font-bold">My Wallets</h4>
+            <button (click)="openWalletCreationModal()" class="text-primary text-xs font-bold hover:underline" type="button">
+              + Create New Wallet
+            </button>
+          </div>
+          <div class="bg-surface-container-low rounded-xl overflow-hidden">
+            <p *ngIf="isLoadingWallets" class="p-6 text-sm text-on-surface-variant">Loading wallets...</p>
+            <p *ngIf="walletsError" class="p-6 text-sm text-error">{{ walletsError }}</p>
+            <div *ngIf="!isLoadingWallets && wallets.length === 0" class="p-6 text-sm text-on-surface-variant">
+              No wallets found. Create your first wallet to get started.
+            </div>
+
+            <div *ngFor="let wallet of wallets" class="flex items-center justify-between p-6 hover:bg-surface-container-highest transition-colors border-b border-outline-variant/10 last:border-b-0">
+              <div class="flex items-center gap-4">
+                <div class="w-12 h-12 rounded-full bg-primary-container flex items-center justify-center text-on-primary-container">
+                  <span class="material-symbols-outlined">{{ getWalletTypeIcon(wallet.type) }}</span>
                 </div>
-                <span class="text-sm font-bold">22%</span>
+                <div>
+                  <div class="flex items-center gap-2">
+                    <p class="font-manrope font-bold text-on-surface">{{ wallet.name }}</p>
+                    <span *ngIf="wallet.isDefault" class="text-xs bg-primary text-white px-2 py-0.5 rounded-full font-bold">Default</span>
+                  </div>
+                  <p class="text-xs text-on-surface-variant font-medium">{{ getWalletTypeText(wallet.type) }} • {{ wallet.currency }}</p>
+                </div>
               </div>
-              <div class="flex items-center justify-between">
-                <div class="flex items-center gap-2">
-                  <div class="w-3 h-3 rounded-full bg-outline-variant"></div>
-                  <span class="text-sm font-medium">Reserve Cash</span>
+              <div class="flex items-center gap-6">
+                <div class="text-right">
+                  <p class="font-headline font-extrabold text-on-surface">${{ wallet.balance | number: '1.2-2' }}</p>
+                  <p class="text-[10px] text-on-surface-variant uppercase tracking-widest font-bold">{{ wallet.isActive ? 'Active' : 'Inactive' }}</p>
                 </div>
-                <span class="text-sm font-bold">14%</span>
+                <div class="flex items-center gap-2">
+                  <button (click)="selectWallet(wallet)" class="p-2 rounded-lg hover:bg-surface-container-highest transition-colors" title="Select Wallet" type="button">
+                    <span class="material-symbols-outlined text-sm">visibility</span>
+                  </button>
+                  <button *ngIf="!wallet.isDefault" (click)="onSetDefaultWallet(wallet)" class="p-2 rounded-lg hover:bg-surface-container-highest transition-colors" [disabled]="isSettingDefaultWallet" title="Set as Default" type="button">
+                    <span class="material-symbols-outlined text-sm">star</span>
+                  </button>
+                  <button (click)="openWalletDeletionModal(wallet)" class="p-2 rounded-lg hover:bg-surface-container-highest transition-colors text-error" title="Delete Wallet" type="button">
+                    <span class="material-symbols-outlined text-sm">delete</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -280,6 +307,215 @@
           </button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- Wallet Transfer Modal -->
+  <div *ngIf="showWalletTransferModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-xl p-8 max-w-md w-full mx-4 shadow-2xl">
+      <h3 class="text-2xl font-bold mb-6">Transfer Between Wallets</h3>
+
+      <form [formGroup]="walletTransferForm" (ngSubmit)="onWalletTransfer()">
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium mb-2" for="source-wallet">Source Wallet</label>
+            <select
+              id="source-wallet"
+              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+              formControlName="sourceWallet"
+            >
+              <option value="">Select wallet</option>
+              <option *ngFor="let wallet of wallets" [value]="wallet.id">{{ wallet.name }} (${{ wallet.balance | number: '1.2-2' }})</option>
+            </select>
+            <div *ngIf="walletTransferForm.get('sourceWallet')?.touched && walletTransferForm.get('sourceWallet')?.invalid" class="text-red-500 text-sm mt-1">
+              Please select a source wallet
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium mb-2" for="target-wallet">Target Wallet</label>
+            <select
+              id="target-wallet"
+              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+              formControlName="targetWallet"
+            >
+              <option value="">Select wallet</option>
+              <option *ngFor="let wallet of wallets" [value]="wallet.id">{{ wallet.name }} (${{ wallet.balance | number: '1.2-2' }})</option>
+            </select>
+            <div *ngIf="walletTransferForm.get('targetWallet')?.touched && walletTransferForm.get('targetWallet')?.invalid" class="text-red-500 text-sm mt-1">
+              Please select a target wallet
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium mb-2" for="wallet-amount">Amount ($)</label>
+            <input
+              id="wallet-amount"
+              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+              type="number"
+              step="0.01"
+              min="0.01"
+              formControlName="amount"
+              placeholder="0.00"
+            />
+            <div *ngIf="walletTransferForm.get('amount')?.touched && walletTransferForm.get('amount')?.invalid" class="text-red-500 text-sm mt-1">
+              Please enter a valid amount
+            </div>
+          </div>
+        </div>
+
+        <div *ngIf="walletTransferError" class="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+          {{ walletTransferError }}
+        </div>
+
+        <div *ngIf="walletTransferSuccess" class="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm">
+          {{ walletTransferSuccess }}
+        </div>
+
+        <div class="flex gap-3 mt-6">
+          <button
+            type="button"
+            (click)="closeWalletTransferModal()"
+            class="flex-1 px-4 py-3 border border-gray-300 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            [disabled]="isTransferringBetweenWallets || walletTransferForm.invalid"
+            class="flex-1 px-4 py-3 bg-primary text-white rounded-lg font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+          >
+            {{ isTransferringBetweenWallets ? 'Processing...' : 'Transfer' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Wallet Creation Modal -->
+  <div *ngIf="showWalletCreationModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-xl p-8 max-w-md w-full mx-4 shadow-2xl">
+      <h3 class="text-2xl font-bold mb-6">Create New Wallet</h3>
+
+      <form [formGroup]="walletCreationForm" (ngSubmit)="onCreateWallet()">
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium mb-2" for="wallet-name">Wallet Name</label>
+            <input
+              id="wallet-name"
+              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+              type="text"
+              formControlName="name"
+              placeholder="My Wallet"
+            />
+            <div *ngIf="walletCreationForm.get('name')?.touched && walletCreationForm.get('name')?.invalid" class="text-red-500 text-sm mt-1">
+              Please enter a wallet name (2-50 characters)
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium mb-2" for="wallet-type">Wallet Type</label>
+            <select
+              id="wallet-type"
+              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+              formControlName="type"
+            >
+              <option value="checking">Checking</option>
+              <option value="savings">Savings</option>
+              <option value="investment">Investment</option>
+              <option value="reserve">Reserve</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium mb-2" for="wallet-currency">Currency</label>
+            <select
+              id="wallet-currency"
+              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+              formControlName="currency"
+            >
+              <option value="USD">USD - US Dollar</option>
+              <option value="EUR">EUR - Euro</option>
+              <option value="GBP">GBP - British Pound</option>
+              <option value="CAD">CAD - Canadian Dollar</option>
+              <option value="AUD">AUD - Australian Dollar</option>
+            </select>
+          </div>
+
+          <!-- <div>
+            <label class="block text-sm font-medium mb-2" for="initial-balance">Initial Balance (Optional)</label>
+            <input
+              id="initial-balance"
+              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+              type="number"
+              step="0.01"
+              min="0"
+              formControlName="initialBalance"
+              placeholder="0.00"
+            />
+            <div *ngIf="walletCreationForm.get('initialBalance')?.touched && walletCreationForm.get('initialBalance')?.invalid" class="text-red-500 text-sm mt-1">
+              Please enter a valid amount
+            </div>
+           </div> -->
+        </div>
+
+        <div *ngIf="walletCreationError" class="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+          {{ walletCreationError }}
+        </div>
+
+        <div *ngIf="walletCreationSuccess" class="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm">
+          {{ walletCreationSuccess }}
+        </div>
+
+        <div class="flex gap-3 mt-6">
+          <button
+            type="button"
+            (click)="closeWalletCreationModal()"
+            class="flex-1 px-4 py-3 border border-gray-300 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            [disabled]="isCreatingWallet || walletCreationForm.invalid"
+            class="flex-1 px-4 py-3 bg-primary text-white rounded-lg font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+          >
+            {{ isCreatingWallet ? 'Creating...' : 'Create Wallet' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Wallet Deletion Modal -->
+  <div *ngIf="showWalletDeletionModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-xl p-8 max-w-md w-full mx-4 shadow-2xl">
+      <h3 class="text-2xl font-bold mb-4">Delete Wallet</h3>
+      <p class="text-gray-600 mb-6">
+        Are you sure you want to delete <strong>{{ walletToDelete?.name }}</strong>? This action cannot be undone.
+      </p>
+
+      <div *ngIf="walletDeletionError" class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+        {{ walletDeletionError }}
+      </div>
+
+      <div class="flex gap-3">
+        <button
+          type="button"
+          (click)="closeWalletDeletionModal()"
+          class="flex-1 px-4 py-3 border border-gray-300 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          (click)="onDeleteWallet()"
+          [disabled]="isDeletingWallet"
+          class="flex-1 px-4 py-3 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors disabled:opacity-50"
+        >
+          {{ isDeletingWallet ? 'Deleting...' : 'Delete Wallet' }}
+        </button>
+      </div>
     </div>
   </div>
 </div>

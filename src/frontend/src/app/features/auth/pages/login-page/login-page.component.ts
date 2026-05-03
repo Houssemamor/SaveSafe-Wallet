@@ -16,6 +16,7 @@ export class LoginPageComponent {
   errorMessage = '';
   showPassword = false;
   isGoogleSubmitting = false;
+  rememberMe = false;
 
   readonly loginForm = this.fb.nonNullable.group({
     email: ['', [Validators.required, Validators.email]],

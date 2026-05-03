@@ -92,3 +92,27 @@
 
 - Date: 2026-04-30
 - Docker compose: removed the postgres service, its volume entry, and postgres depends_on references to prep for Firestore migration.
+- Date: 2026-05-02
+- Sprint 3 planning initiated for comprehensive wallet feature development
+- Current state analysis completed: microservices architecture with AuthService, WalletService, Angular frontend
+- Existing functionality: auth (JWT/refresh tokens), Google login (partial), user management, admin dashboard, basic wallet operations (balance, history, transfers), Firestore persistence
+- Sprint 3 scope defined: payment processing, transaction management, account features, security enhancements, UX improvements
+- Date: 2026-05-02 (Wallet Management Implementation)
+- Backend wallet management implementation completed:
+  - Created all DTOs for wallet management (WalletResponseDto, CreateWalletResponseDto, InternalTransferRequestDto, InternalTransferResponseDto)
+  - Created IWalletManagementService interface and WalletManagementService implementation with full CRUD operations
+  - Created WalletManagementController with all required endpoints (GET wallets, POST wallet, DELETE wallet, POST set-default, GET balance, POST internal-transfer)
+  - Extended IAccountRepository interface with multi-wallet support methods (GetAccountsByUserIdAsync, GetAccountByIdAsync, CreateAccountAsync, DeactivateAccountAsync, GetDefaultAccountAsync, SetDefaultWalletAsync, UnsetDefaultWalletAsync)
+  - Updated AccountRepository implementation with new methods for Firestore integration
+  - Extended Account entity with Name, IsActive, and IsDefault fields (changed UserId to string type)
+  - Updated AccountDocument Firestore mapping for new fields
+  - Service registered in Program.cs as scoped service
+  - Fixed all compilation errors: type mismatches between Guid/string, missing methods (CreateAsync vs CreateEntryAsync, UpdateAsync vs UpdateAccountAsync), enum usage for LedgerEntryType
+  - Build verification: dotnet build succeeded with 0 errors, 5 warnings (non-critical)
+- Wallet management endpoints now fully functional:
+  - GET /api/wallet/wallets - List all user wallets
+  - POST /api/wallet/wallets - Create new wallet
+  - DELETE /api/wallet/wallets/{walletId} - Delete wallet
+  - POST /api/wallet/wallets/{walletId}/set-default - Set default wallet
+  - GET /api/wallet/wallets/{walletId}/balance - Get wallet balance
+  - POST /api/wallet/internal-transfer - Transfer between user's own wallets

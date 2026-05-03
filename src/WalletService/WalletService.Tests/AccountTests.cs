@@ -9,7 +9,7 @@ public class AccountTests
     public void Account_Constructor_ShouldCreateValidAccount()
     {
         // Arrange
-        var userId = Guid.NewGuid();
+        var userId = "user-123";
         var accountNumber = "SSW-0000000001";
 
         // Act
@@ -39,7 +39,7 @@ public class AccountTests
         var account = new Account
         {
             Id = Guid.NewGuid(),
-            UserId = Guid.NewGuid(),
+            UserId = "user-456",
             AccountNumber = "SSW-0000000002",
             Currency = "USD",
             Balance = 100.50m,
@@ -58,7 +58,7 @@ public class AccountTests
         var account = new Account
         {
             Id = Guid.NewGuid(),
-            UserId = Guid.NewGuid(),
+            UserId = "user-789",
             AccountNumber = "SSW-0000000003",
             Currency = "USD",
             Balance = -50.25m,
@@ -78,7 +78,7 @@ public class AccountTests
         var account = new Account
         {
             Id = Guid.NewGuid(),
-            UserId = Guid.NewGuid(),
+            UserId = "user-101",
             AccountNumber = "SSW-0000000004",
             Currency = "USD",
             Balance = 0.00m,
@@ -101,7 +101,7 @@ public class AccountTests
         var account1 = new Account
         {
             Id = Guid.NewGuid(),
-            UserId = Guid.NewGuid(),
+            UserId = "user-202",
             AccountNumber = "SSW-0000000005",
             Currency = "USD",
             Balance = 0.00m,
@@ -112,7 +112,7 @@ public class AccountTests
         var account2 = new Account
         {
             Id = Guid.NewGuid(),
-            UserId = Guid.NewGuid(),
+            UserId = "user-303",
             AccountNumber = "SSW-0000000006",
             Currency = "USD",
             Balance = 0.00m,

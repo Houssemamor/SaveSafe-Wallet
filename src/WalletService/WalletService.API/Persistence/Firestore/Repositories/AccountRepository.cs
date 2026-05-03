@@ -143,11 +143,14 @@ public sealed class AccountRepository : IAccountRepository
         new()
         {
             Id = Guid.Parse(doc.Id),
-            UserId = Guid.Parse(doc.UserId),
+            UserId = doc.UserId,
             AccountNumber = doc.AccountNumber,
-            Type = Enum.Parse<AccountType>(doc.Type),
+            Type = doc.Type,
             Currency = doc.Currency,
             Balance = ToDecimal(doc.Balance),
+            Name = doc.Name,
+            IsActive = doc.IsActive,
+            IsDefault = doc.IsDefault,
             LedgerCount = doc.LedgerCount,
             CreatedAt = doc.CreatedAt,
             UpdatedAt = doc.UpdatedAt
@@ -155,4 +158,157 @@ public sealed class AccountRepository : IAccountRepository
 
     private static decimal ToDecimal(double value) =>
         Math.Round((decimal)value, 3, MidpointRounding.AwayFromZero);
+
+    /// <summary>
+    /// Get all accounts for a user (multi-wallet support)
+    /// </summary>
+    public async Task<IEnumerable<Account>> GetAccountsByUserIdAsync(string userId, CancellationToken ct = default)
+    {
+        var query = Accounts.WhereEqualTo("userId", userId);
+        var snapshot = await query.GetSnapshotAsync(ct);
+
+        var accounts = new List<Account>();
+        foreach (var document in snapshot.Documents)
+        {
+            var doc = document.ConvertTo<AccountDocument>();
+            doc.Id = document.Id;
+            accounts.Add(ToEntity(doc));
+        }
+
+        return accounts;
+    }
+
+    /// <summary>
+    /// Get account by ID (string version for wallet management)
+    /// </summary>
+    public async Task<Account?> GetAccountByIdAsync(string accountId, CancellationToken ct = default)
+    {
+        var snapshot = await Accounts.Document(accountId).GetSnapshotAsync(ct);
+        if (!snapshot.Exists)
+        {
+            return null;
+        }
+
+        var doc = snapshot.ConvertTo<AccountDocument>();
+        doc.Id = snapshot.Id;
+        return ToEntity(doc);
+    }
+
+    /// <summary>
+    /// Create a new account
+    /// </summary>
+    public async Task<Account> CreateAccountAsync(Account account, CancellationToken ct = default)
+    {
+        var now = DateTime.UtcNow;
+        var accountId = Guid.NewGuid();
+        var accountNumber = $"SSW-{accountId:N}".ToUpperInvariant();
+
+        var accountDoc = new AccountDocument
+        {
+            Id = accountId.ToString(),
+            UserId = account.UserId,
+            AccountNumber = accountNumber,
+            Type = account.Type ?? AccountType.Savings.ToString(),
+            Currency = account.Currency?.ToUpperInvariant() ?? "USD",
+            Balance = (double)account.Balance,
+            Name = account.Name,
+            IsActive = account.IsActive,
+            IsDefault = account.IsDefault,
+            LedgerCount = 0,
+            CreatedAt = now,
+            UpdatedAt = now
+        };
+
+        var docRef = Accounts.Document(accountId.ToString());
+        await docRef.SetAsync(accountDoc);
+
+        // Create opening ledger entry
+        var openingEntry = new LedgerEntryDocument
+        {
+            Id = Guid.NewGuid().ToString(),
+            AccountId = accountId.ToString(),
+            Type = LedgerEntryType.Credit.ToString(),
+            Amount = (double)account.Balance,
+            BalanceAfter = (double)account.Balance,
+            Description = "Account opened",
+            CreatedAt = now
+        };
+
+        var ledgerDoc = docRef
+            .Collection(FirestoreCollections.LedgerEntries)
+            .Document(openingEntry.Id);
+        await ledgerDoc.SetAsync(openingEntry);
+
+        // Return the created account
+        accountDoc.Id = accountId.ToString();
+        return ToEntity(accountDoc);
+    }
+
+    /// <summary>
+    /// Deactivate an account (soft delete)
+    /// </summary>
+    public async Task DeactivateAccountAsync(string accountId, CancellationToken ct = default)
+    {
+        var docRef = Accounts.Document(accountId);
+        var update = new Dictionary<string, object>
+        {
+            { "isActive", false },
+            { "updatedAt", DateTime.UtcNow }
+        };
+
+        await docRef.UpdateAsync(update);
+    }
+
+    /// <summary>
+    /// Get default account for user
+    /// </summary>
+    public async Task<Account?> GetDefaultAccountAsync(string userId, CancellationToken ct = default)
+    {
+        var query = Accounts
+            .WhereEqualTo("userId", userId)
+            .WhereEqualTo("isDefault", true)
+            .Limit(1);
+
+        var snapshot = await query.GetSnapshotAsync(ct);
+
+        if (snapshot.Documents.Count == 0)
+        {
+            return null;
+        }
+
+        var document = snapshot.Documents.First();
+        var doc = document.ConvertTo<AccountDocument>();
+        doc.Id = document.Id;
+        return ToEntity(doc);
+    }
+
+    /// <summary>
+    /// Set account as default wallet
+    /// </summary>
+    public async Task SetDefaultWalletAsync(string accountId, CancellationToken ct = default)
+    {
+        var docRef = Accounts.Document(accountId);
+        var update = new Dictionary<string, object>
+        {
+            { "isDefault", true },
+            { "updatedAt", DateTime.UtcNow }
+        };
+
+        await docRef.UpdateAsync(update);
+    }
+
+    /// <summary>
+    /// Unset default wallet status
+    /// </summary>
+    public async Task UnsetDefaultWalletAsync(string accountId, CancellationToken ct = default)
+    {
+        var docRef = Accounts.Document(accountId);
+        var update = new Dictionary<string, object>
+        {
+            { "isDefault", false },
+            { "updatedAt", DateTime.UtcNow }
+        };
+
+        await docRef.UpdateAsync(update);
+    }
 }
