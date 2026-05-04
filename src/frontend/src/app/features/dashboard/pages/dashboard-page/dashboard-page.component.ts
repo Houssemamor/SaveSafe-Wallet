@@ -148,7 +148,6 @@ export class DashboardPageComponent implements OnInit {
   ngOnInit(): void {
     this.user = this.sessionService.currentUser;
     this.loadWallets();
-    this.loadBalance();
     this.loadRecentTransactions();
     this.loadStats();
     this.loadBalanceDistribution();
@@ -193,7 +192,9 @@ export class DashboardPageComponent implements OnInit {
         this.isTransferring = false;
         if (response.success) {
           this.transferSuccess = `Transfer of $${amountAsNumber.toFixed(2)} to ${recipientEmail} completed successfully!`;
-          this.loadBalance(); // Refresh balance
+          if (this.selectedWallet) {
+            this.loadWalletBalance(this.selectedWallet.id); // Refresh default wallet balance
+          }
           setTimeout(() => this.closeTransferModal(), 2000);
         } else {
           this.transferError = response.errorMessage || 'Transfer failed. Please try again.';
@@ -506,7 +507,9 @@ export class DashboardPageComponent implements OnInit {
           const sourceWalletObj = this.wallets.find(w => w.id === sourceWallet);
           const targetWalletObj = this.wallets.find(w => w.id === targetWallet);
           this.walletTransferSuccess = `Transfer of $${amountAsNumber.toFixed(2)} from ${sourceWalletObj?.name || sourceWallet} to ${targetWalletObj?.name || targetWallet} completed successfully!`;
-          this.loadBalance(); // Refresh balance
+          if (this.selectedWallet) {
+            this.loadWalletBalance(this.selectedWallet.id); // Refresh default wallet balance
+          }
           this.loadWallets(); // Refresh wallet balances
           this.loadBalanceDistribution(); // Refresh balance distribution
           setTimeout(() => this.closeWalletTransferModal(), 2000);
@@ -565,7 +568,9 @@ export class DashboardPageComponent implements OnInit {
         if (response.success) {
           const targetWalletObj = this.wallets.find(w => w.id === targetWallet);
           this.transferAllSuccess = `Successfully transferred all funds ($${amountToTransfer.toFixed(2)}) from ${sourceWalletObj.name} to ${targetWalletObj?.name || targetWallet}!`;
-          this.loadBalance(); // Refresh balance
+          if (this.selectedWallet) {
+            this.loadWalletBalance(this.selectedWallet.id); // Refresh default wallet balance
+          }
           this.loadWallets(); // Refresh wallet balances
           this.loadBalanceDistribution(); // Refresh balance distribution
           setTimeout(() => this.closeWalletTransferModal(), 2000);
@@ -661,6 +666,10 @@ export class DashboardPageComponent implements OnInit {
         this.selectedWallet = wallets.find(w => w.isDefault) || wallets[0] || null;
         this.walletsError = '';
         this.isLoadingWallets = false;
+        // Load balance for the default wallet
+        if (this.selectedWallet) {
+          this.loadWalletBalance(this.selectedWallet.id);
+        }
         // Refresh balance distribution when wallets are loaded
         this.loadBalanceDistribution();
       },
