@@ -28,7 +28,8 @@ interface BalanceDistributionItem {
   walletType: string;
   balance: number;
   percentage: number;
-  color: string;
+  color: string;        // CSS class for legend dot
+  colorValue: string;   // Actual hex/rgb for gradient
 }
 
 @Component({
@@ -72,6 +73,11 @@ export class DashboardPageComponent implements OnInit {
   walletTransferError = '';
   walletTransferSuccess = '';
   showWalletTransferModal = false;
+
+  // Transfer all functionality
+  isTransferringAll = false;
+  transferAllError = '';
+  transferAllSuccess = '';
 
   // Wallet management
   wallets: Wallet[] = [];
@@ -350,24 +356,27 @@ export class DashboardPageComponent implements OnInit {
 
         const totalBalance = activeWallets.reduce((sum, wallet) => sum + wallet.balance, 0);
 
-        // Color palette for different wallets
-        const colors = [
-          'bg-primary',
-          'bg-secondary',
-          'bg-tertiary',
-          'bg-error',
-          'bg-surface-tint'
+        // Color palette: class names and their corresponding actual color values
+        const colorPalette = [
+          { class: 'bg-primary', value: '#0052CC' },      // Blue
+          { class: 'bg-secondary', value: '#00A86B' },    // Green
+          { class: 'bg-tertiary', value: '#6C63FF' },     // Purple
+          { class: 'bg-error', value: '#F44336' },        // Red
+          { class: 'bg-surface-tint', value: '#FF9800' }  // Orange
         ];
 
-        // Calculate distribution for each wallet
-        this.balanceDistribution = activeWallets.map((wallet, index) => ({
-          walletId: wallet.id,
-          walletName: wallet.name,
-          walletType: wallet.type,
-          balance: wallet.balance,
-          percentage: totalBalance > 0 ? (wallet.balance / totalBalance) * 100 : 0,
-          color: colors[index % colors.length]
-        }));
+        this.balanceDistribution = activeWallets.map((wallet, index) => {
+          const palette = colorPalette[index % colorPalette.length];
+          return {
+            walletId: wallet.id,
+            walletName: wallet.name,
+            walletType: wallet.type,
+            balance: wallet.balance,
+            percentage: totalBalance > 0 ? (wallet.balance / totalBalance) * 100 : 0,
+            color: palette.class,
+            colorValue: palette.value
+          };
+        });
 
         this.distributionError = '';
         this.isLoadingDistribution = false;
@@ -378,6 +387,30 @@ export class DashboardPageComponent implements OnInit {
         this.isLoadingDistribution = false;
       }
     });
+  }
+
+  /**
+   * Dynamically builds the conic-gradient string for the donut chart
+   */
+  get pieChartGradient(): string {
+    if (!this.balanceDistribution.length) return '';
+
+    // Filter out zero-percentage items to avoid empty slices
+    const nonZeroItems = this.balanceDistribution.filter(item => item.percentage > 0);
+    if (nonZeroItems.length === 0) return 'conic-gradient(from 0deg, #e0e0e0 0%, #e0e0e0 100%)';
+
+    let gradient = 'conic-gradient(from 0deg, ';
+    let startPercent = 0;
+
+    for (const item of nonZeroItems) {
+      const endPercent = startPercent + item.percentage;
+      gradient += `${item.colorValue} ${startPercent}%, ${item.colorValue} ${endPercent}%, `;
+      startPercent = endPercent;
+    }
+
+    // Remove trailing comma and space, then close
+    gradient = gradient.slice(0, -2) + ')';
+    return gradient;
   }
 
   /**
@@ -437,6 +470,8 @@ export class DashboardPageComponent implements OnInit {
    */
   closeWalletTransferModal(): void {
     this.showWalletTransferModal = false;
+    this.transferAllSuccess = '';
+    this.transferAllError = '';
   }
 
   /**
@@ -482,6 +517,65 @@ export class DashboardPageComponent implements OnInit {
       error: () => {
         this.isTransferringBetweenWallets = false;
         this.walletTransferError = 'Wallet transfer failed. Please check your connection and try again.';
+      }
+    });
+  }
+
+  /**
+   * Handle transfer all funds from source wallet to target wallet
+   * Transfers entire balance from source wallet to target wallet
+   */
+  onTransferAll(): void {
+    if (this.isTransferringAll) {
+      return;
+    }
+
+    const sourceWallet = this.walletTransferForm.get('sourceWallet')?.value;
+    const targetWallet = this.walletTransferForm.get('targetWallet')?.value;
+
+    // Validate source and target wallets are selected and different
+    if (!sourceWallet || !targetWallet || sourceWallet === targetWallet) {
+      this.walletTransferForm.markAllAsTouched();
+      return;
+    }
+
+    // Find source wallet and get its balance
+    const sourceWalletObj = this.wallets.find(w => w.id === sourceWallet);
+    if (!sourceWalletObj) {
+      this.transferAllError = 'Source wallet not found.';
+      return;
+    }
+
+    // Check if source wallet has funds to transfer
+    if (sourceWalletObj.balance <= 0) {
+      this.transferAllError = 'Source wallet has no funds to transfer.';
+      return;
+    }
+
+    this.isTransferringAll = true;
+    this.transferAllError = '';
+    this.transferAllSuccess = '';
+
+    const amountToTransfer = sourceWalletObj.balance;
+
+    // Call wallet transfer API with entire balance
+    this.walletService.transferBetweenWallets(sourceWallet, targetWallet, amountToTransfer).subscribe({
+      next: (response) => {
+        this.isTransferringAll = false;
+        if (response.success) {
+          const targetWalletObj = this.wallets.find(w => w.id === targetWallet);
+          this.transferAllSuccess = `Successfully transferred all funds ($${amountToTransfer.toFixed(2)}) from ${sourceWalletObj.name} to ${targetWalletObj?.name || targetWallet}!`;
+          this.loadBalance(); // Refresh balance
+          this.loadWallets(); // Refresh wallet balances
+          this.loadBalanceDistribution(); // Refresh balance distribution
+          setTimeout(() => this.closeWalletTransferModal(), 2000);
+        } else {
+          this.transferAllError = response.errorMessage || 'Transfer all failed. Please try again.';
+        }
+      },
+      error: () => {
+        this.isTransferringAll = false;
+        this.transferAllError = 'Transfer all failed. Please check your connection and try again.';
       }
     });
   }
@@ -856,15 +950,41 @@ export class DashboardPageComponent implements OnInit {
   }
 
   /**
-   * Get rotation angle for pie chart segment
-   * @param index - Index of the segment
-   * @param total - Total number of segments
-   * @returns Rotation angle in degrees
+   * Check if Transfer All button should be enabled
+   * Requires valid source and target wallet selections that are different
    */
-  getRotationForIndex(index: number, total: number): number {
-    if (total === 0) return 0;
-    const segmentAngle = 360 / total;
-    return index * segmentAngle;
+  get canTransferAll(): boolean {
+    const sourceWallet = this.walletTransferForm.get('sourceWallet')?.value;
+    const targetWallet = this.walletTransferForm.get('targetWallet')?.value;
+    const sourceValid = this.walletTransferForm.get('sourceWallet')?.valid ?? false;
+    const targetValid = this.walletTransferForm.get('targetWallet')?.valid ?? false;
+
+    // Both wallets must be selected and valid, and they must be different
+    return Boolean(sourceValid && targetValid && sourceWallet && targetWallet && sourceWallet !== targetWallet);
+  }
+
+  /**
+   * Get the balance of the selected source wallet
+   * @returns Source wallet balance or 0 if not selected
+   */
+  getSourceWalletBalance(): number {
+    const sourceWalletId = this.walletTransferForm.get('sourceWallet')?.value;
+    if (!sourceWalletId) return 0;
+
+    const sourceWallet = this.wallets.find(w => w.id === sourceWalletId);
+    return sourceWallet?.balance || 0;
+  }
+
+  /**
+   * Get the name of the selected source wallet
+   * @returns Source wallet name or empty string if not selected
+   */
+  getSourceWalletName(): string {
+    const sourceWalletId = this.walletTransferForm.get('sourceWallet')?.value;
+    if (!sourceWalletId) return '';
+
+    const sourceWallet = this.wallets.find(w => w.id === sourceWalletId);
+    return sourceWallet?.name || '';
   }
 
   /**
