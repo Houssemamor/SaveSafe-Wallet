@@ -135,6 +135,59 @@ export class DashboardPageComponent implements OnInit {
     return decimals.toString().padStart(2, '0');
   }
 
+  /**
+   * Calculate trend percentage based on the last transaction
+   * Returns the percentage change relative to current balance
+   */
+  get trendPercentage(): number {
+    if (!this.recentTransactions.length || !this.balance?.balance) {
+      return 0;
+    }
+
+    const lastTransaction = this.recentTransactions[0];
+    const transactionAmount = Math.abs(lastTransaction.amount);
+    const currentBalance = this.balance.balance;
+    const oldBalance = lastTransaction.type.toLowerCase() === 'credit' ? currentBalance - transactionAmount : currentBalance + transactionAmount;
+
+    if (oldBalance === 0) {
+      return 0;
+    }
+
+    // Calculate percentage of the transaction relative to old balance
+    const percentage = (transactionAmount / oldBalance) * 100;
+
+    // If it's a credit (incoming), show positive; if debit (outgoing), show negative
+    return lastTransaction.type.toLowerCase() === 'credit' ? percentage : -percentage;
+  }
+
+  /**
+   * Get trend icon based on the last transaction type
+   * Returns 'trending_up' for credits, 'trending_down' for debits
+   */
+  get trendIcon(): string {
+    if (!this.recentTransactions.length) {
+      return 'trending_up';
+    }
+
+    const lastTransaction = this.recentTransactions[0];
+    return lastTransaction.type.toLowerCase() === 'credit' ? 'trending_up' : 'trending_down';
+  }
+
+  /**
+   * Get trend color class based on the last transaction type
+   * Returns positive color for credits, negative color for debits
+   */
+  get trendColorClass(): string {
+    if (!this.recentTransactions.length) {
+      return 'text-on-secondary-container';
+    }
+
+    const lastTransaction = this.recentTransactions[0];
+    return lastTransaction.type.toLowerCase() === 'credit' 
+      ? 'text-on-secondary-container' 
+      : 'text-error';
+  }
+
   constructor(
     private readonly sessionService: SessionService,
     private readonly walletService: WalletService,
