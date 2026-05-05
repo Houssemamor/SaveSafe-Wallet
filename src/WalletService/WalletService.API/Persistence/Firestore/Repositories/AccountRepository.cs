@@ -123,13 +123,20 @@ public sealed class AccountRepository : IAccountRepository
     public async Task UpdateAsync(Account account, CancellationToken ct = default)
     {
         var docRef = Accounts.Document(account.Id.ToString());
+        var accountType = string.IsNullOrWhiteSpace(account.Type)
+            ? AccountType.Savings.ToString()
+            : account.Type;
+        var accountCurrency = string.IsNullOrWhiteSpace(account.Currency)
+            ? "USD"
+            : account.Currency;
+
         var doc = new AccountDocument
         {
             Id = account.Id.ToString(),
-            UserId = account.UserId.ToString(),
+            UserId = account.UserId,
             AccountNumber = account.AccountNumber,
-            Type = account.Type.ToString(),
-            Currency = account.Currency,
+            Type = accountType,
+            Currency = accountCurrency,
             Balance = (double)account.Balance,
             Name = account.Name,
             IsActive = account.IsActive,

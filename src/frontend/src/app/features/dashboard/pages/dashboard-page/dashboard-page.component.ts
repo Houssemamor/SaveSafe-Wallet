@@ -1,4 +1,5 @@
 import { CommonModule } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -571,9 +572,12 @@ export class DashboardPageComponent implements OnInit {
           this.walletTransferError = response.errorMessage || 'Wallet transfer failed. Please try again.';
         }
       },
-      error: () => {
+      error: (error: HttpErrorResponse) => {
         this.isTransferringBetweenWallets = false;
-        this.walletTransferError = 'Wallet transfer failed. Please check your connection and try again.';
+        this.walletTransferError =
+          error?.error?.errorMessage ||
+          error?.error?.message ||
+          'Wallet transfer failed. Please check your connection and try again.';
       }
     });
   }
@@ -632,9 +636,12 @@ export class DashboardPageComponent implements OnInit {
           this.transferAllError = response.errorMessage || 'Transfer all failed. Please try again.';
         }
       },
-      error: () => {
+      error: (error: HttpErrorResponse) => {
         this.isTransferringAll = false;
-        this.transferAllError = 'Transfer all failed. Please check your connection and try again.';
+        this.transferAllError =
+          error?.error?.errorMessage ||
+          error?.error?.message ||
+          'Transfer all failed. Please check your connection and try again.';
       }
     });
   }
