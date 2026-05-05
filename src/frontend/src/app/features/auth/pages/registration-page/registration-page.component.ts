@@ -24,6 +24,7 @@ function matchPasswords(control: AbstractControl): { passwordMismatch: true } | 
 export class RegistrationPageComponent {
   isSubmitting = false;
   errorMessage = '';
+  isGoogleSubmitting = false;
 
   readonly registerForm = this.fb.nonNullable.group(
     {
@@ -68,5 +69,32 @@ export class RegistrationPageComponent {
           this.errorMessage = 'Registration failed. Please verify your data and retry.';
         }
       });
+  }
+
+  onGoogleRegister(): void {
+    if (this.isGoogleSubmitting) {
+      return;
+    }
+
+    this.isGoogleSubmitting = true;
+    this.errorMessage = '';
+
+    this.authService.googleLogin().subscribe({
+      next: () => {
+        this.isGoogleSubmitting = false;
+        this.router.navigate(['/dashboard']);
+      },
+      error: (error) => {
+        this.isGoogleSubmitting = false;
+        console.error('Google registration error:', error);
+        if (error.status === 400) {
+          this.errorMessage = 'Google registration failed. Please make sure your Google account is properly configured.';
+        } else if (error.status === 401) {
+          this.errorMessage = 'Authentication failed. Please try again.';
+        } else {
+          this.errorMessage = 'Google registration is currently unavailable. Please use email/password registration.';
+        }
+      }
+    });
   }
 }

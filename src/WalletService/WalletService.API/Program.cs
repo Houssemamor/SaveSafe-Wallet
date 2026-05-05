@@ -61,6 +61,20 @@ builder.Services.AddHttpClient<IUserLookupService, UserLookupService>(client =>
     client.Timeout = TimeSpan.FromSeconds(10);
 });
 
+// ── CORS Configuration ──────────────────────────────────────────────────────
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        policy
+            .WithOrigins("http://localhost", "http://localhost:80", "http://localhost:3000")
+            .AllowAnyMethod()
+            .AllowAnyHeader()
+            .AllowCredentials()
+            .WithExposedHeaders("Authorization");
+    });
+});
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -74,6 +88,7 @@ var app = builder.Build();
 
 app.UseSerilogRequestLogging();
 app.UseMiddleware<RateLimitMiddleware>();
+app.UseCors("AllowFrontend");
 
 if (app.Environment.IsDevelopment())
 {

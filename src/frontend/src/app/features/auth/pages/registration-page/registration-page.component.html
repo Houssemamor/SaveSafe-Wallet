@@ -96,6 +96,18 @@
           <p *ngIf="errorMessage" class="text-sm text-error font-medium">{{ errorMessage }}</p>
         </form>
 
+        <div class="mt-8">
+          <div class="relative flex items-center gap-3 mb-6">
+            <div class="flex-1 h-px bg-outline-variant/30"></div>
+            <span class="text-xs font-semibold uppercase tracking-widest text-on-surface-variant px-2">Or</span>
+            <div class="flex-1 h-px bg-outline-variant/30"></div>
+          </div>
+          <button type="button" (click)="onGoogleRegister()" class="w-full h-12 flex items-center justify-center gap-3 rounded-lg border border-outline-variant bg-surface-container-high hover:bg-surface-container-low transition-colors duration-150" [disabled]="isGoogleSubmitting">
+            <img alt="Google icon" class="w-5 h-5" src="https://lh3.googleusercontent.com/aida-public/AB6AXuADzOT5_ocrh7JNPOiIDWTzqmjcjZ-4JjbmXQhSWA6Mx1H-2cT-oYcFo09qOuUhwMvShPYiQi-BLrfHwHf6_RjOx7NO4mpH2Bd2i8dodN0Nh2hHDIo6mzY8ApzwlXe5iAvj_2O03WtQdZKNDcswCVo_Q5WCcUl6RyrITIft4agW2t25LGeWxs50CmsYOBdD33H_5nkyh4avEJNmePw2TmdcybxouId0FlJMkb34bhmrbPZ6ZqMsP9CiGpKn19gJT8I7JebdR8w-bU2h" />
+            <span class="text-sm font-medium text-on-surface">{{ isGoogleSubmitting ? 'Creating account...' : 'Sign up with Google' }}</span>
+          </button>
+        </div>
+
         <footer class="mt-12 text-center">
           <p class="text-on-surface-variant text-sm font-medium">Already have a SaveSafe account? <a class="text-primary font-bold hover:underline ml-1" routerLink="/login">Sign in</a></p>
         </footer>

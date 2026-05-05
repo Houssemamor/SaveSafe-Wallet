@@ -13,7 +13,8 @@ export class AuthService {
     private readonly http: HttpClient,
     private readonly sessionService: SessionService,
     @Optional() private readonly auth: Auth
-  ) {}
+  ) {
+  }
 
   login(request: LoginRequest): Observable<AuthResponse> {
     return this.http
@@ -37,14 +38,17 @@ export class AuthService {
     return from(signInWithPopup(this.auth, provider)).pipe(
       switchMap((userCredential: UserCredential) => {
         const user = userCredential.user;
-        const idToken = user.getIdToken(true);
 
-        // Send the Google ID token to your backend for verification
-        return this.http.post<AuthResponse>(
-          `${API_CONFIG.authBaseUrl}/google-login`,
-          { idToken },
-          { withCredentials: true }
-        ).pipe(tap((response) => this.saveAuthSession(response)));
+        // getIdToken returns a Promise, so convert it to an Observable before posting it.
+        return from(user.getIdToken(true)).pipe(
+          switchMap((idToken) =>
+            this.http.post<AuthResponse>(
+              `${API_CONFIG.authBaseUrl}/google-login`,
+              { idToken },
+              { withCredentials: true }
+            ).pipe(tap((response) => this.saveAuthSession(response)))
+          )
+        );
       })
     );
   }

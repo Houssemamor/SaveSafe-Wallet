@@ -18,6 +18,9 @@
 - Implemented Transfer All button functionality for wallet operations
 - Fixed Transfer All button remaining inactive despite valid wallet selections
 - Fixed wallet name bug during transfers
+- Google sign-in registration now uses Firebase Auth on the frontend and Firebase Admin verification on the AuthService backend
+- AuthService now validates Firebase ID tokens instead of Google OAuth tokens
+- Rebuilt and validated frontend and auth-service Docker images after the Firebase changes
 
 ## Completed Work
 - Unified layout structure across /wallet-history, /dashboard, and /profile pages
@@ -40,6 +43,8 @@
 - Added helper methods: getSourceWalletBalance(), getSourceWalletName()
 - Enhanced UX with balance display and readiness indicator for Transfer All
 - Fixed wallet name bug: AccountRepository.UpdateAsync now preserves Name, IsActive, and IsDefault fields
+- Added Google registration entry point in the registration page and aligned OAuth popup handling with COOP-safe headers
+- Rebuilt the AuthService service file cleanly after a corrupted edit and confirmed the backend publishes successfully
 
 ## Key Files
 - Frontend: Z:\Desktop\Project\SaveSafe-Wallet\src\frontend

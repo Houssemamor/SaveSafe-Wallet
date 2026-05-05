@@ -2,14 +2,15 @@ using System.Text;
 using AuthService.API.Health;
 using AuthService.API.Middleware;
 using AuthService.API.Persistence;
+using FirebaseAdmin;
 using AuthService.API.Persistence.Firestore;
 using AuthService.API.Persistence.Firestore.Repositories;
 using AuthService.API.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using Google.Apis.Auth.OAuth2;
 using Serilog;
 using Serilog.Sinks.Grafana.Loki;
-
 var builder = WebApplication.CreateBuilder(args);
 
 // ── Serilog + Loki ──────────────────────────────────────────────────────────
@@ -35,6 +36,22 @@ builder.Services.AddSingleton<IFailedLoginByIpRepository, FailedLoginByIpReposit
 builder.Services.AddSingleton<IAdminStatsRepository, AdminStatsRepository>();
 builder.Services.AddSingleton<IAdminStatsRefresher, AdminStatsRefresher>();
 builder.Services.AddSingleton<IAuthRegistrationStore, AuthRegistrationStore>();
+
+var firebaseCredentialsPath = builder.Configuration["Firestore:CredentialsPath"]
+    ?? Environment.GetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS");
+
+if (string.IsNullOrWhiteSpace(firebaseCredentialsPath) || !File.Exists(firebaseCredentialsPath))
+{
+    throw new InvalidOperationException(
+        "Firebase credentials file is missing. Set Firestore:CredentialsPath or GOOGLE_APPLICATION_CREDENTIALS.");
+}
+
+var firebaseApp = FirebaseApp.Create(new AppOptions
+{
+    Credential = GoogleCredential.FromFile(firebaseCredentialsPath)
+});
+
+builder.Services.AddSingleton(_ => FirebaseAdmin.Auth.FirebaseAuth.GetAuth(firebaseApp));
 
 // ── JWT Authentication ───────────────────────────────────────────────────────
 var jwtKey = builder.Configuration["Jwt:Key"]!;
@@ -68,6 +85,20 @@ builder.Services.AddHttpClient<IWalletProvisioningService, WalletProvisioningSer
     client.Timeout = TimeSpan.FromSeconds(5);
 });
 
+// ── CORS Configuration ──────────────────────────────────────────────────────
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        policy
+            .WithOrigins("http://localhost", "http://localhost:80", "http://localhost:3000")
+            .AllowAnyMethod()
+            .AllowAnyHeader()
+            .AllowCredentials()
+            .WithExposedHeaders("Authorization");
+    });
+});
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -96,6 +127,7 @@ using (var scope = app.Services.CreateScope())
 app.UseSerilogRequestLogging();
 app.UseMiddleware<RateLimitMiddleware>();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
+app.UseCors("AllowFrontend");
 
 if (app.Environment.IsDevelopment())
 {
