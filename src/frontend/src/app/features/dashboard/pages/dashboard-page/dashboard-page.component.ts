@@ -358,12 +358,13 @@ export class DashboardPageComponent implements OnInit {
         const totalBalance = activeWallets.reduce((sum, wallet) => sum + wallet.balance, 0);
 
         // Color palette: class names and their corresponding actual color values
+        // Values must match Tailwind config to ensure legend and pie chart colors are consistent
         const colorPalette = [
-          { class: 'bg-primary', value: '#0052CC' },      // Blue
-          { class: 'bg-secondary', value: '#00A86B' },    // Green
-          { class: 'bg-tertiary', value: '#6C63FF' },     // Purple
-          { class: 'bg-error', value: '#F44336' },        // Red
-          { class: 'bg-surface-tint', value: '#FF9800' }  // Orange
+          { class: 'bg-primary', value: '#003d9b' },      // Blue
+          { class: 'bg-secondary', value: '#525f73' },    // Gray
+          { class: 'bg-tertiary', value: '#7b2600' },     // Brown
+          { class: 'bg-error', value: '#ba1a1a' },        // Red
+          { class: 'bg-surface-tint', value: '#0c56d0' }  // Light Blue
         ];
 
         this.balanceDistribution = activeWallets.map((wallet, index) => {

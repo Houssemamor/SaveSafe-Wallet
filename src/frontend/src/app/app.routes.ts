@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './core/guards/auth.guard';
+import { publicGuard } from './core/guards/public.guard';
 import { roleGuard } from './core/guards/role.guard';
 import { LandingPageComponent } from './features/landing/pages/landing-page/landing-page.component';
 import { LoginPageComponent } from './features/auth/pages/login-page/login-page.component';
@@ -11,8 +12,8 @@ import { AdminDashboardPageComponent } from './features/admin/pages/admin-dashbo
 
 export const routes: Routes = [
   { path: '', pathMatch: 'full', component: LandingPageComponent },
-  { path: 'login', component: LoginPageComponent },
-  { path: 'register', component: RegistrationPageComponent },
+  { path: 'login', component: LoginPageComponent, canActivate: [publicGuard] },
+  { path: 'register', component: RegistrationPageComponent, canActivate: [publicGuard] },
   { path: 'dashboard', component: DashboardPageComponent, canActivate: [authGuard] },
   {
     path: 'admin',

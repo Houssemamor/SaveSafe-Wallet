@@ -107,6 +107,33 @@ export class UserProfilePageComponent implements OnInit {
     });
   }
 
+  /**
+   * Handle search input
+   * Filters profile content based on search query
+   */
+  onSearch(query: string): void {
+    // Profile page doesn't have searchable content
+    // This method is included for layout consistency
+  }
+
+  /**
+   * Handle notifications button click
+   * Shows notifications panel or navigates to notifications page
+   */
+  onNotificationsClick(): void {
+    // Navigate to profile page (current page)
+    this.router.navigate(['/profile']);
+  }
+
+  /**
+   * Handle settings button click
+   * Navigates to settings page or opens settings modal
+   */
+  onSettingsClick(): void {
+    // Navigate to profile page (current page)
+    this.router.navigate(['/profile']);
+  }
+
   private loadProfile(): void {
     this.isLoading = true;
     this.errorMessage = '';

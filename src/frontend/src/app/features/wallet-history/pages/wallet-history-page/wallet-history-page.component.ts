@@ -119,6 +119,24 @@ export class WalletHistoryPageComponent implements OnInit {
     });
   }
 
+  /**
+   * Handle notifications button click
+   * Shows notifications panel or navigates to notifications page
+   */
+  onNotificationsClick(): void {
+    // Navigate to profile page
+    this.router.navigate(['/profile']);
+  }
+
+  /**
+   * Handle settings button click
+   * Navigates to settings page or opens settings modal
+   */
+  onSettingsClick(): void {
+    // Navigate to profile page
+    this.router.navigate(['/profile']);
+  }
+
   trackByEntry(_: number, entry: WalletHistoryEntry): string {
     return entry.id;
   }

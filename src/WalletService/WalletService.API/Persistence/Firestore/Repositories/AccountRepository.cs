@@ -131,6 +131,9 @@ public sealed class AccountRepository : IAccountRepository
             Type = account.Type.ToString(),
             Currency = account.Currency,
             Balance = (double)account.Balance,
+            Name = account.Name,
+            IsActive = account.IsActive,
+            IsDefault = account.IsDefault,
             LedgerCount = account.LedgerCount,
             CreatedAt = account.CreatedAt,
             UpdatedAt = account.UpdatedAt
