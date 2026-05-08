@@ -185,6 +185,7 @@ public class AuthService : IAuthService
                     Email = normalizedEmail,
                     Name = displayName,
                     PasswordHash = string.Empty,
+                    GoogleId = firebaseToken.Uid,
                     CreatedAt = now,
                     UpdatedAt = now,
                     AccountStatus = UserAccountStatus.Active,
@@ -200,6 +201,8 @@ public class AuthService : IAuthService
 
                 loginEvent = loginEvent with { Success = true, UserId = user.Id };
                 await _loginEvents.AddAsync(loginEvent);
+
+                await _users.UpdateLastLoginAsync(user.Id, now);
 
                 return (BuildAuthResponse(user, _tokenService.GenerateAccessToken(user)), rawRefreshToken);
             }
