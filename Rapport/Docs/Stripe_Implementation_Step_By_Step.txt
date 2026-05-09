@@ -1,0 +1,297 @@
+SAVE SAFE WALLET - STRIPE IMPLEMENTATION STEP BY STEP
+======================================================
+
+But du document
+---------------
+Passer de l'idee a une implementation reelle de la fonctionnalite de recharge
+de compte via Stripe, avec un flux propre entre Angular, PaymentService,
+WalletService et Docker Compose.
+
+Objectif final
+--------------
+Permettre a un utilisateur connecte de:
+1. saisir un montant a ajouter au wallet,
+2. lancer un paiement Stripe securise,
+3. etre redirige vers Stripe Checkout,
+4. revenir sur l'application,
+5. voir son wallet credite une seule fois,
+6. consulter le nouveau solde et l'historique.
+
+Ordre d'implementation recommande
+---------------------------------
+
+ETAPE 1 - Verifier le scope exact
+---------------------------------
+- Confirmer que la fonctionnalite est bien un top-up de wallet.
+- Confirmer que le wallet ne doit jamais etre credite directement par le frontend.
+- Confirmer que Stripe est la seule passerelle de paiement.
+- Confirmer que le webhook est la source de verite.
+
+Resultat attendu:
+- Une regle fonctionnelle claire avant de coder.
+
+ETAPE 2 - Choisir l'architecture cible
+--------------------------------------
+Option conseillee pour ce projet:
+- Creer un PaymentService dedie si vous voulez isoler Stripe.
+- Garder WalletService comme seul proprietaire du solde.
+- Faire communiquer PaymentService et WalletService par appel interne ou evenement.
+
+Decision a prendre:
+- Si le projet reste simple, vous pouvez ajouter un module payment dans WalletService.
+- Si vous voulez un flux propre et evolutif, creez PaymentService.
+
+Resultat attendu:
+- Une responsabilite precise pour chaque service.
+
+ETAPE 3 - Ajouter les secrets Stripe
+------------------------------------
+Dans Docker Compose et dans les fichiers d'environnement, ajouter:
+- STRIPE_SECRET_KEY
+- STRIPE_WEBHOOK_SECRET
+- STRIPE_PUBLISHABLE_KEY
+- FRONTEND_SUCCESS_URL
+- FRONTEND_CANCEL_URL
+
+Important:
+- STRIPE_SECRET_KEY reste cote backend uniquement.
+- Le frontend ne doit jamais voir la cle secretaire Stripe.
+
+Resultat attendu:
+- L'application peut lire les cles Stripe en local.
+
+ETAPE 4 - Installer le SDK Stripe dans le backend
+-------------------------------------------------
+- Ajouter le package Stripe au projet .NET du PaymentService ou du WalletService.
+- Ajouter une classe de configuration pour les variables Stripe.
+- Charger la configuration au demarrage de l'application.
+
+Resultat attendu:
+- Le backend peut creer une session Stripe.
+
+ETAPE 5 - Creer l'entite de transaction
+---------------------------------------
+Creer une entite du type TopUpTransaction avec au minimum:
+- Id
+- UserId
+- WalletId
+- StripeSessionId
+- StripePaymentIntentId
+- StripeEventId
+- Amount
+- Currency
+- Status
+- IdempotencyKey
+- CreatedAt
+- CompletedAt
+- FailureReason
+
+Statuts possibles:
+- Pending
+- Succeeded
+- Failed
+- Cancelled
+
+Resultat attendu:
+- Chaque tentative de recharge est traquee.
+
+ETAPE 6 - Ajouter l'endpoint create-checkout-session
+----------------------------------------------------
+Creer un endpoint protege par JWT:
+- POST /payment/create-checkout-session
+
+Logique:
+- Lire l'utilisateur depuis le JWT.
+- Recuperer le wallet associe.
+- Valider le montant cote serveur.
+- Creer une session Stripe Checkout.
+- Enregistrer la transaction en Pending.
+- Retourner l'URL Stripe au frontend.
+
+Regles importantes:
+- Ne jamais prendre userId ou walletId comme source de verite depuis le client.
+- Ne jamais crediter le wallet a ce stade.
+
+Resultat attendu:
+- Le frontend peut ouvrir Stripe Checkout.
+
+ETAPE 7 - Ajouter le webhook Stripe
+-----------------------------------
+Creer un endpoint public:
+- POST /payment/webhook
+
+Logique:
+- Verifier la signature avec STRIPE_WEBHOOK_SECRET.
+- Lire l'evenement Stripe.
+- Traiter au minimum:
+  - checkout.session.completed
+  - payment_intent.succeeded
+  - payment_intent.payment_failed
+- Verifier si l'evenement a deja ete traite.
+- Appliquer l'idempotence.
+- Mettre a jour la transaction.
+
+Resultat attendu:
+- Le backend sait confirmer ou refuser le paiement.
+
+ETAPE 8 - Crediter le wallet via WalletService
+----------------------------------------------
+A faire seulement apres validation du webhook.
+
+Logique:
+- PaymentService appelle WalletService en interne.
+- WalletService ajoute une entree dans le ledger.
+- WalletService met a jour le solde.
+- Le credit doit etre atomique ou au moins idempotent.
+
+Regle d'or:
+- Le PaymentService ne modifie jamais le solde directement.
+
+Resultat attendu:
+- Le wallet est credite proprement une seule fois.
+
+ETAPE 9 - Ajouter la page Angular Top-up
+----------------------------------------
+Creer une page frontend pour la recharge.
+
+UI minimum:
+- champ montant
+- bouton "Payer avec Stripe"
+- message de validation des erreurs
+
+Flux frontend:
+- envoyer le montant au backend
+- recuperer l'URL Stripe
+- rediriger l'utilisateur vers Stripe Checkout
+
+Resultat attendu:
+- L'utilisateur peut lancer un paiement depuis Angular.
+
+ETAPE 10 - Ajouter les pages Success et Cancel
+----------------------------------------------
+Creer deux routes frontend:
+- /wallet/success
+- /wallet/cancel
+
+Comportement:
+- Success: afficher un message de confirmation et recharger le solde.
+- Cancel: afficher un message d'annulation et proposer de recommencer.
+
+Important:
+- La page success ne confirme pas le paiement.
+- Elle affiche seulement l'etat apres retour Stripe.
+
+Resultat attendu:
+- L'utilisateur comprend si le top-up a ete finalise.
+
+ETAPE 11 - Mettre a jour Docker Compose
+---------------------------------------
+Ajouter le service payment-service ou mettre a jour le service existant.
+
+Exemple de variables:
+- STRIPE_SECRET_KEY
+- STRIPE_WEBHOOK_SECRET
+- STRIPE_PUBLISHABLE_KEY
+- FRONTEND_SUCCESS_URL
+- FRONTEND_CANCEL_URL
+
+Apres modification:
+- reconstruire les conteneurs
+- redemarrer l'environnement
+
+Commande utile:
+  docker compose up --build -d
+
+Resultat attendu:
+- L'environnement local demarre avec Stripe configure.
+
+ETAPE 12 - Ajouter les tests backend
+------------------------------------
+Tests unitaires:
+- validation du montant
+- creation de session Stripe simulee
+- traitement webhook idempotent
+
+Tests d'integration:
+- create-checkout-session
+- webhook Stripe avec payload de test
+- credit wallet apres confirmation
+
+Resultat attendu:
+- Le backend est couvert sur le flux principal.
+
+ETAPE 13 - Ajouter les tests frontend
+-------------------------------------
+Verifier que:
+- la page Top-up appelle bien le backend,
+- l'utilisateur est redirige vers Stripe,
+- les erreurs sont affichees correctement,
+- les pages success et cancel fonctionnent.
+
+Resultat attendu:
+- L'UX de paiement est validee.
+
+ETAPE 14 - Documenter le flux
+-----------------------------
+Mettre a jour le README avec:
+- variables d'environnement,
+- endpoints,
+- flux de paiement,
+- commande Docker,
+- cas de test manuel.
+
+Resultat attendu:
+- La fonctionnalite est maintenable pour l'equipe.
+
+ETAPE 15 - Valider en manuel
+----------------------------
+Scenario de validation:
+1. lancer docker compose up --build -d
+2. ouvrir le frontend
+3. se connecter
+4. aller sur la page Top-up
+5. saisir un montant de test
+6. lancer Stripe Checkout
+7. finaliser le paiement avec une carte test
+8. verifier la transaction dans le ledger
+9. verifier le nouveau solde
+
+Resultat attendu:
+- Le flux complet marche de bout en bout.
+
+Plan d'execution conseille
+--------------------------
+Si vous voulez avancer proprement, faites dans cet ordre:
+1. backend create-checkout-session
+2. webhook Stripe
+3. credit WalletService
+4. page Angular Top-up
+5. pages success/cancel
+6. variables Docker Compose
+7. tests
+8. documentation
+
+Definition of done
+------------------
+La fonctionnalite est terminee quand:
+- le paiement Stripe est lance depuis Angular,
+- le webhook confirme le paiement,
+- le wallet est credite une seule fois,
+- le solde est visible dans l'UI,
+- les tests passent,
+- les secrets Stripe sont configures.
+
+Checklist finale
+----------------
+[ ] Ajouter les cles Stripe
+[ ] Ajouter le SDK Stripe
+[ ] Creer TopUpTransaction
+[ ] Creer create-checkout-session
+[ ] Creer le webhook
+[ ] Appliquer l'idempotence
+[ ] Crediter le wallet via WalletService
+[ ] Ajouter la page Top-up
+[ ] Ajouter success et cancel
+[ ] Mettre a jour Docker Compose
+[ ] Ajouter les tests
+[ ] Documenter le flux

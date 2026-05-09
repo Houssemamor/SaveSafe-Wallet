@@ -111,6 +111,10 @@
                 <span>Transfer Between Wallets</span>
                 <span class="material-symbols-outlined">account_balance_wallet</span>
               </button>
+              <button routerLink="/wallet/topup" class="w-full py-4 px-6 bg-[#0b5fff] text-white rounded-lg font-manrope font-bold text-sm flex justify-between items-center hover:bg-[#084fd1] transition-colors" type="button">
+                <span>Recharger le compte</span>
+                <span class="material-symbols-outlined">credit_card</span>
+              </button>
               <button (click)="onDownloadActivity()" class="w-full py-4 px-6 bg-surface-container-lowest text-on-surface rounded-lg font-manrope font-bold text-sm flex justify-between items-center hover:bg-surface-container-high transition-colors" [disabled]="isDownloading">
                 <span>{{ isDownloading ? 'Downloading...' : 'Download Activity' }}</span>
                 <span class="material-symbols-outlined">download</span>

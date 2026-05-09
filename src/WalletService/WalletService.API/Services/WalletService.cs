@@ -11,6 +11,7 @@ public interface IWalletService
     Task<WalletHistoryResponseDto?> GetWalletHistoryAsync(Guid userId, string? pageToken, int pageSize = 10);
     Task<WalletTransferResponseDto> TransferFundsAsync(Guid senderUserId, string recipientEmail, decimal amount, string? description);
     Task<string> ExportTransactionHistoryAsync(Guid userId, string? startDate, string? endDate);
+    Task<InternalTopUpResponseDto> CreditTopUpAsync(InternalTopUpRequestDto request);
 }
 
 public class WalletService : IWalletService
@@ -266,5 +267,108 @@ public class WalletService : IWalletService
         }
 
         return csv.ToString();
+    }
+
+    public async Task<InternalTopUpResponseDto> CreditTopUpAsync(InternalTopUpRequestDto request)
+    {
+        if (request.Amount <= 0)
+        {
+            return new InternalTopUpResponseDto(
+                Success: false,
+                ErrorMessage: "Top-up amount must be greater than zero.",
+                WalletId: request.WalletId,
+                NewBalance: 0,
+                Currency: request.Currency,
+                LedgerEntryId: null,
+                Duplicate: false);
+        }
+
+        var account = await _accounts.GetByIdAsync(request.WalletId);
+        if (account is null)
+        {
+            return new InternalTopUpResponseDto(
+                Success: false,
+                ErrorMessage: "Wallet not found.",
+                WalletId: request.WalletId,
+                NewBalance: 0,
+                Currency: request.Currency,
+                LedgerEntryId: null,
+                Duplicate: false);
+        }
+
+        if (account.UserId != request.UserId.ToString())
+        {
+            return new InternalTopUpResponseDto(
+                Success: false,
+                ErrorMessage: "Wallet ownership mismatch.",
+                WalletId: request.WalletId,
+                NewBalance: 0,
+                Currency: request.Currency,
+                LedgerEntryId: null,
+                Duplicate: false);
+        }
+
+        if (!account.IsActive)
+        {
+            return new InternalTopUpResponseDto(
+                Success: false,
+                ErrorMessage: "Wallet is inactive.",
+                WalletId: request.WalletId,
+                NewBalance: account.Balance,
+                Currency: account.Currency ?? request.Currency,
+                LedgerEntryId: null,
+                Duplicate: false);
+        }
+
+        var referenceId = request.PaymentIntentId?.Trim();
+        if (!string.IsNullOrWhiteSpace(referenceId))
+        {
+            var existing = await _ledger.GetByReferenceIdAsync(account.Id, referenceId);
+            if (existing is not null)
+            {
+                return new InternalTopUpResponseDto(
+                    Success: true,
+                    ErrorMessage: null,
+                    WalletId: account.Id,
+                    NewBalance: existing.BalanceAfter,
+                    Currency: account.Currency ?? request.Currency,
+                    LedgerEntryId: existing.Id.ToString(),
+                    Duplicate: true);
+            }
+        }
+
+        var now = DateTime.UtcNow;
+        var currency = string.IsNullOrWhiteSpace(request.Currency)
+            ? account.Currency ?? "USD"
+            : request.Currency.ToUpperInvariant();
+        var newBalance = account.Balance + request.Amount;
+
+        var ledgerEntry = new LedgerEntry
+        {
+            Id = Guid.NewGuid(),
+            AccountId = account.Id,
+            Type = LedgerEntryType.Credit,
+            Amount = request.Amount,
+            BalanceAfter = newBalance,
+            Description = $"Stripe top-up ({request.StripeEventId})",
+            ReferenceId = referenceId,
+            CreatedAt = now
+        };
+
+        account.Balance = newBalance;
+        account.LedgerCount++;
+        account.UpdatedAt = now;
+
+        await _ledger.CreateAsync(ledgerEntry);
+        await _accounts.UpdateAsync(account);
+
+        return new InternalTopUpResponseDto(
+            Success: true,
+            ErrorMessage: null,
+            WalletId: account.Id,
+            NewBalance: newBalance,
+            Currency: currency,
+            LedgerEntryId: ledgerEntry.Id.ToString(),
+            Duplicate: false);
     }
 }

@@ -23,6 +23,9 @@ public sealed class LedgerEntryDocument
     [FirestoreProperty("description")]
     public string? Description { get; set; }
 
+    [FirestoreProperty("referenceId")]
+    public string? ReferenceId { get; set; }
+
     [FirestoreProperty("createdAt")]
     public DateTime CreatedAt { get; set; }
 }
