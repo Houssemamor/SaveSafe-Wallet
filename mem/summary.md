@@ -15,6 +15,9 @@
 - Balance Distribution was recently made dynamic from existing wallets
 - User reports color rendering issue in dashboard component
 - Fixed incorrect Angular class binding syntax in pie chart rendering
+- Added unread notification badge and popover menu to the dashboard notifications button
+- Seeded the shared notification service with mock unread notifications so the badge renders on load
+- Notification popover items now navigate to wallet history and mark unread items as read
 - Implemented Transfer All button functionality for wallet operations
 - Fixed Transfer All button remaining inactive despite valid wallet selections
 - Fixed wallet name bug during transfers
@@ -33,6 +36,7 @@
 - Changed incorrect `[item.color]` syntax to proper `[ngClass]="item.color"` binding
 - Verified color palette is properly defined in Tailwind config
 - Each wallet now gets unique color: bg-primary, bg-secondary, bg-tertiary, bg-error, bg-surface-tint
+- Dashboard notifications button now shows a red unread-count badge backed by NotificationService state
 - Implemented Transfer All button functionality in dashboard-page.component.ts
 - Added state variables: isTransferringAll, transferAllError, transferAllSuccess
 - Added onTransferAll() method to transfer entire wallet balance

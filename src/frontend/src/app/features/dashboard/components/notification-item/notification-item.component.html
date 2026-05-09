@@ -1,0 +1,10 @@
+<button type="button" class="notification-item" [class.unread]="!notification.isRead" (click)="onClick()">
+  <div class="notification-indicator" [class.unread]="!notification.isRead" [class.read]="notification.isRead"></div>
+  <div class="notification-content">
+    <div class="notification-header">
+      <p class="notification-title">{{ notification.title }}</p>
+      <span class="notification-time">{{ notification.createdAt | date:'shortTime' }}</span>
+    </div>
+    <p class="notification-message">{{ notification.message }}</p>
+  </div>
+</button>

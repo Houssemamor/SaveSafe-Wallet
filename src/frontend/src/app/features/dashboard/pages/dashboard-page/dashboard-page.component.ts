@@ -3,6 +3,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { Observable } from 'rxjs';
 import { SessionService } from '../../../../core/session/session.service';
 import { UserAvatarComponent } from '../../../../core/components/user-avatar/user-avatar.component';
 import { AuthService } from '../../../auth/data-access/auth.service';
@@ -10,7 +11,8 @@ import { SessionUser } from '../../../auth/models/auth.models';
 import { WalletService, Wallet, CreateWalletRequest } from '../../../wallet-history/data-access/wallet.service';
 import { WalletBalanceResponse, WalletHistoryEntry } from '../../../wallet-history/models/wallet.models';
 import { SecurityService, SecurityLevel } from '../../../../core/security/security.service';
-import { NotificationService } from '../../../../core/notifications/notification.service';
+import { Notification, NotificationService } from '../../../../core/notifications/notification.service';
+import { NotificationItemComponent } from '../../components/notification-item/notification-item.component';
 
 /**
  * Dashboard statistics interface for real-time data display
@@ -37,13 +39,16 @@ interface BalanceDistributionItem {
 @Component({
   selector: 'app-dashboard-page',
   standalone: true,
-  imports: [RouterLink, CommonModule, ReactiveFormsModule, UserAvatarComponent],
+  imports: [RouterLink, CommonModule, ReactiveFormsModule, UserAvatarComponent, NotificationItemComponent],
   templateUrl: './dashboard-page.component.html'
 })
 export class DashboardPageComponent implements OnInit {
   user: SessionUser | null = null;
   balance: WalletBalanceResponse | null = null;
   balanceError = '';
+  readonly unreadNotificationCount$ = this.notificationService.getUnreadCount();
+  readonly notifications$: Observable<Notification[]> = this.notificationService.getNotifications();
+  showNotificationPopover = false;
 
   // Recent transactions
   recentTransactions: WalletHistoryEntry[] = [];
@@ -496,6 +501,27 @@ export class DashboardPageComponent implements OnInit {
     this.isSearching = this.searchQuery.length > 0;
   }
 
+  toggleNotificationsPopover(): void {
+    this.showNotificationPopover = !this.showNotificationPopover;
+  }
+
+  closeNotificationsPopover(): void {
+    this.showNotificationPopover = false;
+  }
+
+  onNotificationClick(notification: Notification): void {
+    if (!notification.isRead) {
+      this.notificationService.markAsRead(notification.id).subscribe();
+    }
+
+    this.showNotificationPopover = false;
+    this.router.navigate(['/wallet-history']);
+  }
+
+  trackByNotificationId(_: number, notification: Notification): string {
+    return notification.id;
+  }
+
   get filteredRecentTransactions(): WalletHistoryEntry[] {
     if (!this.searchQuery) {
       return this.recentTransactions;
@@ -510,10 +536,7 @@ export class DashboardPageComponent implements OnInit {
    * Shows notifications panel or navigates to notifications page
    */
   onNotificationsClick(): void {
-    // Navigate to notifications page
-    // In a full implementation, this would open a notifications panel
-    /* this.router.navigate(['/notifications']); */
-    this.router.navigate(['/profile'])
+    this.toggleNotificationsPopover();
   }
 
   /**
