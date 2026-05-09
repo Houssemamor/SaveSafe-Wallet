@@ -90,6 +90,10 @@ export class WalletHistoryPageComponent implements OnInit {
     this.applyFilters();
   }
 
+  onSearchSubmit(term: string): void {
+    this.onSearch(term);
+  }
+
   previousPage(): void {
     if (this.page <= 1 || this.isLoading) {
       return;
@@ -258,7 +262,25 @@ export class WalletHistoryPageComponent implements OnInit {
         return true;
       }
 
-      return (entry.description ?? '').toLowerCase().includes(normalizedSearch);
+      return this.getSearchableEntryText(entry).includes(normalizedSearch);
     });
+  }
+
+  private getSearchableEntryText(entry: WalletHistoryEntry): string {
+    const parts = [
+      entry.description,
+      entry.type,
+      entry.amount.toFixed(2),
+      new Date(entry.createdAt).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      })
+    ];
+
+    return parts
+      .filter((value): value is string => typeof value === 'string' && value.length > 0)
+      .join(' ')
+      .toLowerCase();
   }
 }

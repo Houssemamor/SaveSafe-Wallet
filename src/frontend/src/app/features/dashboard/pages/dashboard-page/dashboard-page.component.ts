@@ -493,18 +493,16 @@ export class DashboardPageComponent implements OnInit {
    */
   onSearch(query: string): void {
     this.searchQuery = query.trim();
+    this.isSearching = this.searchQuery.length > 0;
+  }
 
-    if (this.searchQuery) {
-      this.isSearching = true;
-      // Filter recent transactions based on search query
-      const filtered = this.recentTransactions.filter(entry =>
-        entry.description?.toLowerCase().includes(this.searchQuery.toLowerCase()) ||
-        entry.type.toLowerCase().includes(this.searchQuery.toLowerCase())
-      );
-      // In a real implementation, this would trigger an API call with search parameters
-    } else {
-      this.isSearching = false;
+  get filteredRecentTransactions(): WalletHistoryEntry[] {
+    if (!this.searchQuery) {
+      return this.recentTransactions;
     }
+
+    const query = this.searchQuery.toLowerCase();
+    return this.recentTransactions.filter(entry => this.getSearchableTransactionText(entry).includes(query));
   }
 
   /**
@@ -728,6 +726,25 @@ export class DashboardPageComponent implements OnInit {
     } else {
       return 'Debit';
     }
+  }
+
+  private getSearchableTransactionText(entry: WalletHistoryEntry): string {
+    const parts = [
+      entry.description,
+      entry.type,
+      entry.amount.toFixed(2),
+      entry.createdAt,
+      new Date(entry.createdAt).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      })
+    ];
+
+    return parts
+      .filter((value): value is string => typeof value === 'string' && value.length > 0)
+      .join(' ')
+      .toLowerCase();
   }
 
   /**

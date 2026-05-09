@@ -133,9 +133,10 @@
           <div class="bg-surface-container-low rounded-xl overflow-hidden">
             <p *ngIf="isLoadingRecentTransactions" class="p-6 text-sm text-on-surface-variant">Loading recent transactions...</p>
             <p *ngIf="recentTransactionsError" class="p-6 text-sm text-error">{{ recentTransactionsError }}</p>
-            <div *ngIf="!isLoadingRecentTransactions && recentTransactions.length === 0" class="p-6 text-sm text-on-surface-variant">No recent transactions found.</div>
+            <div *ngIf="!isLoadingRecentTransactions && filteredRecentTransactions.length === 0 && !searchQuery" class="p-6 text-sm text-on-surface-variant">No recent transactions found.</div>
+            <div *ngIf="!isLoadingRecentTransactions && filteredRecentTransactions.length === 0 && searchQuery" class="p-6 text-sm text-on-surface-variant">No transactions match your search.</div>
 
-            <div *ngFor="let entry of recentTransactions" class="flex items-center justify-between p-6 hover:bg-surface-container-highest transition-colors">
+            <div *ngFor="let entry of filteredRecentTransactions" class="flex items-center justify-between p-6 hover:bg-surface-container-highest transition-colors">
               <div class="flex items-center gap-4">
                 <div class="w-12 h-12 rounded-full" [ngClass]="entry.type.toLowerCase() === 'credit' ? 'bg-secondary-container flex items-center justify-center text-on-secondary-container' : 'bg-surface-container-highest flex items-center justify-center text-on-surface-variant'">
                   <span class="material-symbols-outlined">{{ entry.type.toLowerCase() === 'credit' ? 'payments' : 'swap_horiz' }}</span>

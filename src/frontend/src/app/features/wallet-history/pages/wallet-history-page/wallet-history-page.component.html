@@ -39,10 +39,11 @@
         <h2 class="text-xl font-black text-[#191c1d] dark:text-slate-100 uppercase tracking-tighter">SaveSafe Wallet</h2>
       </div>
       <div class="flex items-center gap-6">
-        <div class="hidden md:flex items-center bg-surface-container-highest px-4 py-2 rounded-xl w-64 transition-all focus-within:bg-white focus-within:ring-2 ring-surface-tint/20">
+        <form class="hidden md:flex items-center gap-2 bg-surface-container-highest px-4 py-2 rounded-xl w-[360px] transition-all focus-within:bg-white focus-within:ring-2 ring-surface-tint/20" (submit)="onSearchSubmit(searchInput.value); $event.preventDefault()">
           <span class="material-symbols-outlined text-on-surface-variant text-sm">search</span>
-          <input class="bg-transparent border-none focus:ring-0 text-sm w-full placeholder:text-on-surface-variant/50" placeholder="Search transactions..." type="text" (input)="onSearch($any($event.target).value)" />
-        </div>
+          <input #searchInput class="bg-transparent border-none focus:ring-0 text-sm w-full placeholder:text-on-surface-variant/50" placeholder="Search description, type, amount, or date" type="text" [value]="searchTerm" (input)="onSearch($any($event.target).value)" />
+          <button class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary text-white hover:bg-primary/90 transition-colors" type="submit">Search</button>
+        </form>
         <div class="flex items-center gap-4 text-[#434654] dark:text-slate-400">
           <button class="material-symbols-outlined hover:text-[#0052CC] transition-all opacity-80 active:opacity-100" (click)="onNotificationsClick()" type="button">notifications</button>
           <button class="material-symbols-outlined hover:text-[#0052CC] transition-all opacity-80 active:opacity-100" (click)="onSettingsClick()" type="button">settings</button>
@@ -56,6 +57,11 @@
           <h2 class="text-4xl font-extrabold font-manrope tracking-tight text-on-surface mb-2">Wallet History</h2>
           <p class="text-on-surface-variant font-body">Track wallet activity and monitor your cash flow.</p>
         </div>
+        <form class="md:hidden flex items-center gap-2 bg-surface-container-highest px-4 py-3 rounded-xl w-full transition-all focus-within:bg-white focus-within:ring-2 ring-surface-tint/20" (submit)="onSearchSubmit(mobileSearchInput.value); $event.preventDefault()">
+          <span class="material-symbols-outlined text-on-surface-variant text-sm">search</span>
+          <input #mobileSearchInput class="bg-transparent border-none focus:ring-0 text-sm w-full placeholder:text-on-surface-variant/50" placeholder="Search transactions" type="text" [value]="searchTerm" (input)="onSearch($any($event.target).value)" />
+          <button class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary text-white hover:bg-primary/90 transition-colors" type="submit">Search</button>
+        </form>
         <div class="flex items-center gap-3 flex-wrap">
           <div class="bg-surface-container-low p-1.5 rounded-xl flex gap-1">
             <button class="px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors" [ngClass]="activityFilter === 'all' ? 'bg-surface-container-lowest shadow-sm text-primary' : 'text-on-surface-variant hover:bg-surface-container-high'" (click)="setActivityFilter('all')" type="button">All Activity</button>
