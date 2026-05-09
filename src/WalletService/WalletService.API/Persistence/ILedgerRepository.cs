@@ -18,5 +18,10 @@ public interface ILedgerRepository
         Guid accountId,
         CancellationToken ct = default);
 
+    Task<LedgerEntry?> GetByReferenceIdAsync(
+        Guid accountId,
+        string referenceId,
+        CancellationToken ct = default);
+
     Task CreateAsync(LedgerEntry entry, CancellationToken ct = default);
 }

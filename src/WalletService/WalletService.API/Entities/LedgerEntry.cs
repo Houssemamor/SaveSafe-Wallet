@@ -28,6 +28,10 @@ public class LedgerEntry
     [Column("description")]
     public string? Description { get; set; }
 
+    [MaxLength(100)]
+    [Column("reference_id")]
+    public string? ReferenceId { get; set; }
+
     [Column("created_at")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

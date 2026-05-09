@@ -58,6 +58,7 @@ public sealed class LedgerRepository : ILedgerRepository
             Amount = ToDecimal(doc.Amount),
             BalanceAfter = ToDecimal(doc.BalanceAfter),
             Description = doc.Description,
+            ReferenceId = doc.ReferenceId,
             CreatedAt = doc.CreatedAt
         };
     }
@@ -90,6 +91,29 @@ public sealed class LedgerRepository : ILedgerRepository
             .ToList();
     }
 
+    public async Task<LedgerEntry?> GetByReferenceIdAsync(
+        Guid accountId,
+        string referenceId,
+        CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(referenceId))
+        {
+            return null;
+        }
+
+        var collection = Db.Collection(FirestoreCollections.Accounts)
+            .Document(accountId.ToString())
+            .Collection(FirestoreCollections.LedgerEntries);
+
+        var snapshot = await collection
+            .WhereEqualTo("referenceId", referenceId)
+            .Limit(1)
+            .GetSnapshotAsync(ct);
+
+        var document = snapshot.Documents.FirstOrDefault();
+        return document is null ? null : ToEntity(document);
+    }
+
     public async Task CreateAsync(LedgerEntry entry, CancellationToken ct = default)
     {
         var collection = Db.Collection(FirestoreCollections.Accounts)
@@ -104,6 +128,7 @@ public sealed class LedgerRepository : ILedgerRepository
             Amount = (double)entry.Amount,
             BalanceAfter = (double)entry.BalanceAfter,
             Description = entry.Description,
+            ReferenceId = entry.ReferenceId,
             CreatedAt = entry.CreatedAt
         };
 
