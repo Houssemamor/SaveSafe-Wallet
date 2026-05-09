@@ -1,0 +1,23 @@
+<div class="min-h-screen bg-[#f8f3f2] flex items-center justify-center px-6 py-12">
+  <div class="max-w-2xl w-full bg-white rounded-3xl shadow-[0_32px_80px_rgba(16,24,40,0.12)] p-8 md:p-10 text-center border border-slate-100">
+    <div class="mx-auto w-16 h-16 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center mb-5">
+      <span class="material-symbols-outlined text-3xl">cancel</span>
+    </div>
+    <p class="text-xs uppercase tracking-[0.3em] text-amber-700 font-bold mb-3">Paiement annulé</p>
+    <h1 class="text-4xl font-black tracking-tight mb-4">Recharge interrompue</h1>
+    <p class="text-slate-600 mb-8">
+      Le paiement a été annulé sur Stripe. Le portefeuille n'a pas été modifié.
+    </p>
+
+    <div class="flex flex-wrap justify-center gap-3">
+      <a routerLink="/wallet/topup" class="inline-flex items-center gap-2 rounded-2xl bg-primary px-6 py-4 text-white font-bold">
+        <span class="material-symbols-outlined text-sm">refresh</span>
+        Réessayer
+      </a>
+      <a routerLink="/dashboard" class="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-6 py-4 font-bold text-slate-700 hover:bg-slate-50">
+        <span class="material-symbols-outlined text-sm">dashboard</span>
+        Retour au dashboard
+      </a>
+    </div>
+  </div>
+</div>

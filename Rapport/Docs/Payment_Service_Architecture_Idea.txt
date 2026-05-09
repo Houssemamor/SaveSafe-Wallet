@@ -1,0 +1,232 @@
+SAVE SAFE WALLET - PAYMENT SERVICE ARCHITECTURE IDEA
+=====================================================
+
+Objectif
+--------
+Documenter une architecture claire et realiste pour ajouter le paiement Stripe
+au projet Save Safe Wallet, avec une separation nette des responsabilites entre
+Stripe, PaymentService et WalletService.
+
+Vision generale
+---------------
+Le module paiement doit servir a encadrer tout le flux Stripe sans toucher
+directement au solde du wallet. Le service de paiement agit comme orchestrateur
+du cycle de vie Stripe, tandis que WalletService reste le seul proprietaire du
+solde et du ledger.
+
+Regle centrale
+--------------
+Le webhook Stripe est la seule source de verite pour confirmer le paiement.
+Aucune page frontend, aucun retour utilisateur et aucun appel manuel ne doit
+etre considere comme une confirmation finale.
+
+Architecture proposee
+----------------------
+- AuthService
+  - Gere l'authentification JWT.
+  - Ne participe pas directement au flux Stripe.
+
+- PaymentService
+  - Nouveau service ou module dedie au flux Stripe.
+  - Cree les sessions de paiement.
+  - Recoit les webhooks Stripe.
+  - Garde la trace des paiements top-up.
+  - Ne credite jamais le wallet directement.
+
+- WalletService
+  - Proprietaire du solde.
+  - Proprietaire du ledger.
+  - Recoit une instruction interne de credit apres confirmation du paiement.
+  - Applique l'ecriture comptable de facon atomique.
+
+- Frontend Angular
+  - Permet a l'utilisateur de saisir un montant.
+  - Demande la creation d'une checkout session.
+  - Redirige vers Stripe.
+  - Affiche les pages success et cancel.
+  - Recharge le solde apres retour.
+
+Responsabilites detaillees
+--------------------------
+
+1. PaymentService
+   - Expose POST /payment/create-checkout-session.
+   - Expose POST /payment/webhook.
+   - Valide les donnees metier de top-up.
+   - Cree une session Stripe Checkout.
+   - Enregistre une TopUpTransaction en statut Pending.
+   - Traite les evenements Stripe.
+   - Met a jour le statut en Succeeded, Failed ou Cancelled.
+   - Declenche ensuite le credit du wallet via WalletService.
+
+2. WalletService
+   - Recoit une commande ou un evenement interne.
+   - Cree une entree de ledger en credit.
+   - Met a jour le solde du wallet.
+   - Garantit l'idempotence du credit.
+   - N'autorise jamais un credit direct depuis le frontend.
+
+3. Frontend Angular
+   - Ne credite rien.
+   - Ne fait que demander le checkout.
+   - Redirige vers Stripe Checkout.
+   - Recharge les donnees apres retour success.
+   - Affiche un statut visuel en attente de confirmation si necessaire.
+
+4. Stripe
+   - Gere la collecte de paiement.
+   - Retourne les evenements de paiement.
+   - Declenche le webhook avec signature verifiee.
+
+Flux complet
+------------
+
+Etape 1: Demande de top-up
+- L'utilisateur saisit un montant dans le frontend.
+- Le frontend envoie une requete authentee au PaymentService.
+- Le backend deduit l'utilisateur depuis le JWT.
+- Le backend recupere le wallet associe.
+- Le backend valide le montant cote serveur.
+
+Etape 2: Creation de la session Stripe
+- PaymentService cree une Stripe Checkout Session.
+- PaymentService enregistre une TopUpTransaction avec status Pending.
+- PaymentService retourne l'URL de redirection Stripe.
+- Le frontend redirige l'utilisateur vers Stripe.
+
+Etape 3: Paiement Stripe
+- L'utilisateur saisit sa carte sur Stripe.
+- Stripe traite le paiement.
+- Stripe envoie un webhook au PaymentService.
+
+Etape 4: Traitement du webhook
+- PaymentService verifie la signature du webhook.
+- PaymentService identifie l'evenement.
+- PaymentService verifie si le paiement a deja ete traite.
+- Si le paiement est nouveau, PaymentService met a jour la transaction.
+- PaymentService appelle WalletService pour crediter le wallet.
+- WalletService cree l'entree de ledger.
+- WalletService met a jour le solde.
+- PaymentService passe la transaction a Succeeded.
+
+Etape 5: Retour frontend
+- Le frontend affiche la page success.
+- Le frontend recharge le solde via l'API.
+- Le frontend recharge l'historique des transactions.
+- L'utilisateur voit le nouveau solde.
+
+Entite centrale: TopUpTransaction
+---------------------------------
+Cette entite trace tout le cycle de vie Stripe du top-up.
+
+Champs recommandes:
+- Id
+- UserId
+- WalletId
+- StripeSessionId
+- StripePaymentIntentId
+- StripeEventId
+- Amount
+- Currency
+- Status
+- IdempotencyKey
+- CreatedAt
+- CompletedAt
+- FailureReason
+
+Statuts possibles:
+- Pending: session creee, paiement pas encore confirme.
+- Succeeded: paiement confirme et wallet credite.
+- Failed: paiement Stripe echoue.
+- Cancelled: utilisateur a abandonne le checkout.
+
+Points critiques de conception
+------------------------------
+
+1. Ne jamais faire confiance au frontend pour les identifiants metier.
+   - userId et walletId doivent etre derives ou verifies cote serveur.
+
+2. Ne jamais crediter le wallet dans la page success.
+   - La page success ne fait qu'afficher un retour utilisateur.
+
+3. Ne jamais traiter le webhook deux fois.
+   - Utiliser StripeEventId et StripePaymentIntentId comme clefs d'idempotence.
+
+4. Ne jamais exposer les secrets Stripe au frontend.
+   - STRIPE_SECRET_KEY reste cote serveur uniquement.
+
+5. Ne jamais confondre retour utilisateur et confirmation de paiement.
+   - La vraie confirmation vient du webhook Stripe.
+
+Variables d'environnement
+-------------------------
+A ajouter dans Docker Compose pour PaymentService:
+- STRIPE_SECRET_KEY
+- STRIPE_WEBHOOK_SECRET
+- STRIPE_PUBLISHABLE_KEY
+- FRONTEND_SUCCESS_URL
+- FRONTEND_CANCEL_URL
+
+Exemple d'usage:
+payment-service:
+  environment:
+    - STRIPE_SECRET_KEY=sk_test_...
+    - STRIPE_WEBHOOK_SECRET=whsec_...
+    - STRIPE_PUBLISHABLE_KEY=pk_test_...
+    - FRONTEND_SUCCESS_URL=http://localhost:4200/wallet/success
+    - FRONTEND_CANCEL_URL=http://localhost:4200/wallet/topup
+
+Decisions techniques recommandees
+---------------------------------
+- Garder WalletService comme source de verite du solde.
+- Ajouter PaymentService si le flux Stripe doit rester isole.
+- Utiliser Stripe Checkout pour simplifier le frontend.
+- Utiliser webhook Stripe pour la validation finale.
+- Utiliser un appel interne ou un message interne vers WalletService.
+- Ajouter des tests unitaires avec mocks Stripe.
+- Ajouter des tests d'integration pour webhook et top-up.
+
+Pourquoi cette architecture est preferable
+------------------------------------------
+- Elle evite de melanger paiements et ledger.
+- Elle preserve la responsabilite unique de WalletService.
+- Elle permet un suivi clair du cycle de vie du paiement.
+- Elle reduit les risques d'erreur manuelle sur le solde.
+- Elle reste evolutive si on ajoute Kafka ou un outbox plus tard.
+
+Definition of done
+------------------
+L'architecture est consideree comme complete quand:
+- Un utilisateur peut demander un top-up.
+- Stripe gere le paiement.
+- Le webhook confirme le paiement.
+- WalletService credite le ledger.
+- Le solde est mis a jour exactement une seule fois.
+- Le frontend affiche le resultat correct.
+- Les secrets sont configures dans Docker Compose.
+- Les tests couvrent le flux principal.
+
+Checklist resumee
+-----------------
+[ ] Ajouter le package Stripe au backend
+[ ] Ajouter TopUpTransaction
+[ ] Ajouter POST /payment/create-checkout-session
+[ ] Ajouter POST /payment/webhook
+[ ] Verifier la signature Stripe
+[ ] Gerer l'idempotence
+[ ] Appeler WalletService pour le credit
+[ ] Ajouter la page Angular Top-up
+[ ] Ajouter les pages Success et Cancel
+[ ] Ajouter les variables STRIPE_* dans Docker Compose
+[ ] Ajouter les tests unitaires
+[ ] Ajouter les tests d'integration
+[ ] Documenter le flux dans le README
+
+Synthese courte
+---------------
+Le meilleur design pour ce projet est le suivant:
+- PaymentService orchestre Stripe.
+- WalletService credite le wallet.
+- Frontend redirige et affiche.
+- Stripe confirme via webhook.
+- Le solde n'est jamais modifie hors WalletService.

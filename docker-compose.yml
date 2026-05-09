@@ -178,6 +178,39 @@ services:
       - ssw-network
     restart: unless-stopped
 
+  # ── Payment Service ─────────────────────────────────────────────────────────
+  payment-service:
+    build:
+      context: ./src/PaymentService
+      dockerfile: PaymentService.API/Dockerfile
+    container_name: ssw-payment-service
+    depends_on:
+      wallet-service:
+        condition: service_started
+    ports:
+      - "5003:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      Firestore__ProjectId: ${FIRESTORE_PROJECT_ID}
+      Firestore__CredentialsPath: /secrets/firebase.json
+      GOOGLE_APPLICATION_CREDENTIALS: /secrets/firebase.json
+      Jwt__Key: ${JWT_SECRET_KEY}
+      Jwt__Issuer: savesafe-auth
+      Jwt__Audience: savesafe-clients
+      InternalApi__ApiKey: ${INTERNAL_API_KEY}
+      Services__WalletServiceUrl: http://wallet-service:8080
+      Stripe__SecretKey: ${STRIPE_SECRET_KEY}
+      Stripe__WebhookSecret: ${STRIPE_WEBHOOK_SECRET}
+      Stripe__PublishableKey: ${STRIPE_PUBLISHABLE_KEY}
+      Frontend__SuccessUrl: ${FRONTEND_SUCCESS_URL:-http://localhost:4200/wallet/success}
+      Frontend__CancelUrl: ${FRONTEND_CANCEL_URL:-http://localhost:4200/wallet/topup}
+    volumes:
+      - ${FIRESTORE_CREDENTIALS_PATH:-./secrets/firebase.json}:/secrets/firebase.json:ro
+    networks:
+      - ssw-network
+    restart: unless-stopped
+
   # ── Frontend (Angular + Nginx) ────────────────────────────────────────────
   frontend:
     build:
