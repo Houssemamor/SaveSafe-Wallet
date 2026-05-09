@@ -3,6 +3,7 @@ import { Component, OnInit } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { WalletHistoryEntry } from '../../models/wallet.models';
 import { SessionService } from '../../../../core/session/session.service';
+import { UserAvatarComponent } from '../../../../core/components/user-avatar/user-avatar.component';
 import { AuthService } from '../../../auth/data-access/auth.service';
 import { SessionUser } from '../../../auth/models/auth.models';
 import { WalletService } from '../../data-access/wallet.service';
@@ -13,7 +14,7 @@ type DateFilter = '30d' | 'all';
 @Component({
   selector: 'app-wallet-history-page',
   standalone: true,
-  imports: [RouterLink, CommonModule],
+  imports: [RouterLink, CommonModule, UserAvatarComponent],
   templateUrl: './wallet-history-page.component.html'
 })
 export class WalletHistoryPageComponent implements OnInit {
@@ -26,10 +27,17 @@ export class WalletHistoryPageComponent implements OnInit {
   page = 1;
   pageSize = 10;
   totalCount = 0;
+  pageToken: string | null = null;
+  nextPageToken: string | null = null;
+  pageTokens: Array<string | null> = [null];
 
   activityFilter: ActivityFilter = 'all';
   dateFilter: DateFilter = '30d';
   searchTerm = '';
+
+  // Download functionality
+  isDownloading = false;
+  downloadError = '';
 
   constructor(
     private readonly walletService: WalletService,
@@ -88,15 +96,17 @@ export class WalletHistoryPageComponent implements OnInit {
     }
 
     this.page -= 1;
+    this.pageToken = this.pageTokens[this.page - 1] ?? null;
     this.loadHistory();
   }
 
   nextPage(): void {
-    if (this.page >= this.totalPages || this.isLoading) {
+    if (!this.nextPageToken || this.page >= this.totalPages || this.isLoading) {
       return;
     }
 
     this.page += 1;
+    this.pageToken = this.nextPageToken;
     this.loadHistory();
   }
 
@@ -108,6 +118,24 @@ export class WalletHistoryPageComponent implements OnInit {
         this.router.navigate(['/login']);
       }
     });
+  }
+
+  /**
+   * Handle notifications button click
+   * Shows notifications panel or navigates to notifications page
+   */
+  onNotificationsClick(): void {
+    // Navigate to profile page
+    this.router.navigate(['/profile']);
+  }
+
+  /**
+   * Handle settings button click
+   * Navigates to settings page or opens settings modal
+   */
+  onSettingsClick(): void {
+    // Navigate to profile page
+    this.router.navigate(['/profile']);
   }
 
   trackByEntry(_: number, entry: WalletHistoryEntry): string {
@@ -127,14 +155,73 @@ export class WalletHistoryPageComponent implements OnInit {
     return `${this.isCredit(entry) ? '+' : '-'}$${amount}`;
   }
 
+  /**
+   * Return a user-friendly description. Masks emails partially for privacy and
+   * preserves original text when no email is present.
+   */
+  formatDescription(entry: WalletHistoryEntry): string {
+    if (!entry.description) return 'Wallet operation';
+
+    // Simple email regex
+    const emailRegex = /([a-zA-Z0-9._%+-]+)@([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/g;
+
+    return entry.description.replace(emailRegex, (_match, local, domain) => {
+      const keep = Math.ceil(local.length / 2);
+      const visible = local.slice(0, keep);
+      const masked = '*'.repeat(Math.max(3, local.length - keep));
+      return `${visible}${masked}@${domain}`;
+    });
+  }
+
+  onDownloadHistory(): void {
+    if (this.isDownloading) return;
+
+    this.isDownloading = true;
+    this.downloadError = '';
+
+    // Calculate date range based on current filter
+    const endDate = new Date();
+    const startDate = new Date();
+
+    if (this.dateFilter === '30d') {
+      startDate.setDate(startDate.getDate() - 30);
+    } else {
+      // For 'all' filter, use a reasonable range (e.g., last year)
+      startDate.setFullYear(startDate.getFullYear() - 1);
+    }
+
+    this.walletService.exportHistory(
+      startDate.toISOString().split('T')[0],
+      endDate.toISOString().split('T')[0]
+    ).subscribe({
+      next: (blob: Blob) => {
+        this.isDownloading = false;
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `wallet-history-${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      },
+      error: () => {
+        this.isDownloading = false;
+        this.downloadError = 'Failed to download history. Please try again.';
+      }
+    });
+  }
+
   private loadHistory(): void {
     this.isLoading = true;
     this.errorMessage = '';
 
-    this.walletService.getHistory(this.page, this.pageSize).subscribe({
+    this.walletService.getHistory(this.pageSize, this.pageToken).subscribe({
       next: (response) => {
         this.entries = response.entries;
         this.totalCount = response.totalCount;
+        this.nextPageToken = response.nextPageToken;
+        this.pageTokens[this.page] = response.nextPageToken;
         this.applyFilters();
         this.isLoading = false;
       },

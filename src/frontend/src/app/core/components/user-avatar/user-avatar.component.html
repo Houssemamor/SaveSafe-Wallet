@@ -1,0 +1,4 @@
+<div [ngClass]="classes" class="overflow-hidden bg-primary-container flex items-center justify-center">
+  <img *ngIf="imageSrc && !broken" [src]="imageSrc" [alt]="alt" (error)="onError()" class="w-full h-full object-cover" />
+  <span *ngIf="(!url || broken)" class="material-symbols-outlined text-primary">person</span>
+</div>

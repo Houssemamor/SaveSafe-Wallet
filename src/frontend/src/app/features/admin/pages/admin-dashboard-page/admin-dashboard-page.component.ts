@@ -27,6 +27,7 @@ export class AdminDashboardPageComponent implements OnInit {
   users: AdminUser[] = [];
 
   isLoading = true;
+  isRefreshing = false;
   errorMessage = '';
 
   constructor(
@@ -81,5 +82,80 @@ export class AdminDashboardPageComponent implements OnInit {
         this.isLoading = false;
       }
     });
+  }
+
+  refreshSummary(): void {
+    if (this.isRefreshing) {
+      return;
+    }
+
+    this.isRefreshing = true;
+    this.adminService.refreshSecuritySummary().subscribe({
+      next: (summary) => {
+        this.summary = summary;
+        this.isRefreshing = false;
+      },
+      error: () => {
+        this.errorMessage = 'Unable to refresh security summary.';
+        this.isRefreshing = false;
+      }
+    });
+  }
+
+  suspendUser(userId: string): void {
+    if (!confirm('Are you sure you want to suspend this user?')) {
+      return;
+    }
+
+    this.adminService.suspendUser(userId).subscribe({
+      next: () => {
+        this.loadDashboard(); // Reload to show updated status
+      },
+      error: () => {
+        this.errorMessage = 'Unable to suspend user.';
+      }
+    });
+  }
+
+  activateUser(userId: string): void {
+    if (!confirm('Are you sure you want to activate this user?')) {
+      return;
+    }
+
+    this.adminService.activateUser(userId).subscribe({
+      next: () => {
+        this.loadDashboard(); // Reload to show updated status
+      },
+      error: () => {
+        this.errorMessage = 'Unable to activate user.';
+      }
+    });
+  }
+
+  deleteUser(userId: string): void {
+    if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+      return;
+    }
+
+    this.adminService.deleteUser(userId).subscribe({
+      next: () => {
+        this.loadDashboard(); // Reload to show updated user list
+      },
+      error: () => {
+        this.errorMessage = 'Unable to delete user.';
+      }
+    });
+  }
+
+  canSuspendUser(user: AdminUser): boolean {
+    return user.accountStatus === 'Active';
+  }
+
+  canActivateUser(user: AdminUser): boolean {
+    return user.accountStatus === 'Suspended';
+  }
+
+  canDeleteUser(user: AdminUser): boolean {
+    return user.accountStatus !== 'Deleted';
   }
 }

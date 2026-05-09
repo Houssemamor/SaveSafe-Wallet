@@ -1,6 +1,8 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './core/guards/auth.guard';
+import { publicGuard } from './core/guards/public.guard';
 import { roleGuard } from './core/guards/role.guard';
+import { LandingPageComponent } from './features/landing/pages/landing-page/landing-page.component';
 import { LoginPageComponent } from './features/auth/pages/login-page/login-page.component';
 import { RegistrationPageComponent } from './features/auth/pages/registration-page/registration-page.component';
 import { DashboardPageComponent } from './features/dashboard/pages/dashboard-page/dashboard-page.component';
@@ -9,9 +11,9 @@ import { WalletHistoryPageComponent } from './features/wallet-history/pages/wall
 import { AdminDashboardPageComponent } from './features/admin/pages/admin-dashboard-page/admin-dashboard-page.component';
 
 export const routes: Routes = [
-  { path: '', pathMatch: 'full', redirectTo: 'login' },
-  { path: 'login', component: LoginPageComponent },
-  { path: 'register', component: RegistrationPageComponent },
+  { path: '', pathMatch: 'full', component: LandingPageComponent },
+  { path: 'login', component: LoginPageComponent, canActivate: [publicGuard] },
+  { path: 'register', component: RegistrationPageComponent, canActivate: [publicGuard] },
   { path: 'dashboard', component: DashboardPageComponent, canActivate: [authGuard] },
   {
     path: 'admin',
@@ -21,5 +23,5 @@ export const routes: Routes = [
   },
   { path: 'profile', component: UserProfilePageComponent, canActivate: [authGuard] },
   { path: 'wallet-history', component: WalletHistoryPageComponent, canActivate: [authGuard] },
-  { path: '**', redirectTo: 'login' }
+  { path: '**', redirectTo: '' }
 ];

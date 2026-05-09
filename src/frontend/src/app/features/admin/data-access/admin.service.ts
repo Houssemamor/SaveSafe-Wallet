@@ -17,6 +17,12 @@ export class AdminService {
     return this.http.get<AdminSecuritySummary>(`${API_CONFIG.adminBaseUrl}/security-summary`);
   }
 
+  refreshSecuritySummary(): Observable<AdminSecuritySummary> {
+    return this.http.post<AdminSecuritySummary>(
+      `${API_CONFIG.adminBaseUrl}/security-summary/refresh`,
+      {});
+  }
+
   getLoginEvents(limit = 50): Observable<AdminLoginEvent[]> {
     const params = new HttpParams().set('limit', limit);
     return this.http.get<AdminLoginEvent[]>(`${API_CONFIG.adminBaseUrl}/login-events`, { params });
@@ -30,5 +36,17 @@ export class AdminService {
   getUsers(limit = 100): Observable<AdminUser[]> {
     const params = new HttpParams().set('limit', limit);
     return this.http.get<AdminUser[]>(`${API_CONFIG.adminBaseUrl}/users`, { params });
+  }
+
+  suspendUser(userId: string): Observable<void> {
+    return this.http.post<void>(`${API_CONFIG.adminBaseUrl}/users/${userId}/suspend`, {});
+  }
+
+  activateUser(userId: string): Observable<void> {
+    return this.http.post<void>(`${API_CONFIG.adminBaseUrl}/users/${userId}/activate`, {});
+  }
+
+  deleteUser(userId: string): Observable<void> {
+    return this.http.delete<void>(`${API_CONFIG.adminBaseUrl}/users/${userId}`);
   }
 }

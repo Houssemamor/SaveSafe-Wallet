@@ -1,0 +1,226 @@
+<div class="bg-surface font-body text-on-surface antialiased min-h-screen">
+  <!-- Hero Section -->
+  <main class="relative overflow-hidden">
+    <!-- Background Elements -->
+    <div class="absolute top-[-10%] right-[-10%] w-[600px] h-[600px] bg-primary-container opacity-10 rounded-full blur-[150px]"></div>
+    <div class="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-secondary-container opacity-20 rounded-full blur-[120px]"></div>
+
+    <!-- Navigation -->
+    <nav class="relative z-10 px-6 py-4">
+      <div class="max-w-7xl mx-auto flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
+            <span class="material-symbols-outlined text-on-primary">account_balance_wallet</span>
+          </div>
+          <span class="text-xl font-headline font-bold text-on-surface">SaveSafe Wallet</span>
+        </div>
+        <div class="flex items-center gap-4">
+          <button (click)="navigateToLogin()" class="px-4 py-2 text-sm font-label font-medium text-on-surface hover:text-primary transition-colors">
+            Sign In
+          </button>
+          <button (click)="navigateToRegister()" class="px-6 py-2 bg-primary text-on-primary text-sm font-label font-bold rounded-lg hover:opacity-90 transition-opacity">
+            Get Started
+          </button>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Hero Content -->
+    <div class="relative z-10 max-w-7xl mx-auto px-6 py-20 lg:py-32">
+      <div class="grid lg:grid-cols-2 gap-12 items-center">
+        <div class="space-y-8">
+          <div class="space-y-4">
+            <h1 class="text-4xl lg:text-6xl font-headline font-black tracking-tight text-on-surface leading-tight">
+              Secure Wallet Management for
+              <span class="text-primary">Modern Teams</span>
+            </h1>
+            <p class="text-lg text-on-surface-variant max-w-xl">
+              Enterprise-grade security meets intuitive design. Manage your digital assets with confidence using our AI-powered anti-fraud system.
+            </p>
+          </div>
+
+          <div class="flex flex-col sm:flex-row gap-4">
+            <button (click)="navigateToRegister()" class="h-14 px-8 bg-gradient-to-br from-primary to-primary-container text-on-primary font-headline font-bold rounded-lg transition-all duration-200 hover:opacity-90 active:scale-[0.98] flex items-center justify-center gap-2">
+              Start Free Trial
+              <span class="material-symbols-outlined">arrow_forward</span>
+            </button>
+            <button (click)="navigateToLogin()" class="h-14 px-8 border-2 border-outline-variant border-opacity-20 text-on-surface font-headline font-bold rounded-lg transition-all duration-200 hover:bg-surface-container-low flex items-center justify-center gap-2">
+              <span class="material-symbols-outlined">play_circle</span>
+              Watch Demo
+            </button>
+          </div>
+
+          <div class="flex items-center gap-8 pt-4">
+            <div class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-tertiary-fixed">verified_user</span>
+              <span class="text-sm font-label text-on-surface-variant">Bank-level Security</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-tertiary-fixed">speed</span>
+              <span class="text-sm font-label text-on-surface-variant">Instant Transactions</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-tertiary-fixed">support_agent</span>
+              <span class="text-sm font-label text-on-surface-variant">24/7 Support</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Hero Image/Illustration -->
+        <div class="relative hidden lg:block">
+          <div class="relative w-full h-[500px] bg-surface-container-low rounded-2xl overflow-hidden shadow-2xl">
+            <div class="absolute inset-0 bg-gradient-to-br from-primary/10 to-secondary/10"></div>
+            <div class="absolute inset-0 flex items-center justify-center">
+              <div class="text-center space-y-4">
+                <div class="w-24 h-24 mx-auto rounded-full bg-primary flex items-center justify-center">
+                  <span class="material-symbols-outlined text-5xl text-on-primary">account_balance_wallet</span>
+                </div>
+                <div class="space-y-2">
+                  <p class="text-2xl font-headline font-bold text-on-surface">Your Balance</p>
+                  <p class="text-4xl font-headline font-black text-primary">$12,458.00</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Floating Cards -->
+          <div class="absolute -left-8 top-20 bg-surface p-4 rounded-xl shadow-lg">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-full bg-success-container flex items-center justify-center">
+                <span class="material-symbols-outlined text-success">check_circle</span>
+              </div>
+              <div>
+                <p class="text-xs font-label text-on-surface-variant">Transaction</p>
+                <p class="text-sm font-bold text-on-surface">+$2,500.00</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="absolute -right-8 bottom-20 bg-surface p-4 rounded-xl shadow-lg">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-full bg-tertiary-container flex items-center justify-center">
+                <span class="material-symbols-outlined text-tertiary-fixed">shield</span>
+              </div>
+              <div>
+                <p class="text-xs font-label text-on-surface-variant">Security</p>
+                <p class="text-sm font-bold text-on-surface">Protected</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Features Section -->
+    <section class="relative z-10 max-w-7xl mx-auto px-6 py-20">
+      <div class="text-center mb-16">
+        <h2 class="text-3xl lg:text-4xl font-headline font-bold text-on-surface mb-4">
+          Everything You Need to Manage Your Finances
+        </h2>
+        <p class="text-lg text-on-surface-variant max-w-2xl mx-auto">
+          Powerful features designed for security, speed, and simplicity
+        </p>
+      </div>
+
+      <div class="grid md:grid-cols-3 gap-8">
+        <!-- Feature 1 -->
+        <div class="bg-surface-container-low p-8 rounded-xl hover:bg-surface-container transition-colors">
+          <div class="w-14 h-14 rounded-xl bg-primary-container flex items-center justify-center mb-6">
+            <span class="material-symbols-outlined text-2xl text-primary">security</span>
+          </div>
+          <h3 class="text-xl font-headline font-bold text-on-surface mb-3">Military-Grade Security</h3>
+          <p class="text-on-surface-variant">
+            AES-256 encryption with multi-factor authentication and real-time fraud detection powered by AI.
+          </p>
+        </div>
+
+        <!-- Feature 2 -->
+        <div class="bg-surface-container-low p-8 rounded-xl hover:bg-surface-container transition-colors">
+          <div class="w-14 h-14 rounded-xl bg-secondary-container flex items-center justify-center mb-6">
+            <span class="material-symbols-outlined text-2xl text-secondary">account_balance</span>
+          </div>
+          <h3 class="text-xl font-headline font-bold text-on-surface mb-3">Multi-Currency Support</h3>
+          <p class="text-on-surface-variant">
+            Manage multiple currencies and accounts with real-time exchange rates and instant conversions.
+          </p>
+        </div>
+
+        <!-- Feature 3 -->
+        <div class="bg-surface-container-low p-8 rounded-xl hover:bg-surface-container transition-colors">
+          <div class="w-14 h-14 rounded-xl bg-tertiary-container flex items-center justify-center mb-6">
+            <span class="material-symbols-outlined text-2xl text-tertiary-fixed">insights</span>
+          </div>
+          <h3 class="text-xl font-headline font-bold text-on-surface mb-3">Smart Analytics</h3>
+          <p class="text-on-surface-variant">
+            Detailed transaction history, spending patterns, and AI-powered financial insights.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="relative z-10 max-w-7xl mx-auto px-6 py-20">
+      <div class="bg-gradient-to-r from-primary to-primary-container rounded-2xl p-12 text-center">
+        <h2 class="text-3xl lg:text-4xl font-headline font-bold text-on-primary mb-4">
+          Ready to Transform Your Financial Management?
+        </h2>
+        <p class="text-lg text-on-primary/90 mb-8 max-w-2xl mx-auto">
+          Join thousands of teams already using SaveSafe Wallet for secure, efficient financial operations.
+        </p>
+        <button (click)="navigateToRegister()" class="h-14 px-8 bg-surface text-on-surface font-headline font-bold rounded-lg transition-all duration-200 hover:opacity-90 active:scale-[0.98]">
+          Start Your Free Trial
+        </button>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer class="relative z-10 bg-surface-container-low border-t border-outline-variant border-opacity-10">
+    <div class="max-w-7xl mx-auto px-6 py-12">
+      <div class="grid md:grid-cols-4 gap-8">
+        <div class="space-y-4">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
+              <span class="material-symbols-outlined text-on-primary">account_balance_wallet</span>
+            </div>
+            <span class="text-lg font-headline font-bold text-on-surface">SaveSafe Wallet</span>
+          </div>
+          <p class="text-sm text-on-surface-variant">
+            Secure wallet management for modern teams.
+          </p>
+        </div>
+
+        <div>
+          <h4 class="font-headline font-bold text-on-surface mb-4">Product</h4>
+          <ul class="space-y-2 text-sm text-on-surface-variant">
+            <li><a href="#" class="hover:text-primary transition-colors">Features</a></li>
+            <li><a href="#" class="hover:text-primary transition-colors">Pricing</a></li>
+            <li><a href="#" class="hover:text-primary transition-colors">Security</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <h4 class="font-headline font-bold text-on-surface mb-4">Company</h4>
+          <ul class="space-y-2 text-sm text-on-surface-variant">
+            <li><a href="#" class="hover:text-primary transition-colors">About</a></li>
+            <li><a href="#" class="hover:text-primary transition-colors">Blog</a></li>
+            <li><a href="#" class="hover:text-primary transition-colors">Careers</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <h4 class="font-headline font-bold text-on-surface mb-4">Support</h4>
+          <ul class="space-y-2 text-sm text-on-surface-variant">
+            <li><a href="#" class="hover:text-primary transition-colors">Help Center</a></li>
+            <li><a href="#" class="hover:text-primary transition-colors">Contact</a></li>
+            <li><a href="#" class="hover:text-primary transition-colors">Status</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="mt-12 pt-8 border-t border-outline-variant border-opacity-10 text-center text-sm text-on-surface-variant">
+        <p>&copy; 2026 SaveSafe Wallet. All rights reserved.</p>
+      </div>
+    </div>
+  </footer>
+</div>

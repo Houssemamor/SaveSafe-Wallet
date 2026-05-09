@@ -1,104 +1,90 @@
-using AuthService.API.Data;
 using AuthService.API.DTOs;
 using AuthService.API.Entities;
-using Microsoft.EntityFrameworkCore;
+using AuthService.API.Persistence;
+using Microsoft.Extensions.Logging;
 
 namespace AuthService.API.Services;
 
 public interface IAdminService
 {
     Task<AdminSecuritySummaryDto> GetSecuritySummaryAsync();
+    Task<AdminSecuritySummaryDto> RefreshSecuritySummaryAsync();
     Task<IReadOnlyList<AdminLoginEventDto>> GetLoginEventsAsync(int limit);
     Task<IReadOnlyList<AdminFailedLoginByIpDto>> GetFailedLoginsByIpAsync(int top);
     Task<IReadOnlyList<AdminUserDto>> GetUsersAsync(int limit);
+    Task SuspendUserAsync(Guid userId);
+    Task ActivateUserAsync(Guid userId);
+    Task DeleteUserAsync(Guid userId);
 }
 
 public class AdminService : IAdminService
 {
-    private readonly AuthDbContext _db;
+    private readonly IUserRepository _users;
+    private readonly ILoginEventRepository _loginEvents;
+    private readonly IFailedLoginByIpRepository _failedLoginsByIp;
+    private readonly IAdminStatsRepository _adminStats;
+    private readonly IAdminStatsRefresher _adminStatsRefresher;
+    private readonly ILogger<AdminService> _logger;
 
-    public AdminService(AuthDbContext db)
+    public AdminService(
+        IUserRepository users,
+        ILoginEventRepository loginEvents,
+        IFailedLoginByIpRepository failedLoginsByIp,
+        IAdminStatsRepository adminStats,
+        IAdminStatsRefresher adminStatsRefresher,
+        ILogger<AdminService> logger)
     {
-        _db = db;
+        _users = users;
+        _loginEvents = loginEvents;
+        _failedLoginsByIp = failedLoginsByIp;
+        _adminStats = adminStats;
+        _adminStatsRefresher = adminStatsRefresher;
+        _logger = logger;
     }
 
     public async Task<AdminSecuritySummaryDto> GetSecuritySummaryAsync()
     {
-        var last24Hours = DateTime.UtcNow.AddHours(-24);
+        var snapshot = await _adminStats.GetCurrentAsync();
+        if (snapshot is null)
+        {
+            snapshot = await _adminStatsRefresher.RefreshAsync();
+        }
 
-        // AuthDbContext does not support concurrent operations; keep the queries sequential.
-        var totalUsers = await _db.Users.CountAsync();
-        var activeUsers = await _db.Users.CountAsync(u => u.AccountStatus == UserAccountStatus.Active);
-        var suspendedUsers = await _db.Users.CountAsync(u => u.AccountStatus == UserAccountStatus.Suspended);
-        var deletedUsers = await _db.Users.CountAsync(u => u.AccountStatus == UserAccountStatus.Deleted);
+        return MapSnapshot(snapshot);
+    }
 
-        var eventsLast24HoursQuery = _db.LoginEvents.Where(e => e.Timestamp >= last24Hours);
-        var totalEvents = await eventsLast24HoursQuery.CountAsync();
-        var failedEvents = await eventsLast24HoursQuery.CountAsync(e => !e.Success);
-        var flaggedEvents = await eventsLast24HoursQuery.CountAsync(e => e.IsFlagged);
-        var distinctIps = await eventsLast24HoursQuery
-            .Where(e => e.IpAddress != null)
-            .Select(e => e.IpAddress!)
-            .Distinct()
-            .CountAsync();
-
-        return new AdminSecuritySummaryDto(
-            TotalUsers: totalUsers,
-            ActiveUsers: activeUsers,
-            SuspendedUsers: suspendedUsers,
-            DeletedUsers: deletedUsers,
-            TotalLoginEventsLast24Hours: totalEvents,
-            FailedLoginEventsLast24Hours: failedEvents,
-            FlaggedEventsLast24Hours: flaggedEvents,
-            DistinctSourceIpsLast24Hours: distinctIps);
+    public async Task<AdminSecuritySummaryDto> RefreshSecuritySummaryAsync()
+    {
+        var snapshot = await _adminStatsRefresher.RefreshAsync();
+        return MapSnapshot(snapshot);
     }
 
     public async Task<IReadOnlyList<AdminLoginEventDto>> GetLoginEventsAsync(int limit)
     {
         var safeLimit = Math.Clamp(limit, 1, 200);
 
-        return await _db.LoginEvents
-            .AsNoTracking()
-            .OrderByDescending(e => e.Timestamp)
-            .Take(safeLimit)
-            .Join(
-                _db.Users.AsNoTracking(),
-                eventItem => eventItem.UserId,
-                user => user.Id,
-                (eventItem, user) => new AdminLoginEventDto(
-                    eventItem.Id,
-                    eventItem.UserId,
-                    user.Email,
-                    user.Name,
-                    eventItem.IpAddress,
-                    eventItem.Country,
-                    eventItem.Success,
-                    eventItem.FailureReason,
-                    eventItem.IsFlagged,
-                    eventItem.Timestamp))
-            .ToListAsync();
+        var events = await _loginEvents.GetRecentAsync(safeLimit);
+        return events
+            .Select(item => new AdminLoginEventDto(
+                item.EventId,
+                item.UserId,
+                item.UserEmail,
+                item.UserName,
+                item.IpAddress,
+                item.Country,
+                item.Success,
+                item.FailureReason,
+                item.IsFlagged,
+                item.Timestamp))
+            .ToList();
     }
 
     public async Task<IReadOnlyList<AdminFailedLoginByIpDto>> GetFailedLoginsByIpAsync(int top)
     {
         var safeTop = Math.Clamp(top, 1, 100);
 
-        var groupedResults = await _db.LoginEvents
-            .AsNoTracking()
-            .Where(e => !e.Success)
-            .GroupBy(e => e.IpAddress ?? "unknown")
-            .Select(group => new
-            {
-                IpAddress = group.Key,
-                FailedAttempts = group.Count(),
-                LastAttemptAt = group.Max(e => e.Timestamp)
-            })
-            .OrderByDescending(item => item.FailedAttempts)
-            .ThenByDescending(item => item.LastAttemptAt)
-            .Take(safeTop)
-            .ToListAsync();
-
-        return groupedResults
+        var items = await _failedLoginsByIp.GetTopAsync(safeTop);
+        return items
             .Select(item => new AdminFailedLoginByIpDto(
                 item.IpAddress,
                 item.FailedAttempts,
@@ -110,10 +96,13 @@ public class AdminService : IAdminService
     {
         var safeLimit = Math.Clamp(limit, 1, 500);
 
-        return await _db.Users
-            .AsNoTracking()
-            .OrderByDescending(u => u.CreatedAt)
-            .Take(safeLimit)
+        _logger.LogInformation("Fetching recent users with limit: {Limit}", safeLimit);
+
+        var users = await _users.GetRecentUsersAsync(safeLimit);
+
+        _logger.LogInformation("Retrieved {Count} users from database", users.Count);
+
+        return users
             .Select(u => new AdminUserDto(
                 u.Id,
                 u.Email,
@@ -123,6 +112,59 @@ public class AdminService : IAdminService
                 u.MfaEnabled,
                 u.CreatedAt,
                 u.LastLoginAt))
-            .ToListAsync();
+            .ToList();
     }
+
+    public async Task SuspendUserAsync(Guid userId)
+    {
+        var user = await _users.GetByIdAsync(userId);
+        if (user is null)
+            throw new KeyNotFoundException($"User {userId} not found.");
+
+        if (user.AccountStatus == UserAccountStatus.Suspended)
+            return; // Already suspended
+
+        user.AccountStatus = UserAccountStatus.Suspended;
+        user.UpdatedAt = DateTime.UtcNow;
+        await _users.UpdateAsync(user);
+    }
+
+    public async Task ActivateUserAsync(Guid userId)
+    {
+        var user = await _users.GetByIdAsync(userId);
+        if (user is null)
+            throw new KeyNotFoundException($"User {userId} not found.");
+
+        if (user.AccountStatus == UserAccountStatus.Active)
+            return; // Already active
+
+        user.AccountStatus = UserAccountStatus.Active;
+        user.UpdatedAt = DateTime.UtcNow;
+        await _users.UpdateAsync(user);
+    }
+
+    public async Task DeleteUserAsync(Guid userId)
+    {
+        var user = await _users.GetByIdAsync(userId);
+        if (user is null)
+            throw new KeyNotFoundException($"User {userId} not found.");
+
+        if (user.AccountStatus == UserAccountStatus.Deleted)
+            return; // Already deleted
+
+        user.AccountStatus = UserAccountStatus.Deleted;
+        user.UpdatedAt = DateTime.UtcNow;
+        await _users.UpdateAsync(user);
+    }
+
+    private static AdminSecuritySummaryDto MapSnapshot(AdminStatsSnapshot snapshot) =>
+        new(
+            TotalUsers: snapshot.TotalUsers,
+            ActiveUsers: snapshot.ActiveUsers,
+            SuspendedUsers: snapshot.SuspendedUsers,
+            DeletedUsers: snapshot.DeletedUsers,
+            TotalLoginEventsLast24Hours: snapshot.TotalLoginEventsLast24Hours,
+            FailedLoginEventsLast24Hours: snapshot.FailedLoginEventsLast24Hours,
+            FlaggedEventsLast24Hours: snapshot.FlaggedEventsLast24Hours,
+            DistinctSourceIpsLast24Hours: snapshot.DistinctSourceIpsLast24Hours);
 }

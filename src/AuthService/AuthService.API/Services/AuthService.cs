@@ -1,7 +1,7 @@
-using AuthService.API.Data;
 using AuthService.API.DTOs;
 using AuthService.API.Entities;
-using Microsoft.EntityFrameworkCore;
+using AuthService.API.Persistence;
+using FirebaseAdmin.Auth;
 
 namespace AuthService.API.Services;
 
@@ -11,6 +11,8 @@ public interface IAuthService
         RegisterRequestDto request, string? ipAddress, string? userAgent);
     Task<(AuthResponseDto response, string rawRefreshToken)> LoginAsync(
         LoginRequestDto request, string? ipAddress, string? userAgent);
+    Task<(AuthResponseDto response, string rawRefreshToken)> GoogleLoginAsync(
+        string idToken, string? ipAddress, string? userAgent);
     Task<(AuthResponseDto response, string rawRefreshToken)> RefreshAsync(string rawRefreshToken);
     Task LogoutAsync(string rawRefreshToken);
     Task<UserProfileDto> GetUserProfileAsync(Guid userId);
@@ -20,49 +22,67 @@ public interface IAuthService
 
 public class AuthService : IAuthService
 {
-    private readonly AuthDbContext _db;
+    private readonly IUserRepository _users;
+    private readonly IRefreshTokenRepository _refreshTokens;
+    private readonly ILoginEventRepository _loginEvents;
+    private readonly IFailedLoginByIpRepository _failedLoginByIp;
+    private readonly IAuthRegistrationStore _registrationStore;
     private readonly ITokenService _tokenService;
     private readonly IWalletProvisioningService _walletProvisioning;
+    private readonly FirebaseAuth _firebaseAuth;
     private readonly ILogger<AuthService> _logger;
 
     public AuthService(
-        AuthDbContext db,
+        IUserRepository users,
+        IRefreshTokenRepository refreshTokens,
+        ILoginEventRepository loginEvents,
+        IFailedLoginByIpRepository failedLoginByIp,
+        IAuthRegistrationStore registrationStore,
         ITokenService tokenService,
         IWalletProvisioningService walletProvisioning,
+        FirebaseAuth firebaseAuth,
         ILogger<AuthService> logger)
     {
-        _db = db;
+        _users = users;
+        _refreshTokens = refreshTokens;
+        _loginEvents = loginEvents;
+        _failedLoginByIp = failedLoginByIp;
+        _registrationStore = registrationStore;
         _tokenService = tokenService;
         _walletProvisioning = walletProvisioning;
+        _firebaseAuth = firebaseAuth;
         _logger = logger;
     }
 
     public async Task<(AuthResponseDto response, string rawRefreshToken)> RegisterAsync(
         RegisterRequestDto request, string? ipAddress, string? userAgent)
     {
-        var normalizedEmail = request.Email.ToLowerInvariant();
+        var normalizedEmail = request.Email.Trim().ToLowerInvariant();
 
-        if (await _db.Users.AnyAsync(u => u.Email == normalizedEmail))
+        if (await _users.EmailExistsAsync(normalizedEmail))
             throw new InvalidOperationException("Email is already registered.");
 
+        var now = DateTime.UtcNow;
         var passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password, workFactor: 12);
 
         var user = new User
         {
             Email = normalizedEmail,
             Name = request.Name,
-            PasswordHash = passwordHash
+            PasswordHash = passwordHash,
+            AccountStatus = UserAccountStatus.Active,
+            Role = UserRole.User,
+            MfaEnabled = false,
+            CreatedAt = now,
+            UpdatedAt = now
         };
-        _db.Users.Add(user);
 
-        var (rawRefreshToken, refreshTokenEntity) = CreateRefreshToken(user.Id);
-        _db.RefreshTokens.Add(refreshTokenEntity);
+        var (rawRefreshToken, refreshTokenRecord) = CreateRefreshToken(user.Id, now);
+        await _registrationStore.RegisterAsync(user, normalizedEmail, refreshTokenRecord);
 
-        await _db.SaveChangesAsync();
+        _logger.LogInformation("User registered: {UserId} ({Email}) with Role: {Role}, Status: {Status}",
+            user.Id, user.Email, user.Role, user.AccountStatus);
 
-        _logger.LogInformation("User registered: {UserId} ({Email})", user.Id, user.Email);
-
-        // Best-effort wallet provisioning - registration is not rolled back on failure
         await _walletProvisioning.CreateWalletForUserAsync(user.Id);
 
         return (BuildAuthResponse(user, _tokenService.GenerateAccessToken(user)), rawRefreshToken);
@@ -71,29 +91,37 @@ public class AuthService : IAuthService
     public async Task<(AuthResponseDto response, string rawRefreshToken)> LoginAsync(
         LoginRequestDto request, string? ipAddress, string? userAgent)
     {
-        var normalizedEmail = request.Email.ToLowerInvariant();
-        var user = await _db.Users
-            .FirstOrDefaultAsync(u => u.Email == normalizedEmail);
+        var normalizedEmail = request.Email.Trim().ToLowerInvariant();
+        var user = await _users.GetByEmailAsync(normalizedEmail);
+        var now = DateTime.UtcNow;
 
-        // Always record login events - both successes and failures
-        var loginEvent = new LoginEvent
-        {
-            UserId = user?.Id ?? Guid.Empty,
-            IpAddress = ipAddress,
-            UserAgent = userAgent,
-            Timestamp = DateTime.UtcNow
-        };
+        var loginEvent = user is null
+            ? null
+            : new LoginEventRecord(
+                EventId: Guid.NewGuid(),
+                UserId: user.Id,
+                UserEmail: user.Email,
+                UserName: user.Name,
+                IpAddress: ipAddress,
+                Country: null,
+                Success: false,
+                FailureReason: null,
+                IsFlagged: false,
+                Timestamp: now,
+                UserAgent: userAgent);
 
         if (user is null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
         {
-            loginEvent.Success = false;
-            loginEvent.FailureReason = user is null ? "UserNotFound" : "InvalidPassword";
-
-            if (user is not null)
+            if (loginEvent is not null)
             {
-                // Only save when we have a valid user_id FK reference
-                _db.LoginEvents.Add(loginEvent);
-                await _db.SaveChangesAsync();
+                loginEvent = loginEvent with
+                {
+                    Success = false,
+                    FailureReason = user is null ? "UserNotFound" : "InvalidPassword"
+                };
+
+                await _loginEvents.AddAsync(loginEvent);
+                await _failedLoginByIp.IncrementAsync(NormalizeIp(ipAddress), now);
             }
 
             throw new UnauthorizedAccessException("Invalid email or password.");
@@ -102,67 +130,152 @@ public class AuthService : IAuthService
         if (user.AccountStatus != UserAccountStatus.Active)
             throw new UnauthorizedAccessException("Account is not active.");
 
-        loginEvent.Success = true;
+        await _refreshTokens.RevokeAllActiveForUserAsync(user.Id);
 
-        // Rotate: revoke all existing active refresh tokens for this user
-        var existingTokens = await _db.RefreshTokens
-            .Where(rt => rt.UserId == user.Id && !rt.IsRevoked)
-            .ToListAsync();
-        existingTokens.ForEach(rt => rt.IsRevoked = true);
+        var (rawRefreshToken, refreshTokenRecord) = CreateRefreshToken(user.Id, now);
+        await _refreshTokens.CreateAsync(refreshTokenRecord);
 
-        var (rawRefreshToken, refreshTokenEntity) = CreateRefreshToken(user.Id);
-        _db.LoginEvents.Add(loginEvent);
-        _db.RefreshTokens.Add(refreshTokenEntity);
-        user.LastLoginAt = DateTime.UtcNow;
+        if (loginEvent is not null)
+        {
+            loginEvent = loginEvent with { Success = true };
+            await _loginEvents.AddAsync(loginEvent);
+        }
 
-        await _db.SaveChangesAsync();
+        await _users.UpdateLastLoginAsync(user.Id, now);
 
         return (BuildAuthResponse(user, _tokenService.GenerateAccessToken(user)), rawRefreshToken);
+    }
+
+    public async Task<(AuthResponseDto response, string rawRefreshToken)> GoogleLoginAsync(
+        string idToken, string? ipAddress, string? userAgent)
+    {
+        try
+        {
+            var firebaseToken = await _firebaseAuth.VerifyIdTokenAsync(idToken);
+            var firebaseUser = await _firebaseAuth.GetUserAsync(firebaseToken.Uid);
+
+            var normalizedEmail = firebaseUser.Email?.Trim().ToLowerInvariant();
+            if (string.IsNullOrWhiteSpace(normalizedEmail))
+                throw new UnauthorizedAccessException("Google account email is missing.");
+
+            var displayName = !string.IsNullOrWhiteSpace(firebaseUser.DisplayName)
+                ? firebaseUser.DisplayName
+                : normalizedEmail;
+
+            // Extract profile picture URL from Firebase user (if available)
+            var profilePictureUrl = !string.IsNullOrWhiteSpace(firebaseUser.PhotoUrl)
+                ? firebaseUser.PhotoUrl
+                : null;
+
+            var user = await _users.GetByEmailAsync(normalizedEmail);
+            var now = DateTime.UtcNow;
+
+            var loginEvent = new LoginEventRecord(
+                EventId: Guid.NewGuid(),
+                UserId: user?.Id ?? Guid.Empty,
+                UserEmail: normalizedEmail,
+                UserName: displayName,
+                IpAddress: ipAddress,
+                Country: null,
+                Success: false,
+                FailureReason: null,
+                IsFlagged: false,
+                Timestamp: now,
+                UserAgent: userAgent);
+
+            if (user is null)
+            {
+                user = new User
+                {
+                    Email = normalizedEmail,
+                    Name = displayName,
+                    PasswordHash = string.Empty,
+                    GoogleId = firebaseToken.Uid,
+                    ProfilePictureUrl = profilePictureUrl,
+                    CreatedAt = now,
+                    UpdatedAt = now,
+                    AccountStatus = UserAccountStatus.Active,
+                    Role = UserRole.User
+                };
+
+                var (rawRefreshToken, refreshTokenRecord) = CreateRefreshToken(user.Id, now);
+                await _registrationStore.RegisterAsync(user, normalizedEmail, refreshTokenRecord);
+
+                _logger.LogInformation("User registered via Google: {UserId} ({Email})", user.Id, user.Email);
+
+                await _walletProvisioning.CreateWalletForUserAsync(user.Id);
+
+                loginEvent = loginEvent with { Success = true, UserId = user.Id };
+                await _loginEvents.AddAsync(loginEvent);
+
+                await _users.UpdateLastLoginAsync(user.Id, now);
+
+                return (BuildAuthResponse(user, _tokenService.GenerateAccessToken(user)), rawRefreshToken);
+            }
+
+            if (user.AccountStatus != UserAccountStatus.Active)
+                throw new UnauthorizedAccessException("Account is not active.");
+
+            // Update profile picture if available (user may have changed it on Google)
+            if (!string.IsNullOrWhiteSpace(profilePictureUrl))
+            {
+                user.ProfilePictureUrl = profilePictureUrl;
+                user.UpdatedAt = now;
+                await _users.UpdateAsync(user);
+            }
+
+            await _refreshTokens.RevokeAllActiveForUserAsync(user.Id);
+
+            var (existingRawRefreshToken, existingRefreshTokenRecord) = CreateRefreshToken(user.Id, now);
+            await _refreshTokens.CreateAsync(existingRefreshTokenRecord);
+
+            loginEvent = loginEvent with { Success = true, UserId = user.Id };
+            await _loginEvents.AddAsync(loginEvent);
+
+            await _users.UpdateLastLoginAsync(user.Id, now);
+
+            return (BuildAuthResponse(user, _tokenService.GenerateAccessToken(user)), existingRawRefreshToken);
+        }
+        catch (FirebaseAuthException ex)
+        {
+            _logger.LogWarning(ex, "Invalid Firebase token from Google login");
+            throw new UnauthorizedAccessException("Invalid Google token.");
+        }
+        catch (UnauthorizedAccessException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Google login failed with exception type: {ExceptionType}", ex.GetType().Name);
+            throw new UnauthorizedAccessException("Google login failed.");
+        }
     }
 
     public async Task<(AuthResponseDto response, string rawRefreshToken)> RefreshAsync(
         string rawRefreshToken)
     {
         var hash = _tokenService.HashToken(rawRefreshToken);
-        var tokenRecord = await _db.RefreshTokens
-            .Include(rt => rt.User)
-            .FirstOrDefaultAsync(rt =>
-                rt.TokenHash == hash &&
-                !rt.IsRevoked &&
-                rt.ExpiresAt > DateTime.UtcNow);
+        var now = DateTime.UtcNow;
+        var (newRawToken, newTokenRecord) = CreateRefreshToken(Guid.Empty, now);
 
-        if (tokenRecord is null)
+        var userId = await _refreshTokens.RotateAsync(hash, newTokenRecord);
+        var user = await _users.GetByIdAsync(userId);
+        if (user is null)
             throw new UnauthorizedAccessException("Invalid or expired refresh token.");
 
-        // Token rotation: old token is revoked, new token issued
-        tokenRecord.IsRevoked = true;
-        var (newRawToken, newTokenEntity) = CreateRefreshToken(tokenRecord.UserId);
-        _db.RefreshTokens.Add(newTokenEntity);
-        await _db.SaveChangesAsync();
-
-        return (BuildAuthResponse(tokenRecord.User,
-            _tokenService.GenerateAccessToken(tokenRecord.User)), newRawToken);
+        return (BuildAuthResponse(user, _tokenService.GenerateAccessToken(user)), newRawToken);
     }
 
     public async Task LogoutAsync(string rawRefreshToken)
     {
         var hash = _tokenService.HashToken(rawRefreshToken);
-        var tokenRecord = await _db.RefreshTokens
-            .FirstOrDefaultAsync(rt => rt.TokenHash == hash && !rt.IsRevoked);
-
-        if (tokenRecord is not null)
-        {
-            tokenRecord.IsRevoked = true;
-            await _db.SaveChangesAsync();
-        }
+        await _refreshTokens.RevokeAsync(hash);
     }
 
-    /// <summary>Retrieve authenticated user's profile information. Used by GET /api/users/profile.</summary>
     public async Task<UserProfileDto> GetUserProfileAsync(Guid userId)
     {
-        var user = await _db.Users
-            .AsNoTracking()
-            .FirstOrDefaultAsync(u => u.Id == userId);
+        var user = await _users.GetByIdAsync(userId);
 
         if (user is null)
             throw new KeyNotFoundException($"User {userId} not found.");
@@ -175,60 +288,50 @@ public class AuthService : IAuthService
             AccountStatus: user.AccountStatus.ToString(),
             Role: user.Role.ToString(),
             CreatedAt: user.CreatedAt,
-            LastLoginAt: user.LastLoginAt
+            LastLoginAt: user.LastLoginAt,
+            ProfilePictureUrl: user.ProfilePictureUrl
         );
     }
 
-    /// <summary>Update authenticated user's profile. Used by PUT /api/users/profile.</summary>
     public async Task UpdateUserProfileAsync(Guid userId, UpdateProfileRequestDto request)
     {
-        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId);
+        var user = await _users.GetByIdAsync(userId);
         if (user is null)
             throw new KeyNotFoundException($"User {userId} not found.");
 
         user.Name = request.Name;
         user.UpdatedAt = DateTime.UtcNow;
 
-        _db.Users.Update(user);
-        await _db.SaveChangesAsync();
+        await _users.UpdateAsync(user);
 
         _logger.LogInformation("User {UserId} profile updated", userId);
     }
 
-    /// <summary>Delete user account (soft-delete: mark as Deleted). Used by DELETE /api/users/{id}.</summary>
     public async Task DeleteUserAccountAsync(Guid userId)
     {
-        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId);
+        var user = await _users.GetByIdAsync(userId);
         if (user is null)
             throw new KeyNotFoundException($"User {userId} not found.");
 
-        // Mark account as deleted instead of hard-delete (preserves audit trail)
         user.AccountStatus = UserAccountStatus.Deleted;
         user.UpdatedAt = DateTime.UtcNow;
 
-        _db.Users.Update(user);
-
-        // Revoke all active refresh tokens
-        var activeTokens = await _db.RefreshTokens
-            .Where(rt => rt.UserId == userId && !rt.IsRevoked)
-            .ToListAsync();
-        activeTokens.ForEach(rt => rt.IsRevoked = true);
-
-        await _db.SaveChangesAsync();
+        await _users.UpdateAsync(user);
+        await _refreshTokens.RevokeAllActiveForUserAsync(userId);
 
         _logger.LogInformation("User {UserId} account deleted (soft)", userId);
     }
 
-    private (string raw, RefreshToken entity) CreateRefreshToken(Guid userId)
+    private (string raw, RefreshTokenRecord record) CreateRefreshToken(Guid userId, DateTime now)
     {
         var raw = _tokenService.GenerateRefreshToken();
-        var entity = new RefreshToken
-        {
-            UserId = userId,
-            TokenHash = _tokenService.HashToken(raw),
-            ExpiresAt = DateTime.UtcNow.AddDays(7)
-        };
-        return (raw, entity);
+        var record = new RefreshTokenRecord(
+            UserId: userId,
+            TokenHash: _tokenService.HashToken(raw),
+            ExpiresAt: now.AddDays(7),
+            IsRevoked: false,
+            CreatedAt: now);
+        return (raw, record);
     }
 
     private static AuthResponseDto BuildAuthResponse(User user, string accessToken) =>
@@ -239,6 +342,11 @@ public class AuthService : IAuthService
             UserId: user.Id,
             Email: user.Email,
             Name: user.Name,
-            Role: user.Role.ToString()
-        );
+            Role: user.Role.ToString(),
+            ProfilePictureUrl: user.ProfilePictureUrl);
+
+    private static string NormalizeIp(string? ipAddress) =>
+        string.IsNullOrWhiteSpace(ipAddress)
+            ? "unknown"
+            : ipAddress.Replace("/", "_");
 }

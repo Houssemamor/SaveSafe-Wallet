@@ -7,11 +7,12 @@ import { SessionService } from '../../../../core/session/session.service';
 import { AuthService } from '../../../auth/data-access/auth.service';
 import { SessionUser } from '../../../auth/models/auth.models';
 import { UserService } from '../../data-access/user.service';
+import { UserAvatarComponent } from '../../../../core/components/user-avatar/user-avatar.component';
 
 @Component({
   selector: 'app-user-profile-page',
   standalone: true,
-  imports: [RouterLink, ReactiveFormsModule, CommonModule],
+  imports: [RouterLink, ReactiveFormsModule, CommonModule, UserAvatarComponent],
   templateUrl: './user-profile-page.component.html'
 })
 export class UserProfilePageComponent implements OnInit {
@@ -56,6 +57,11 @@ export class UserProfilePageComponent implements OnInit {
     }
 
     return new Date(this.profile.lastLoginAt).toLocaleString();
+  }
+
+  get profilePictureUrl(): string | null | undefined {
+    // Prefer profile data, fall back to session user data
+    return this.profile?.profilePictureUrl || this.user?.profilePictureUrl || null;
   }
 
   onSave(): void {
@@ -105,6 +111,33 @@ export class UserProfilePageComponent implements OnInit {
         this.router.navigate(['/login']);
       }
     });
+  }
+
+  /**
+   * Handle search input
+   * Filters profile content based on search query
+   */
+  onSearch(query: string): void {
+    // Profile page doesn't have searchable content
+    // This method is included for layout consistency
+  }
+
+  /**
+   * Handle notifications button click
+   * Shows notifications panel or navigates to notifications page
+   */
+  onNotificationsClick(): void {
+    // Navigate to profile page (current page)
+    this.router.navigate(['/profile']);
+  }
+
+  /**
+   * Handle settings button click
+   * Navigates to settings page or opens settings modal
+   */
+  onSettingsClick(): void {
+    // Navigate to profile page (current page)
+    this.router.navigate(['/profile']);
   }
 
   private loadProfile(): void {

@@ -7,6 +7,7 @@ export interface UserProfileResponse {
   role: string;
   createdAt: string;
   lastLoginAt: string | null;
+  profilePictureUrl?: string | null;
 }
 
 export interface UpdateUserProfileRequest {

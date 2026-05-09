@@ -1,91 +1,55 @@
-# Workspace Summary
+# SaveSafe-Wallet Project Summary
 
-- Date: 2026-04-07
-- Initial context: User requested Sprint 2 conformity audit for frontend, ISO-oriented restructuring, and Docker integration for frontend.
-- Completed frontend changes:
-	- Added users API config and created user profile model/service for GET/PUT profile endpoints.
-	- Extended wallet model/service for paginated history endpoint.
-	- Updated JWT interceptor to handle 401 by clearing session and redirecting to login.
-	- Reworked wallet history page to consume API data with filters (type/date/search) and pagination controls.
-	- Reworked profile page to load profile data, update name, and show account metadata.
-	- Added frontend Docker support: Dockerfile, nginx reverse proxy config, .dockerignore, docker-compose frontend service, README updates.
-- Validation evidence:
-	- `npm run build` passed in src/frontend.
-	- `docker compose config` passed at repository root.
-	- `docker compose build frontend` blocked because Docker Desktop engine is not running.
-	- `npm run test` blocked because Angular test target is not configured in angular.json.
-- Date: 2026-04-08
-- Repository structure decision: renamed frontend directory to src/frontend for naming consistency while keeping all services under src.
-- Branching and checkpoint:
-	- Created and switched to branch `Frontend`.
-	- Committed migration checkpoint: `d54e282` with frontend path normalization and Docker path updates.
-- Completed requested follow-up restructuring:
-	- Deleted temporary static folder `src/frontend/pages` (non-runtime mock pages/assets).
-	- Refactored Angular app to feature-first layout under `src/frontend/src/app`:
-		- `core`: config, guards, interceptor, session service.
-		- `features/auth`: models, data-access service, login/register pages.
-		- `features/dashboard`: dashboard page.
-		- `features/profile`: models, data-access service, profile page.
-		- `features/wallet-history`: models, data-access service, history page.
-	- Updated all import paths plus app routes/config to match the new layout.
-	- Removed obsolete legacy folders under `src/frontend/src/app` (`config`, `guards`, `interceptors`, `models`, `pages`, `services`).
-- Frontend requirements-page decision (2026-04-08):
-	- User confirmed the in-app Sprint 2 requirements page is not needed.
-	- Removed `/requirements` route and deleted `src/frontend/src/app/features/requirements`.
-	- Validation after removal: `npm run build` passed in `src/frontend`.
-- Validation after refactor:
-	- `npm run build` passed in `src/frontend`.
-- Docker startup incident and fixes (2026-04-08):
-	- Initial `docker compose up -d` failed for `wallet-service` due Docker build context mismatch (`COPY WalletService.API/...` not found).
-	- Fixed `docker-compose.yml` service build config:
-		- `auth-service` context -> `./src/AuthService`, dockerfile -> `AuthService.API/Dockerfile`.
-		- `wallet-service` context -> `./src/WalletService`, dockerfile -> `WalletService.API/Dockerfile`.
-	- Next failure: `NETSDK1064` package missing during Docker publish with `--no-restore`.
-	- Fixed Dockerfiles by allowing publish restore (`dotnet publish ...` without `--no-restore`) for auth and wallet services.
-	- Next failure: frontend Docker build failed on Angular font inlining (Google Fonts fetch blocked in build env).
-	- Fixed `src/frontend/angular.json` production optimization to disable font inlining (`optimization.fonts = false`).
-	- Next failure: stale `ssw-*` container name conflicts; removed conflicting stale containers and restarted compose.
-	- Next failure: auth/wallet crash-looped due runtime mismatch (`net8.0` apps on `aspnet:9.0`).
-	- Fixed both service Dockerfiles to `.NET 8` images (`sdk:8.0`, `aspnet:8.0`).
-	- Final validation: `docker compose build auth-service wallet-service` succeeded; `docker compose up -d` succeeded; `docker compose ps` shows all services up and healthy where healthchecks exist.
-- Residual Sprint 2 gap:
-	- Google OAuth login endpoint is not implemented in backend (`/api/auth/google` missing), so frontend OAuth remains non-functional.
+## Current Context
+- Fixed critical bug where wallet names were being lost during transfers
+- Root cause: AccountRepository.UpdateAsync was not preserving Name, IsActive, and IsDefault fields
+- Fixed by including all account fields in the update operation
 
-- Date: 2026-04-15
-- Admin feature set implemented (Option A):
-	- Added backend admin API under `/api/admin` with RBAC protection (`RequireRole(Admin)`).
-	- New endpoints: `security-summary`, `login-events`, `failed-logins`, `users`.
-	- Added `AdminService` query layer with bounded limits and read-only projections.
-	- Added startup default-admin bootstrapper (`DefaultAdminSeeder`) executed after migrations.
-	- Default admin values are configurable via `DefaultAdmin:*` config and docker env vars.
-	- Added Angular admin feature module structure (models, data-access service, dashboard page).
-	- Added role-based frontend route guard and `/admin` route restricted to `Admin` role.
-	- Updated login redirect: Admin users go to `/admin`, others to `/dashboard`.
-	- Updated `.env.example`, `docker-compose.yml`, and `README.md` with default admin configuration details.
-- Validation evidence (2026-04-15):
-	- `dotnet build` passed for `src/AuthService/AuthService.API`.
-	- `npm run build` passed for `src/frontend`.
-	- `docker compose up -d --build auth-service frontend` completed and containers are up.
-	- Verified admin login returns role `Admin`; admin summary endpoint returned data.
+## Recent Work
+- Unified layout structure across /wallet-history, /dashboard, and /profile pages
+- Fixed TypeScript build errors by adding missing methods to user-profile-page and wallet-history-page components
+- Added onSearch, onNotificationsClick, and onSettingsClick methods to match template references
+- All pages now use consistent sidebar with mb-12 spacing, flex-grow nav, mt-auto user section
+- All pages use consistent header with search bar and notification/settings buttons
+- All pages use consistent content area with p-10 space-y-10
+- Balance Distribution was recently made dynamic from existing wallets
+- User reports color rendering issue in dashboard component
+- Fixed incorrect Angular class binding syntax in pie chart rendering
+- Implemented Transfer All button functionality for wallet operations
+- Fixed Transfer All button remaining inactive despite valid wallet selections
+- Fixed wallet name bug during transfers
+- Google sign-in registration now uses Firebase Auth on the frontend and Firebase Admin verification on the AuthService backend
+- AuthService now validates Firebase ID tokens instead of Google OAuth tokens
+- Rebuilt and validated frontend and auth-service Docker images after the Firebase changes
 
-- Sprint 2 missing-implementation plan (2026-04-08):
-	- Objective: close the remaining OAuth and Sprint 2 validation gaps without changing the approved MVP baseline behavior.
-	- Backend (AuthService):
-		- Add `POST /api/auth/google` endpoint in `AuthController` with request DTO carrying Google ID token.
-		- Validate Google ID token (issuer, audience, expiration) and map identity to local user.
-		- Provision local user on first Google login with default `User` role and active status.
-		- Reuse existing JWT/session issuance flow to return standard auth response.
-		- Add explicit error mapping for invalid token, disabled account, and provider mismatch cases.
-	- Frontend (Angular):
-		- Wire Google button on login/register pages to OAuth flow entry-point and backend endpoint.
-		- Persist returned JWT/session via existing session service and redirect to dashboard.
-		- Show user-facing error state for OAuth failures; keep form login path unchanged.
-		- Keep feature behind environment toggle until backend endpoint is deployed.
-	- Verification and tests:
-		- AuthService: unit tests for token validation service and controller integration tests for success/failure paths.
-		- Frontend: component/service tests for OAuth button handler and redirect/session persistence.
-		- Run CI build/test stages for frontend + auth service, and smoke test in docker compose.
-	- Definition of Done checkpoints:
-		- OAuth login works end-to-end in local docker environment.
-		- Existing email/password login and protected routes remain regression-free.
-		- README and memory summary note OAuth status and enablement flag.
+## Completed Work
+- Unified layout structure across /wallet-history, /dashboard, and /profile pages
+- Updated user-profile-page.component.html with consistent sidebar, header, and content structure
+- Updated wallet-history-page.component.html with consistent sidebar, header, and content structure
+- Added onSearch, onNotificationsClick, and onSettingsClick methods to user-profile-page.component.ts
+- Added onNotificationsClick and onSettingsClick methods to wallet-history-page.component.ts
+- Verified frontend builds successfully with no TypeScript errors
+- Fixed Balance Distribution colors issue in dashboard-page.component.html
+- Changed incorrect `[item.color]` syntax to proper `[ngClass]="item.color"` binding
+- Verified color palette is properly defined in Tailwind config
+- Each wallet now gets unique color: bg-primary, bg-secondary, bg-tertiary, bg-error, bg-surface-tint
+- Implemented Transfer All button functionality in dashboard-page.component.ts
+- Added state variables: isTransferringAll, transferAllError, transferAllSuccess
+- Added onTransferAll() method to transfer entire wallet balance
+- Updated Wallet Transfer Modal with Transfer All button and success/error messages
+- Reordered wallet action buttons for better UX
+- Fixed Transfer All button disabled state logic
+- Added canTransferAll getter that only validates source and target wallet selections
+- Added helper methods: getSourceWalletBalance(), getSourceWalletName()
+- Enhanced UX with balance display and readiness indicator for Transfer All
+- Fixed wallet name bug: AccountRepository.UpdateAsync now preserves Name, IsActive, and IsDefault fields
+- Added Google registration entry point in the registration page and aligned OAuth popup handling with COOP-safe headers
+- Rebuilt the AuthService service file cleanly after a corrupted edit and confirmed the backend publishes successfully
+
+## Key Files
+- Frontend: Z:\Desktop\Project\SaveSafe-Wallet\src\frontend
+- Dashboard component: dashboard-page.component.html/ts
+- Tailwind config: tailwind.config.js
+- Backend: Z:\Desktop\Project\SaveSafe-Wallet\src\WalletService\WalletService.API
+- AccountRepository: Persistence/Firestore/Repositories/AccountRepository.cs
+

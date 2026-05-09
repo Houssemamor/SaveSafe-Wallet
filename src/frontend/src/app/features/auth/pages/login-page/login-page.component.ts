@@ -14,6 +14,9 @@ import { SessionService } from '../../../../core/session/session.service';
 export class LoginPageComponent {
   isSubmitting = false;
   errorMessage = '';
+  showPassword = false;
+  isGoogleSubmitting = false;
+  rememberMe = false;
 
   readonly loginForm = this.fb.nonNullable.group({
     email: ['', [Validators.required, Validators.email]],
@@ -26,6 +29,10 @@ export class LoginPageComponent {
     private readonly sessionService: SessionService,
     private readonly router: Router
   ) {}
+
+  togglePasswordVisibility(): void {
+    this.showPassword = !this.showPassword;
+  }
 
   onSubmit(): void {
     if (this.loginForm.invalid || this.isSubmitting) {
@@ -45,6 +52,34 @@ export class LoginPageComponent {
       error: () => {
         this.isSubmitting = false;
         this.errorMessage = 'Login failed. Check your credentials and try again.';
+      }
+    });
+  }
+
+  onGoogleLogin(): void {
+    if (this.isGoogleSubmitting) {
+      return;
+    }
+
+    this.isGoogleSubmitting = true;
+    this.errorMessage = '';
+
+    this.authService.googleLogin().subscribe({
+      next: () => {
+        this.isGoogleSubmitting = false;
+        const role = this.sessionService.currentUser?.role?.toLowerCase();
+        this.router.navigate([role === 'admin' ? '/admin' : '/dashboard']);
+      },
+      error: (error) => {
+        this.isGoogleSubmitting = false;
+        console.error('Google login error:', error);
+        if (error.status === 400) {
+          this.errorMessage = 'Google login failed. Please make sure your Google account is properly configured.';
+        } else if (error.status === 401) {
+          this.errorMessage = 'Authentication failed. Please try again.';
+        } else {
+          this.errorMessage = 'Google login is currently unavailable. Please use email/password login.';
+        }
       }
     });
   }

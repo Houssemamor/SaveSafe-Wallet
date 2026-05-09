@@ -9,7 +9,8 @@ public record UserProfileDto(
     string AccountStatus,
     string Role,
     DateTime CreatedAt,
-    DateTime? LastLoginAt
+    DateTime? LastLoginAt,
+    string? ProfilePictureUrl = null
 );
 
 /// <summary>Request body for PUT /api/users/profile.</summary>
