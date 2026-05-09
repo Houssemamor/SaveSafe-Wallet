@@ -162,6 +162,11 @@ public class AuthService : IAuthService
                 ? firebaseUser.DisplayName
                 : normalizedEmail;
 
+            // Extract profile picture URL from Firebase user (if available)
+            var profilePictureUrl = !string.IsNullOrWhiteSpace(firebaseUser.PhotoUrl)
+                ? firebaseUser.PhotoUrl
+                : null;
+
             var user = await _users.GetByEmailAsync(normalizedEmail);
             var now = DateTime.UtcNow;
 
@@ -186,6 +191,7 @@ public class AuthService : IAuthService
                     Name = displayName,
                     PasswordHash = string.Empty,
                     GoogleId = firebaseToken.Uid,
+                    ProfilePictureUrl = profilePictureUrl,
                     CreatedAt = now,
                     UpdatedAt = now,
                     AccountStatus = UserAccountStatus.Active,
@@ -209,6 +215,14 @@ public class AuthService : IAuthService
 
             if (user.AccountStatus != UserAccountStatus.Active)
                 throw new UnauthorizedAccessException("Account is not active.");
+
+            // Update profile picture if available (user may have changed it on Google)
+            if (!string.IsNullOrWhiteSpace(profilePictureUrl))
+            {
+                user.ProfilePictureUrl = profilePictureUrl;
+                user.UpdatedAt = now;
+                await _users.UpdateAsync(user);
+            }
 
             await _refreshTokens.RevokeAllActiveForUserAsync(user.Id);
 
@@ -274,7 +288,8 @@ public class AuthService : IAuthService
             AccountStatus: user.AccountStatus.ToString(),
             Role: user.Role.ToString(),
             CreatedAt: user.CreatedAt,
-            LastLoginAt: user.LastLoginAt
+            LastLoginAt: user.LastLoginAt,
+            ProfilePictureUrl: user.ProfilePictureUrl
         );
     }
 
@@ -327,7 +342,8 @@ public class AuthService : IAuthService
             UserId: user.Id,
             Email: user.Email,
             Name: user.Name,
-            Role: user.Role.ToString());
+            Role: user.Role.ToString(),
+            ProfilePictureUrl: user.ProfilePictureUrl);
 
     private static string NormalizeIp(string? ipAddress) =>
         string.IsNullOrWhiteSpace(ipAddress)

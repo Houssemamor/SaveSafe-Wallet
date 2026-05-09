@@ -7,6 +7,7 @@ public record AuthResponseDto(
     Guid UserId,
     string Email,
     string Name,
-    string Role
+    string Role,
+    string? ProfilePictureUrl = null
     // Refresh token is set as httpOnly cookie, NOT included in this response body
 );

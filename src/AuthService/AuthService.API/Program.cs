@@ -99,6 +99,9 @@ builder.Services.AddCors(options =>
     });
 });
 
+// Memory cache for caching proxied avatar images
+builder.Services.AddMemoryCache();
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>

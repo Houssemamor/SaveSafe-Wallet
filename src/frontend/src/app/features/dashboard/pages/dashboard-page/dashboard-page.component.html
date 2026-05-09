@@ -20,7 +20,7 @@
     </nav>
     <div class="mt-auto pt-8 border-t border-outline-variant/10">
       <div class="flex items-center gap-3 mb-8 px-2">
-        <img alt="User Profile Avatar" class="w-10 h-10 rounded-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBmnOkf5YGfv9JNXN3JPUEvExQ-oAmZRwRG82eF_DtMgdxeQbFr9etTz5-v4ZpqKCqTydPW12HHcLKPQje9fOgFPx2dYOmXmNx0ta1eSNsZGC6MRJ5TkCP7Vrl_DteTNX88K_slXjy_RG0mJLOB7N6NzHiSnAUFrPIOufWZNKMJJjzYa3Oe5zv2WcgrhSCxZjqbAmq6BMXypqk2wNy39_9viRmYLseE65ozfljjcYDmXGkzz_GR3FTYS9envz0KSPeB4dVJLP7jt6zL" />
+        <app-user-avatar size="md"></app-user-avatar>
         <div>
           <p class="font-manrope font-bold text-sm">{{ user?.name || 'SaveSafe User' }}</p>
           <p class="font-inter text-xs text-on-surface-variant">{{ user?.email || 'No email loaded' }}</p>
@@ -47,7 +47,7 @@
           <button class="material-symbols-outlined hover:text-[#0052CC] transition-all opacity-80 active:opacity-100" (click)="onNotificationsClick()" type="button">notifications</button>
           <button class="material-symbols-outlined hover:text-[#0052CC] transition-all opacity-80 active:opacity-100" (click)="onSettingsClick()" type="button">settings</button>
           <div class="h-8 w-[1px] bg-outline-variant opacity-20"></div>
-          <img alt="User profile" class="w-8 h-8 rounded-full border border-outline-variant/30" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBXbExD_jIoHKvzz__QXpL6MaV1Tig86OFHQzrxJ_fcAID7MGFlXFc3O6UzLKOODaAyPB4W8wOXSQ5QVnRknkfHVP8NztyG38gr8S8p_z8mYcRUA6eMx6cJoQ21C4tjbvvXirQelngWzYXKOWO4oT05DTWr7IkGkzHyursuNo3Y5v8YvVgy9ep7uVOAnMMEX7nDDIdRjJL6ZvCbe32XME-U_1DsCHK-Z2pI0N1pH_g1ZcSG7TvIpMpQuTFc73OKJfcX2U0l7ZEmn1St" />
+          <app-user-avatar size="sm"></app-user-avatar>
         </div>
       </div>
     </header>

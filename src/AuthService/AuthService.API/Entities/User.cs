@@ -26,6 +26,10 @@ public class User
     [Column("google_id")]
     public string? GoogleId { get; set; }
 
+    [MaxLength(2048)]
+    [Column("profile_picture_url")]
+    public string? ProfilePictureUrl { get; set; }
+
     [Column("mfa_enabled")]
     public bool MfaEnabled { get; set; } = false;
 

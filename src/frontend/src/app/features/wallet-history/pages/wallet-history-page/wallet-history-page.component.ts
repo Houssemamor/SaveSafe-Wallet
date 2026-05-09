@@ -3,6 +3,7 @@ import { Component, OnInit } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { WalletHistoryEntry } from '../../models/wallet.models';
 import { SessionService } from '../../../../core/session/session.service';
+import { UserAvatarComponent } from '../../../../core/components/user-avatar/user-avatar.component';
 import { AuthService } from '../../../auth/data-access/auth.service';
 import { SessionUser } from '../../../auth/models/auth.models';
 import { WalletService } from '../../data-access/wallet.service';
@@ -13,7 +14,7 @@ type DateFilter = '30d' | 'all';
 @Component({
   selector: 'app-wallet-history-page',
   standalone: true,
-  imports: [RouterLink, CommonModule],
+  imports: [RouterLink, CommonModule, UserAvatarComponent],
   templateUrl: './wallet-history-page.component.html'
 })
 export class WalletHistoryPageComponent implements OnInit {

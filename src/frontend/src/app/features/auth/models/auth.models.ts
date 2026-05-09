@@ -17,6 +17,7 @@ export interface AuthResponse {
   email: string;
   name: string;
   role: string;
+  profilePictureUrl?: string | null;
 }
 
 export interface SessionUser {
@@ -24,4 +25,5 @@ export interface SessionUser {
   email: string;
   name: string;
   role: string;
+  profilePictureUrl?: string | null;
 }

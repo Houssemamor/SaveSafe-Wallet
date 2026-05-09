@@ -79,7 +79,8 @@ export class AuthService {
       userId: response.userId,
       email: response.email,
       name: response.name,
-      role: response.role
+      role: response.role,
+      profilePictureUrl: response.profilePictureUrl || null
     };
 
     this.sessionService.setSession(response.accessToken, user);
