@@ -137,7 +137,7 @@
                   <span class="material-symbols-outlined">{{ entry.type.toLowerCase() === 'credit' ? 'payments' : 'swap_horiz' }}</span>
                 </div>
                 <div>
-                  <p class="font-manrope font-bold text-on-surface">{{ getTransactionTypeText(entry) }} - {{ entry.description || 'Wallet operation' }}</p>
+                  <p class="font-manrope font-bold text-on-surface">{{ getTransactionTypeText(entry) }} - {{ formatDescription(entry) }}</p>
                   <p class="text-xs text-on-surface-variant font-medium">{{ formatTransactionDate(entry) }} • {{ getTransactionTypeText(entry) }}</p>
                 </div>
               </div>

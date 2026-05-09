@@ -95,7 +95,7 @@
                 <td class="px-8 py-6 font-medium text-on-surface">{{ entry.createdAt | date: 'MMM d, y' }}</td>
                 <td class="px-6 py-6">
                   <div class="flex flex-col">
-                    <span class="font-bold text-on-surface">{{ entry.description || 'Wallet operation' }}</span>
+                      <span class="font-bold text-on-surface">{{ formatDescription(entry) }}</span>
                     <span class="text-xs text-on-surface-variant mt-0.5">Balance after: {{ entry.balanceAfter | number: '1.2-2' }}</span>
                   </div>
                 </td>

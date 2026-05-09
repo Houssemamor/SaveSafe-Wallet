@@ -155,6 +155,24 @@ export class WalletHistoryPageComponent implements OnInit {
     return `${this.isCredit(entry) ? '+' : '-'}$${amount}`;
   }
 
+  /**
+   * Return a user-friendly description. Masks emails partially for privacy and
+   * preserves original text when no email is present.
+   */
+  formatDescription(entry: WalletHistoryEntry): string {
+    if (!entry.description) return 'Wallet operation';
+
+    // Simple email regex
+    const emailRegex = /([a-zA-Z0-9._%+-]+)@([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/g;
+
+    return entry.description.replace(emailRegex, (_match, local, domain) => {
+      const keep = Math.ceil(local.length / 2);
+      const visible = local.slice(0, keep);
+      const masked = '*'.repeat(Math.max(3, local.length - keep));
+      return `${visible}${masked}@${domain}`;
+    });
+  }
+
   onDownloadHistory(): void {
     if (this.isDownloading) return;
 
