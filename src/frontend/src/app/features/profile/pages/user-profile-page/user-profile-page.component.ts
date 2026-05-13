@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { Observable } from 'rxjs';
 import { UserProfileResponse } from '../../models/user.models';
@@ -12,6 +12,17 @@ import { UserAvatarComponent } from '../../../../core/components/user-avatar/use
 import { Notification, NotificationService } from '../../../../core/notifications/notification.service';
 import { NotificationItemComponent } from '../../../dashboard/components/notification-item/notification-item.component';
 import { SecurityQuestionCatalogItem } from '../../../auth/models/auth.models';
+
+function matchPasswordFields(control: AbstractControl): { passwordMismatch: true } | null {
+  const newPassword = control.get('newPassword')?.value;
+  const confirmPassword = control.get('confirmPassword')?.value;
+
+  if (!newPassword || !confirmPassword) {
+    return null;
+  }
+
+  return newPassword === confirmPassword ? null : { passwordMismatch: true };
+}
 
 @Component({
   selector: 'app-user-profile-page',
@@ -25,10 +36,13 @@ export class UserProfilePageComponent implements OnInit {
   isLoading = true;
   isSaving = false;
   isMfaUpdating = false;
+  isPasswordUpdating = false;
   errorMessage = '';
   successMessage = '';
   mfaErrorMessage = '';
   mfaSuccessMessage = '';
+  passwordErrorMessage = '';
+  passwordSuccessMessage = '';
   securityQuestions: SecurityQuestionCatalogItem[] = [];
   readonly unreadNotificationCount$ = this.notificationService.getUnreadCount();
   readonly notifications$: Observable<Notification[]> = this.notificationService.getNotifications();
@@ -47,6 +61,12 @@ export class UserProfilePageComponent implements OnInit {
     question2Id: ['', [Validators.required]],
     question2Answer: ['', [Validators.required, Validators.minLength(1)]]
   });
+
+  readonly passwordForm = this.fb.nonNullable.group({
+    currentPassword: [''],
+    newPassword: ['', [Validators.required, Validators.minLength(8)]],
+    confirmPassword: ['', [Validators.required]]
+  }, { validators: matchPasswordFields });
 
   constructor(
     private readonly fb: FormBuilder,
@@ -82,6 +102,22 @@ export class UserProfilePageComponent implements OnInit {
   get profilePictureUrl(): string | null | undefined {
     // Prefer profile data, fall back to session user data
     return this.profile?.profilePictureUrl || this.user?.profilePictureUrl || null;
+  }
+
+  get passwordActionLabel(): string {
+    return this.profile?.hasPassword ? 'CHANGE PASSWORD' : 'SET PASSWORD';
+  }
+
+  get passwordSectionTitle(): string {
+    return this.profile?.hasPassword ? 'Password' : 'Set Password';
+  }
+
+  get passwordSectionDescription(): string {
+    if (!this.profile?.hasPassword && this.profile?.isGoogleAccount) {
+      return 'Add a password so this Google account can also sign in with email and password.';
+    }
+
+    return 'Keep your account password up to date.';
   }
 
   onSave(): void {
@@ -176,6 +212,48 @@ export class UserProfilePageComponent implements OnInit {
       error: () => {
         this.isMfaUpdating = false;
         this.mfaErrorMessage = 'Unable to disable MFA. Please try again.';
+      }
+    });
+  }
+
+  updatePassword(): void {
+    this.passwordErrorMessage = '';
+    this.passwordSuccessMessage = '';
+
+    if (this.passwordForm.invalid || this.isPasswordUpdating) {
+      this.passwordForm.markAllAsTouched();
+      if (this.passwordForm.hasError('passwordMismatch')) {
+        this.passwordErrorMessage = 'Passwords do not match.';
+      }
+      return;
+    }
+
+    const values = this.passwordForm.getRawValue();
+    const hasPassword = this.profile?.hasPassword ?? true;
+
+    if (hasPassword && !values.currentPassword.trim()) {
+      this.passwordForm.controls.currentPassword.setErrors({ required: true });
+      this.passwordErrorMessage = 'Enter your current password.';
+      return;
+    }
+
+    this.isPasswordUpdating = true;
+
+    this.userService.updatePassword({
+      currentPassword: hasPassword ? values.currentPassword : undefined,
+      newPassword: values.newPassword
+    }).subscribe({
+      next: () => {
+        this.isPasswordUpdating = false;
+        this.passwordSuccessMessage = hasPassword ? 'Password changed successfully.' : 'Password set successfully.';
+        this.passwordForm.reset();
+        this.loadProfile();
+      },
+      error: (error) => {
+        this.isPasswordUpdating = false;
+        this.passwordErrorMessage = error.status === 401
+          ? 'Current password is incorrect.'
+          : 'Unable to update password. Please try again.';
       }
     });
   }

@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { API_CONFIG } from '../../../core/config/api.config';
-import { UpdateUserProfileRequest, UserProfileResponse } from '../models/user.models';
+import { UpdatePasswordRequest, UpdateUserProfileRequest, UserProfileResponse } from '../models/user.models';
 
 @Injectable({ providedIn: 'root' })
 export class UserService {
@@ -14,5 +14,9 @@ export class UserService {
 
   updateProfile(request: UpdateUserProfileRequest): Observable<void> {
     return this.http.put<void>(`${API_CONFIG.usersBaseUrl}/profile`, request);
+  }
+
+  updatePassword(request: UpdatePasswordRequest): Observable<void> {
+    return this.http.put<void>(`${API_CONFIG.usersBaseUrl}/profile/password`, request);
   }
 }

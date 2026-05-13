@@ -140,11 +140,53 @@
                 <span class="text-sm text-on-surface-variant">Last Login</span>
                 <span class="text-sm font-bold">{{ lastLoginAt }}</span>
               </div>
+              <div class="flex justify-between items-center py-3 border-b border-outline-variant/10">
+                <span class="text-sm text-on-surface-variant">Password Login</span>
+                <span class="text-sm font-bold">{{ profile?.hasPassword ? 'Enabled' : 'Not set' }}</span>
+              </div>
               <div class="flex justify-between items-center py-3">
                 <span class="text-sm text-on-surface-variant">MFA Enabled</span>
                 <span class="text-sm font-bold">{{ profile?.mfaEnabled ? 'Yes' : 'No' }}</span>
               </div>
             </div>
+          </div>
+
+          <div class="bg-surface-container-lowest rounded-xl p-8 shadow-sm space-y-6">
+            <div class="flex items-start justify-between gap-4">
+              <div>
+                <h4 class="text-sm font-bold font-headline uppercase tracking-widest text-on-surface-variant">{{ passwordSectionTitle }}</h4>
+                <p class="text-xs text-on-surface-variant mt-2">{{ passwordSectionDescription }}</p>
+              </div>
+              <span class="rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider" [ngClass]="profile?.hasPassword ? 'bg-secondary-container text-on-secondary-container' : 'bg-outline-variant/10 text-on-surface-variant'">
+                {{ profile?.hasPassword ? 'Enabled' : 'Not set' }}
+              </span>
+            </div>
+
+            <div *ngIf="passwordSuccessMessage" class="rounded-lg border border-primary/20 bg-primary/10 px-4 py-3 text-sm text-primary">{{ passwordSuccessMessage }}</div>
+            <div *ngIf="passwordErrorMessage" class="rounded-lg border border-error/20 bg-error/10 px-4 py-3 text-sm text-error">{{ passwordErrorMessage }}</div>
+
+            <form class="space-y-4" [formGroup]="passwordForm" (ngSubmit)="updatePassword()">
+              <div *ngIf="profile?.hasPassword" class="space-y-2">
+                <label class="text-xs font-bold font-headline text-on-surface-variant uppercase tracking-wider" for="current-password">Current Password</label>
+                <input id="current-password" class="w-full bg-surface-container-highest border-none rounded-lg py-3 px-4 focus:ring-2 focus:ring-surface-tint transition-all text-sm font-medium" type="password" formControlName="currentPassword" autocomplete="current-password" />
+              </div>
+
+              <div class="space-y-2">
+                <label class="text-xs font-bold font-headline text-on-surface-variant uppercase tracking-wider" for="new-password">New Password</label>
+                <input id="new-password" class="w-full bg-surface-container-highest border-none rounded-lg py-3 px-4 focus:ring-2 focus:ring-surface-tint transition-all text-sm font-medium" type="password" formControlName="newPassword" autocomplete="new-password" />
+                <p *ngIf="passwordForm.controls.newPassword.touched && passwordForm.controls.newPassword.invalid" class="text-xs text-error">Use at least 8 characters.</p>
+              </div>
+
+              <div class="space-y-2">
+                <label class="text-xs font-bold font-headline text-on-surface-variant uppercase tracking-wider" for="confirm-new-password">Confirm Password</label>
+                <input id="confirm-new-password" class="w-full bg-surface-container-highest border-none rounded-lg py-3 px-4 focus:ring-2 focus:ring-surface-tint transition-all text-sm font-medium" type="password" formControlName="confirmPassword" autocomplete="new-password" />
+                <p *ngIf="passwordForm.controls.confirmPassword.touched && passwordForm.hasError('passwordMismatch')" class="text-xs text-error">Passwords do not match.</p>
+              </div>
+
+              <button class="w-full bg-gradient-to-br from-primary to-primary-container text-white px-6 py-3 rounded-lg font-headline font-extrabold text-xs tracking-widest shadow-lg hover:brightness-110 active:scale-95 transition-all disabled:opacity-60" type="submit" [disabled]="isPasswordUpdating || isLoading">
+                {{ isPasswordUpdating ? 'UPDATING...' : passwordActionLabel }}
+              </button>
+            </form>
           </div>
 
           <div class="bg-surface-container-lowest rounded-xl p-8 shadow-sm space-y-6">

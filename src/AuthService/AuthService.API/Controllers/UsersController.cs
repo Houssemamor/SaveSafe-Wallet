@@ -59,6 +59,33 @@ public class UsersController : ControllerBase
         return NoContent();
     }
 
+    /// <summary>Set or change authenticated user's password.</summary>
+    [HttpPut("profile/password")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UpdatePassword([FromBody] UpdatePasswordRequestDto request)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userId is null)
+            return Unauthorized();
+
+        try
+        {
+            await _authService.UpdatePasswordAsync(Guid.Parse(userId), request);
+            return NoContent();
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Unauthorized();
+        }
+    }
+
     /// <summary>
     /// Proxy and cache external profile avatar images.
     /// Accepts a public image URL as a query parameter and returns cached bytes.

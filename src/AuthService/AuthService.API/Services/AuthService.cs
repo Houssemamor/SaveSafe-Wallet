@@ -18,6 +18,7 @@ public interface IAuthService
     Task LogoutAsync(string rawRefreshToken);
     Task<UserProfileDto> GetUserProfileAsync(Guid userId);
     Task UpdateUserProfileAsync(Guid userId, UpdateProfileRequestDto request);
+    Task UpdatePasswordAsync(Guid userId, UpdatePasswordRequestDto request);
     Task DeleteUserAccountAsync(Guid userId);
     IReadOnlyList<SecurityQuestionCatalogDto> GetMfaQuestionCatalog();
     Task<MfaEnrollResponseDto> EnrollMfaAsync(Guid userId, MfaEnrollRequestDto request);
@@ -358,7 +359,9 @@ public class AuthService : IAuthService
             Role: user.Role.ToString(),
             CreatedAt: user.CreatedAt,
             LastLoginAt: user.LastLoginAt,
-            ProfilePictureUrl: user.ProfilePictureUrl
+            ProfilePictureUrl: user.ProfilePictureUrl,
+            HasPassword: !string.IsNullOrWhiteSpace(user.PasswordHash),
+            IsGoogleAccount: !string.IsNullOrWhiteSpace(user.GoogleId)
         );
     }
 
@@ -374,6 +377,33 @@ public class AuthService : IAuthService
         await _users.UpdateAsync(user);
 
         _logger.LogInformation("User {UserId} profile updated", userId);
+    }
+
+    public async Task UpdatePasswordAsync(Guid userId, UpdatePasswordRequestDto request)
+    {
+        var user = await _users.GetByIdAsync(userId);
+        if (user is null)
+            throw new KeyNotFoundException($"User {userId} not found.");
+
+        if (string.IsNullOrWhiteSpace(request.NewPassword) || request.NewPassword.Length < 8)
+            throw new ArgumentException("Password must be at least 8 characters long.");
+
+        var hasPassword = !string.IsNullOrWhiteSpace(user.PasswordHash);
+        if (hasPassword)
+        {
+            if (string.IsNullOrWhiteSpace(request.CurrentPassword) ||
+                !BCrypt.Net.BCrypt.Verify(request.CurrentPassword, user.PasswordHash))
+            {
+                throw new UnauthorizedAccessException("Current password is incorrect.");
+            }
+        }
+
+        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword, workFactor: 12);
+        user.UpdatedAt = DateTime.UtcNow;
+
+        await _users.UpdateAsync(user);
+
+        _logger.LogInformation("User {UserId} password updated", userId);
     }
 
     public async Task DeleteUserAccountAsync(Guid userId)

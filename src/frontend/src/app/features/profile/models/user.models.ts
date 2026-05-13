@@ -8,8 +8,15 @@ export interface UserProfileResponse {
   createdAt: string;
   lastLoginAt: string | null;
   profilePictureUrl?: string | null;
+  hasPassword: boolean;
+  isGoogleAccount: boolean;
 }
 
 export interface UpdateUserProfileRequest {
   name: string;
+}
+
+export interface UpdatePasswordRequest {
+  newPassword: string;
+  currentPassword?: string;
 }
