@@ -16,14 +16,17 @@ public class WalletManagementService : IWalletManagementService
     private readonly IAccountRepository _accountRepository;
     private readonly ILedgerRepository _ledgerRepository;
     private readonly IConfiguration? _configuration;
+    private readonly IUserLookupService _userLookupService;
 
     public WalletManagementService(
         IAccountRepository accountRepository,
         ILedgerRepository ledgerRepository,
+        IUserLookupService userLookupService,
         IConfiguration? configuration = null)
     {
         _accountRepository = accountRepository;
         _ledgerRepository = ledgerRepository;
+        _userLookupService = userLookupService;
         _configuration = configuration;
     }
 
@@ -425,9 +428,13 @@ public class WalletManagementService : IWalletManagementService
         }
 
         var expiresAt = DateTimeOffset.UtcNow.AddMinutes(15);
+        // Try to resolve owner display name for inclusion in the token
+        var ownerName = await _userLookupService.GetUserNameAsync(Guid.Parse(userId)) ?? string.Empty;
+
         var payload = new ReceiveQrTokenPayload(
             WalletId: account.Id.ToString(),
             UserId: userId,
+            OwnerName: ownerName,
             Purpose: ReceiveQrPurpose,
             ExpiresAtUnixSeconds: expiresAt.ToUnixTimeSeconds(),
             Nonce: Guid.NewGuid().ToString("N"));
@@ -438,6 +445,7 @@ public class WalletManagementService : IWalletManagementService
             Token = ReceiveQrTokenCodec.Create(payload, signingKey),
             WalletId = account.Id.ToString(),
             WalletName = account.Name ?? "Default Wallet",
+            OwnerName = ownerName,
             Currency = account.Currency ?? "USD",
             ExpiresAt = expiresAt.UtcDateTime
         };
@@ -500,6 +508,7 @@ public class WalletManagementService : IWalletManagementService
             Success = true,
             WalletId = account.Id.ToString(),
             WalletName = account.Name ?? "Default Wallet",
+            OwnerName = await _userLookupService.GetUserNameAsync(Guid.Parse(account.UserId)) ?? string.Empty,
             Currency = account.Currency ?? "USD"
         };
     }
@@ -538,6 +547,7 @@ public class WalletManagementService : IWalletManagementService
     private sealed record ReceiveQrTokenPayload(
         string WalletId,
         string UserId,
+        string OwnerName,
         string Purpose,
         long ExpiresAtUnixSeconds,
         string Nonce);

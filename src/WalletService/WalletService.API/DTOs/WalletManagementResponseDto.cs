@@ -93,6 +93,11 @@ public class ReceiveWalletQrResponseDto
     public string? WalletName { get; set; }
 
     /// <summary>
+    /// Owner / holder display name for the wallet (may be included in token)
+    /// </summary>
+    public string? OwnerName { get; set; }
+
+    /// <summary>
     /// Wallet currency
     /// </summary>
     public string? Currency { get; set; }
@@ -138,6 +143,11 @@ public class ResolveWalletQrResponseDto
     /// Wallet name recovered from the token
     /// </summary>
     public string? WalletName { get; set; }
+
+    /// <summary>
+    /// Owner / holder display name for the wallet
+    /// </summary>
+    public string? OwnerName { get; set; }
 
     /// <summary>
     /// Wallet currency recovered from the token

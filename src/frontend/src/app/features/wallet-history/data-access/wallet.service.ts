@@ -43,6 +43,7 @@ export interface ReceiveWalletQrResponse {
   token?: string;
   walletId?: string;
   walletName?: string;
+  ownerName?: string;
   currency?: string;
   expiresAt?: string;
   errorMessage?: string;
@@ -52,6 +53,7 @@ export interface ResolveWalletQrResponse {
   success: boolean;
   walletId?: string;
   walletName?: string;
+  ownerName?: string;
   currency?: string;
   errorMessage?: string;
 }

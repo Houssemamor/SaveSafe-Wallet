@@ -5,6 +5,7 @@ import { Router, RouterLink } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Observable } from 'rxjs';
 import QRCode from 'qrcode';
+import jsQR from 'jsqr';
 import { SessionService } from '../../../../core/session/session.service';
 import { UserAvatarComponent } from '../../../../core/components/user-avatar/user-avatar.component';
 import { AuthService } from '../../../auth/data-access/auth.service';
@@ -48,6 +49,7 @@ interface QrTransferRecipient {
   walletId: string;
   walletName: string;
   currency: string;
+  holderName?: string;
 }
 
 @Component({
@@ -123,6 +125,7 @@ export class DashboardPageComponent implements OnInit {
   qrTransferResolvedRecipient: QrTransferRecipient | null = null;
   private qrTransferScannerStream: MediaStream | null = null;
   private qrTransferScannerTimer: number | null = null;
+  private qrTransferScanInProgress = false;
 
   // Wallet management
   wallets: Wallet[] = [];
@@ -740,19 +743,26 @@ export class DashboardPageComponent implements OnInit {
       return;
     }
 
+    this.stopQrScanner();
     this.qrTransferScannerError = '';
     this.qrTransferScannerStatus = '';
+    this.qrTransferScanInProgress = false;
+
+    if (!window.isSecureContext) {
+      this.qrTransferScannerError = 'Camera scanning requires HTTPS (or localhost). Paste the token below instead.';
+      return;
+    }
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      this.qrTransferScannerError = 'This browser does not expose camera access. Paste the token below instead.';
+      return;
+    }
 
     const barcodeDetectorFactory = (window as Window & {
       BarcodeDetector?: new (options: { formats: string[] }) => {
         detect(source: HTMLVideoElement): Promise<Array<{ rawValue?: string }>>;
       };
     }).BarcodeDetector;
-
-    if (!barcodeDetectorFactory) {
-      this.qrTransferScannerError = 'This browser does not support camera-based QR scanning. Paste the token below instead.';
-      return;
-    }
 
     const videoElement = document.getElementById('qr-transfer-video') as HTMLVideoElement | null;
     if (!videoElement) {
@@ -766,28 +776,69 @@ export class DashboardPageComponent implements OnInit {
         audio: false
       });
       videoElement.srcObject = this.qrTransferScannerStream;
-      await videoElement.play();
+      await videoElement.play().catch(() => undefined);
 
-      const detector = new barcodeDetectorFactory({ formats: ['qr_code'] });
-      this.qrTransferScannerStatus = 'Scanning for a QR code...';
-      this.qrTransferScannerTimer = window.setInterval(async () => {
-        if (!this.showQrTransferModal || this.qrTransferResolvedRecipient) {
+      const detector = barcodeDetectorFactory ? new barcodeDetectorFactory({ formats: ['qr_code'] }) : null;
+      this.qrTransferScannerStatus = detector
+        ? 'Scanning for a QR code...'
+        : 'Scanning for a QR code (compatibility mode)...';
+
+      this.qrTransferScannerTimer = window.setInterval(() => {
+        if (!this.showQrTransferModal || this.qrTransferResolvedRecipient || this.qrTransferScanInProgress) {
           return;
         }
 
-        try {
-          const codes = await detector.detect(videoElement);
-          const token = codes.find(code => code.rawValue)?.rawValue;
-          if (token) {
-            this.resolveQrTransferToken(token);
-          }
-        } catch {
-          this.qrTransferScannerError = 'Unable to read the QR code from the camera.';
-        }
-      }, 700);
+        this.qrTransferScanInProgress = true;
+        void this.scanQrFrame(videoElement, detector).finally(() => {
+          this.qrTransferScanInProgress = false;
+        });
+      }, 500);
     } catch {
       this.qrTransferScannerError = 'Unable to access the camera. You can paste the QR token instead.';
     }
+  }
+
+  private async scanQrFrame(
+    videoElement: HTMLVideoElement,
+    detector: { detect(source: HTMLVideoElement): Promise<Array<{ rawValue?: string }>> } | null
+  ): Promise<void> {
+    try {
+      let token = '';
+
+      if (detector) {
+        const codes = await detector.detect(videoElement);
+        token = (codes.find(code => code.rawValue)?.rawValue || '').trim();
+      } else {
+        token = this.decodeQrWithJsQr(videoElement);
+      }
+
+      if (token) {
+        this.resolveQrTransferToken(token);
+      }
+    } catch {
+      this.qrTransferScannerError = 'Unable to read the QR code from the camera.';
+    }
+  }
+
+  private decodeQrWithJsQr(videoElement: HTMLVideoElement): string {
+    const width = videoElement.videoWidth;
+    const height = videoElement.videoHeight;
+    if (!width || !height) {
+      return '';
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext('2d', { willReadFrequently: true });
+    if (!context) {
+      return '';
+    }
+
+    context.drawImage(videoElement, 0, 0, width, height);
+    const imageData = context.getImageData(0, 0, width, height);
+    const result = jsQR(imageData.data, width, height, { inversionAttempts: 'dontInvert' });
+    return result?.data?.trim() || '';
   }
 
   stopQrScanner(): void {
@@ -807,6 +858,7 @@ export class DashboardPageComponent implements OnInit {
     }
 
     this.qrTransferScannerStatus = '';
+    this.qrTransferScanInProgress = false;
   }
 
   resolveQrTransferToken(token?: string): void {
@@ -834,6 +886,7 @@ export class DashboardPageComponent implements OnInit {
         this.qrTransferResolvedRecipient = {
           walletId: response.walletId,
           walletName: response.walletName,
+          holderName: response.ownerName ?? response.walletName,
           currency: response.currency
         };
         this.qrTransferScannerStatus = `Ready to send to ${response.walletName}.`;

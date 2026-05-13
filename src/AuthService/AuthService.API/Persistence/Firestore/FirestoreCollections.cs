@@ -7,5 +7,6 @@ public static class FirestoreCollections
     public const string RefreshTokens = "refreshTokens";
     public const string LoginEvents = "loginEvents";
     public const string FailedLoginsByIp = "failedLoginsByIp";
+    public const string UserSecurityQuestions = "userSecurityQuestions";
     public const string AdminStats = "adminStats";
 }

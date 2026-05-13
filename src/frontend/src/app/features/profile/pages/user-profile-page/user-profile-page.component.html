@@ -147,6 +147,58 @@
             </div>
           </div>
 
+          <div class="bg-surface-container-lowest rounded-xl p-8 shadow-sm space-y-6">
+            <div class="flex items-start justify-between gap-4">
+              <div>
+                <h4 class="text-sm font-bold font-headline uppercase tracking-widest text-on-surface-variant">Security Questions MFA</h4>
+                <p class="text-xs text-on-surface-variant mt-2">Use predefined security questions to protect login with a second verification step.</p>
+              </div>
+              <span class="rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider" [ngClass]="profile?.mfaEnabled ? 'bg-secondary-container text-on-secondary-container' : 'bg-outline-variant/10 text-on-surface-variant'">
+                {{ profile?.mfaEnabled ? 'Enabled' : 'Disabled' }}
+              </span>
+            </div>
+
+            <div *ngIf="mfaSuccessMessage" class="rounded-lg border border-primary/20 bg-primary/10 px-4 py-3 text-sm text-primary">{{ mfaSuccessMessage }}</div>
+            <div *ngIf="mfaErrorMessage" class="rounded-lg border border-error/20 bg-error/10 px-4 py-3 text-sm text-error">{{ mfaErrorMessage }}</div>
+
+            <ng-container *ngIf="!profile?.mfaEnabled; else mfaDisableBlock">
+              <form class="space-y-4" [formGroup]="mfaForm" (ngSubmit)="enableMfa()">
+                <div class="grid grid-cols-1 gap-4">
+                  <div class="space-y-2">
+                    <label class="text-xs font-bold font-headline text-on-surface-variant uppercase tracking-wider" for="mfa-question-1">Question 1</label>
+                    <select id="mfa-question-1" class="w-full bg-surface-container-highest border-none rounded-lg py-3 px-4 text-sm font-medium" formControlName="question1Id">
+                      <option value="" disabled>Select a question</option>
+                      <option *ngFor="let question of securityQuestions" [value]="question.questionId">{{ question.questionText }}</option>
+                    </select>
+                    <input class="w-full bg-surface-container-highest border-none rounded-lg py-3 px-4 focus:ring-2 focus:ring-surface-tint transition-all text-sm font-medium" type="text" formControlName="question1Answer" placeholder="Answer for question 1" />
+                  </div>
+
+                  <div class="space-y-2">
+                    <label class="text-xs font-bold font-headline text-on-surface-variant uppercase tracking-wider" for="mfa-question-2">Question 2</label>
+                    <select id="mfa-question-2" class="w-full bg-surface-container-highest border-none rounded-lg py-3 px-4 text-sm font-medium" formControlName="question2Id">
+                      <option value="" disabled>Select a question</option>
+                      <option *ngFor="let question of securityQuestions" [value]="question.questionId">{{ question.questionText }}</option>
+                    </select>
+                    <input class="w-full bg-surface-container-highest border-none rounded-lg py-3 px-4 focus:ring-2 focus:ring-surface-tint transition-all text-sm font-medium" type="text" formControlName="question2Answer" placeholder="Answer for question 2" />
+                  </div>
+                </div>
+
+                <button class="w-full bg-gradient-to-br from-primary to-primary-container text-white px-6 py-3 rounded-lg font-headline font-extrabold text-xs tracking-widest shadow-lg hover:brightness-110 active:scale-95 transition-all disabled:opacity-60" type="submit" [disabled]="isMfaUpdating">
+                  {{ isMfaUpdating ? 'ENABLING...' : 'ENABLE MFA' }}
+                </button>
+              </form>
+            </ng-container>
+
+            <ng-template #mfaDisableBlock>
+              <div class="space-y-4">
+                <p class="text-sm text-on-surface-variant">MFA is currently active on this account.</p>
+                <button class="w-full bg-surface-container-highest text-on-surface px-6 py-3 rounded-lg font-headline font-extrabold text-xs tracking-widest hover:bg-surface-container-high transition-all disabled:opacity-60" type="button" [disabled]="isMfaUpdating" (click)="disableMfa()">
+                  {{ isMfaUpdating ? 'DISABLING...' : 'DISABLE MFA' }}
+                </button>
+              </div>
+            </ng-template>
+          </div>
+
           <div class="bg-surface-container-highest rounded-xl p-8">
             <h4 class="text-sm font-bold font-headline mb-2">Need assistance?</h4>
             <p class="text-xs text-on-surface-variant">Contact your support channel for advanced account operations.</p>

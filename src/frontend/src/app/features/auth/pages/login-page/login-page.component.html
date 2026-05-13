@@ -15,7 +15,8 @@
           <p class="text-on-surface-variant text-sm">Please enter your credentials to access your wallet.</p>
         </header>
 
-        <form class="space-y-6" [formGroup]="loginForm" (ngSubmit)="onSubmit()">
+        <ng-container *ngIf="!isMfaRequired; else mfaChallengeTemplate">
+          <form class="space-y-6" [formGroup]="loginForm" (ngSubmit)="onSubmit()">
           <div class="space-y-2">
             <label class="block text-xs font-label font-medium uppercase tracking-wider text-on-surface-variant" for="email">Email Address</label>
             <div class="relative group">
@@ -29,7 +30,7 @@
           <div class="space-y-2">
             <div class="flex justify-between items-center">
               <label class="block text-xs font-label font-medium uppercase tracking-wider text-on-surface-variant" for="password">Password</label>
-              <a class="text-xs font-label font-semibold text-primary hover:underline underline-offset-4" href="#">Forgot password?</a>
+              <a class="text-xs font-label font-semibold text-primary hover:underline underline-offset-4" href="#" (click)="startForgotPassword($event)">Forgot password?</a>
             </div>
             <div class="relative group">
               <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-outline">
@@ -53,7 +54,48 @@
           </button>
 
           <p *ngIf="errorMessage" class="text-sm text-error font-label font-medium">{{ errorMessage }}</p>
-        </form>
+          </form>
+        </ng-container>
+
+        <ng-template #mfaChallengeTemplate>
+          <form class="space-y-6" [formGroup]="mfaForm" (ngSubmit)="onSubmitMfa()">
+            <div class="rounded-xl border border-outline-variant/20 bg-surface-container-lowest p-5 space-y-2">
+              <p class="text-xs font-label font-semibold uppercase tracking-wider text-primary">MFA required</p>
+              <p class="text-sm text-on-surface-variant">{{ mfaQuestionText }}</p>
+              <p *ngIf="mfaExpiresAt" class="text-xs text-on-surface-variant">Challenge expires at {{ mfaExpiresAt | date:'short' }}</p>
+            </div>
+
+            <div class="space-y-2">
+              <label class="block text-xs font-label font-medium uppercase tracking-wider text-on-surface-variant" for="mfa-answer">Security answer</label>
+              <input class="w-full h-14 px-4 bg-surface-container-highest border-none rounded-lg text-on-surface placeholder:text-outline focus:ring-2 focus:ring-surface-tint focus:bg-surface-container-lowest transition-all duration-200" id="mfa-answer" placeholder="Enter your answer" type="text" formControlName="answer" />
+            </div>
+
+            <button class="w-full h-14 bg-gradient-to-br from-primary to-primary-container text-on-primary font-headline font-bold rounded-lg transition-all duration-200 hover:opacity-90 active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-60" type="submit" [disabled]="isSubmitting">
+              {{ isSubmitting ? 'Verifying...' : 'Verify MFA' }}
+              <span class="material-symbols-outlined text-lg">verified</span>
+            </button>
+
+            <ng-container *ngIf="passwordResetToken">
+              <div class="space-y-2 mt-4">
+                <label class="block text-xs font-label font-medium uppercase tracking-wider text-on-surface-variant" for="new-password">New password</label>
+                <input class="w-full h-14 px-4 bg-surface-container-highest border-none rounded-lg text-on-surface placeholder:text-outline" id="new-password" type="password" [formControl]="newPasswordControl" placeholder="New password" />
+              </div>
+              <div class="space-y-2">
+                <label class="block text-xs font-label font-medium uppercase tracking-wider text-on-surface-variant" for="confirm-password">Confirm password</label>
+                <input class="w-full h-14 px-4 bg-surface-container-highest border-none rounded-lg text-on-surface placeholder:text-outline" id="confirm-password" type="password" [formControl]="confirmPasswordControl" placeholder="Confirm password" />
+              </div>
+              <button class="w-full h-14 bg-gradient-to-br from-primary to-primary-container text-on-primary font-headline font-bold rounded-lg transition-all duration-200 hover:opacity-90 active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-60 mt-3" type="button" (click)="submitNewPassword()" [disabled]="isSubmitting">
+                {{ isSubmitting ? 'Setting password...' : 'Set new password' }}
+              </button>
+            </ng-container>
+
+            <button class="w-full h-12 rounded-lg border border-outline-variant border-opacity-20 text-on-surface hover:bg-surface-container-low transition-colors duration-150" type="button" (click)="backToPasswordLogin()">
+              Back to password login
+            </button>
+
+            <p *ngIf="errorMessage" class="text-sm text-error font-label font-medium">{{ errorMessage }}</p>
+          </form>
+        </ng-template>
 
         <div class="mt-8">
           <button (click)="onGoogleLogin()" class="w-full h-12 flex items-center justify-center gap-3 rounded-lg border border-outline-variant border-opacity-20 text-on-surface hover:bg-surface-container-low transition-colors duration-150" [disabled]="isGoogleSubmitting">

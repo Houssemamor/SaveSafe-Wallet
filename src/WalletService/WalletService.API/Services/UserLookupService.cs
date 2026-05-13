@@ -64,11 +64,15 @@ public class UserLookupService : IUserLookupService
         try
         {
             _logger.LogDebug("Looking up user name for user ID: {UserId}", userId);
+            var response = await _httpClient.GetAsync($"{_authServiceUrl}/api/auth/internal/user/{userId}");
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("Failed to lookup user name for {UserId}, status {Status}", userId, response.StatusCode);
+                return null;
+            }
 
-            // For now, we'll return null as we don't have a direct endpoint for this
-            // In the future, we could add an internal endpoint for user lookup by ID
-            _logger.LogWarning("User name lookup by ID not implemented yet");
-            return null;
+            var dto = await response.Content.ReadFromJsonAsync<InternalUserLookupDto>();
+            return dto?.Name;
         }
         catch (Exception ex)
         {

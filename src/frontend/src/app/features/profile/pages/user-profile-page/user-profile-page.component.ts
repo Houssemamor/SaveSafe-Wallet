@@ -11,6 +11,7 @@ import { UserService } from '../../data-access/user.service';
 import { UserAvatarComponent } from '../../../../core/components/user-avatar/user-avatar.component';
 import { Notification, NotificationService } from '../../../../core/notifications/notification.service';
 import { NotificationItemComponent } from '../../../dashboard/components/notification-item/notification-item.component';
+import { SecurityQuestionCatalogItem } from '../../../auth/models/auth.models';
 
 @Component({
   selector: 'app-user-profile-page',
@@ -23,8 +24,12 @@ export class UserProfilePageComponent implements OnInit {
   profile: UserProfileResponse | null = null;
   isLoading = true;
   isSaving = false;
+  isMfaUpdating = false;
   errorMessage = '';
   successMessage = '';
+  mfaErrorMessage = '';
+  mfaSuccessMessage = '';
+  securityQuestions: SecurityQuestionCatalogItem[] = [];
   readonly unreadNotificationCount$ = this.notificationService.getUnreadCount();
   readonly notifications$: Observable<Notification[]> = this.notificationService.getNotifications();
   showNotificationPopover = false;
@@ -34,6 +39,13 @@ export class UserProfilePageComponent implements OnInit {
     email: [{ value: '', disabled: true }],
     role: [{ value: '', disabled: true }],
     accountStatus: [{ value: '', disabled: true }]
+  });
+
+  readonly mfaForm = this.fb.nonNullable.group({
+    question1Id: ['', [Validators.required]],
+    question1Answer: ['', [Validators.required, Validators.minLength(1)]],
+    question2Id: ['', [Validators.required]],
+    question2Answer: ['', [Validators.required, Validators.minLength(1)]]
   });
 
   constructor(
@@ -48,6 +60,7 @@ export class UserProfilePageComponent implements OnInit {
   ngOnInit(): void {
     this.user = this.sessionService.currentUser;
     this.loadProfile();
+    this.loadSecurityQuestions();
   }
 
   get createdAt(): string {
@@ -106,6 +119,63 @@ export class UserProfilePageComponent implements OnInit {
       error: () => {
         this.isSaving = false;
         this.errorMessage = 'Unable to update profile. Please try again.';
+      }
+    });
+  }
+
+  enableMfa(): void {
+    if (this.mfaForm.invalid || this.isMfaUpdating) {
+      this.mfaForm.markAllAsTouched();
+      return;
+    }
+
+    const values = this.mfaForm.getRawValue();
+    if (values.question1Id === values.question2Id) {
+      this.mfaErrorMessage = 'Choose two different security questions.';
+      return;
+    }
+
+    this.isMfaUpdating = true;
+    this.mfaErrorMessage = '';
+    this.mfaSuccessMessage = '';
+
+    this.authService.enrollMfa({
+      questions: [
+        { questionId: values.question1Id, answer: values.question1Answer },
+        { questionId: values.question2Id, answer: values.question2Answer }
+      ]
+    }).subscribe({
+      next: () => {
+        this.isMfaUpdating = false;
+        this.mfaSuccessMessage = 'MFA has been enabled.';
+        this.loadProfile();
+      },
+      error: () => {
+        this.isMfaUpdating = false;
+        this.mfaErrorMessage = 'Unable to enable MFA. Please try again.';
+      }
+    });
+  }
+
+  disableMfa(): void {
+    if (this.isMfaUpdating) {
+      return;
+    }
+
+    this.isMfaUpdating = true;
+    this.mfaErrorMessage = '';
+    this.mfaSuccessMessage = '';
+
+    this.authService.disableMfa().subscribe({
+      next: () => {
+        this.isMfaUpdating = false;
+        this.mfaSuccessMessage = 'MFA has been disabled.';
+        this.mfaForm.reset();
+        this.loadProfile();
+      },
+      error: () => {
+        this.isMfaUpdating = false;
+        this.mfaErrorMessage = 'Unable to disable MFA. Please try again.';
       }
     });
   }
@@ -196,6 +266,17 @@ export class UserProfilePageComponent implements OnInit {
       error: () => {
         this.isLoading = false;
         this.errorMessage = 'Unable to load profile data.';
+      }
+    });
+  }
+
+  private loadSecurityQuestions(): void {
+    this.authService.getMfaQuestions().subscribe({
+      next: (response) => {
+        this.securityQuestions = response.questions;
+      },
+      error: () => {
+        this.securityQuestions = [];
       }
     });
   }
