@@ -32,6 +32,12 @@ public sealed class AdminStatsDocument
     [FirestoreProperty("distinctSourceIpsLast24Hours")]
     public int DistinctSourceIpsLast24Hours { get; set; }
 
+    [FirestoreProperty("aiRiskScore")]
+    public int AiRiskScore { get; set; }
+
+    [FirestoreProperty("aiRiskLevel")]
+    public string AiRiskLevel { get; set; } = string.Empty;
+
     [FirestoreProperty("computedAt")]
     public DateTime ComputedAt { get; set; }
 }

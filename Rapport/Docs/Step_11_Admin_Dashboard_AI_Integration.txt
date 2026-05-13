@@ -1,0 +1,104 @@
+SaveSafe-Wallet - ETAPE 11 : Integration AI dans le Dashboard Admin
+
+OBJECTIF
+Afficher les resultats de l'analyse AI directement dans le dashboard admin pour que l'administrateur
+puisse visualiser les scores de risque et les alertes de securite en temps reel.
+
+CE QUI A ETE FAIT
+
+1. Score de Risque AI au Backend
+   - Ajout d'un score de risque (0-100) dans le resumé de securité admin.
+   - Calcul du score à partir des donnees existantes:
+     * Nombre d'echecs de connexion (poids: 10 points par echec)
+     * Nombre d'evenements flagges comme suspects (poids: 20 points par event)
+     * Nombre d'adresses IP distinctes (poids: 3 points par IP)
+     * Bonus de 10 points si plus de 25 connexions en 24h.
+   - Determination automatique du niveau de risque:
+     * Low (score 0-39)
+     * Medium (score 40-69)
+     * High (score 70-100)
+   - Stockage du score et du niveau dans Firestore (collection admin_stats).
+
+2. Exposition de l'API REST
+   - Le score AI est expose dans l'endpoint GET /api/admin/security-summary
+   - Retour du score et du niveau avec la date de dernière mise à jour.
+   - Un nouvel endpoint POST /api/admin/security-summary/refresh permet de forcer
+     la recalculation du score à la demande.
+
+3. Affichage dans le Dashboard Angular
+   - Ajout d'une nouvelle carte "AI Risk Score" dans la section de synthese de securité.
+   - Code couleur:
+     * Rouge pour High (score >= 70)
+     * Orange pour Medium (score 40-69)
+     * Vert pour Low (score 0-39)
+   - Affichage du score, du niveau, et de la date de dernière mise à jour.
+   - Ajout d'une colonne "AI Flag" dans le tableau des evenements de connexion
+     pour indiquer si un event a ete marque comme suspect.
+
+4. Modèles de Donnees mis à jour
+   - AdminSecuritySummaryDto: ajout des champs aiRiskScore, aiRiskLevel, computedAt
+   - AdminStatsSnapshot: ajout des memes champs
+   - AdminStatsDocument (Firestore): ajout des proprietes correspondantes
+   - AdminLoginEvent (TypeScript): le champ isFlagged est maintenant affiche
+
+ETAT ACTUEL
+
+Le dashboard admin affiche maintenant:
+- Un score de risque calcule localement à partir des statistiques de connexion.
+- Un niveau de risque associe (Low/Medium/High) avec code couleur.
+- L'historique des evenements de login avec indication si flagges par l'analyse.
+- Un bouton "Refresh Summary" pour forcer la recalculation.
+
+PROCHAINES ETAPES (si on veut un vrai AI)
+
+1. Brancher le vrai service ai-security-service
+   - Le service Python consomme les login events depuis Kafka.
+   - Il effectue une analyse reelle sur chaque event (pattern recognition, anomaly detection).
+   - Il publie les resultats dans un topic Kafka "risk.score.computed".
+   - Le backend admin consomme ce topic ou interroge une API pour recuperer les scores.
+
+2. Remplacer le score local par le score AI reel
+   - Le dashboard abandonne le calcul local au profit du score venant du service AI.
+   - Sync: soit polling periodique, soit consommation du topic Kafka.
+   - Le score AI inclut non seulement un score numerique mais aussi:
+     * Une raison de detection (ex: "IP inconnue depuis nouvelle region")
+     * Un niveau de confiance
+     * Un motif d'alerte (ex: "too_many_failures", "new_device", etc.)
+
+3. Ajouter une section "AI Alerts" detaillee
+   - Tableau des alertes de securite les plus recentes.
+   - Filtrage par niveau de gravite.
+   - Actions admin possibles (suspend, investigate, mark_safe).
+   - Vue chronologique des alertes sur 24h/7j/30j.
+
+IMPACT
+
+Aujourd'hui:
+- L'admin voit un score de risque global calcule localement.
+- Il peut observer les patterns bruts (nb d'echecs, nb d'IP).
+- Il n'y a pas encore d'intelligence artificielle reelle, juste des heuristiques.
+
+Demain (avec vrai AI):
+- L'admin recevra des alertes basees sur un modele ML entraine.
+- Chaque alerte sera associee à une raison precise (ex: anomalie comportementale).
+- Le systeme apprendra des patterns de fraude reels.
+- L'admin pourra agir rapidement sur les connexions suspectes.
+
+FICHIERS TOUCHES
+
+Backend (.NET):
+- src/AuthService/AuthService.API/DTOs/AdminSecuritySummaryDto.cs
+- src/AuthService/AuthService.API/Persistence/IAdminStatsRepository.cs
+- src/AuthService/AuthService.API/Persistence/Firestore/Documents/AdminStatsDocument.cs
+- src/AuthService/AuthService.API/Persistence/Firestore/Repositories/AdminStatsRepository.cs
+- src/AuthService/AuthService.API/Persistence/Firestore/Repositories/AdminStatsRefresher.cs
+- src/AuthService/AuthService.API/Services/AdminService.cs
+
+Frontend (Angular):
+- src/frontend/src/app/features/admin/models/admin.models.ts
+- src/frontend/src/app/features/admin/pages/admin-dashboard-page/admin-dashboard-page.component.html
+
+VALIDATION
+
+Build backend: SUCCÈS (2 warnings non bloquants).
+Vérification statique frontend: SUCCÈS (pas d'erreurs TypeScript/HTML).

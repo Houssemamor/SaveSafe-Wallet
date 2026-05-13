@@ -47,6 +47,9 @@ public sealed class AdminStatsRefresher : IAdminStatsRefresher
             }
         }
 
+        var aiRiskScore = ComputeRiskScore(totalEvents, failedEvents, flaggedEvents, distinctIps.Count);
+        var aiRiskLevel = DetermineRiskLevel(aiRiskScore);
+
         var snapshot = new AdminStatsSnapshot(
             TotalUsers: counts.TotalUsers,
             ActiveUsers: counts.ActiveUsers,
@@ -56,9 +59,38 @@ public sealed class AdminStatsRefresher : IAdminStatsRefresher
             FailedLoginEventsLast24Hours: failedEvents,
             FlaggedEventsLast24Hours: flaggedEvents,
             DistinctSourceIpsLast24Hours: distinctIps.Count,
+            AiRiskScore: aiRiskScore,
+            AiRiskLevel: aiRiskLevel,
             ComputedAt: now);
 
         await _adminStats.UpsertAsync(snapshot, ct);
         return snapshot;
+    }
+
+    private static int ComputeRiskScore(int totalEvents, int failedEvents, int flaggedEvents, int distinctIps)
+    {
+        var score = (failedEvents * 10) + (flaggedEvents * 20) + (distinctIps * 3);
+
+        if (totalEvents >= 25)
+        {
+            score += 10;
+        }
+
+        return Math.Clamp(score, 0, 100);
+    }
+
+    private static string DetermineRiskLevel(int score)
+    {
+        if (score >= 70)
+        {
+            return "High";
+        }
+
+        if (score >= 40)
+        {
+            return "Medium";
+        }
+
+        return "Low";
     }
 }

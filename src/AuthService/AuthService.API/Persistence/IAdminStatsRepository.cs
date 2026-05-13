@@ -9,6 +9,8 @@ public sealed record AdminStatsSnapshot(
     int FailedLoginEventsLast24Hours,
     int FlaggedEventsLast24Hours,
     int DistinctSourceIpsLast24Hours,
+    int AiRiskScore,
+    string AiRiskLevel,
     DateTime ComputedAt);
 
 public interface IAdminStatsRepository

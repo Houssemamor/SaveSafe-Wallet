@@ -1,0 +1,59 @@
+SaveSafe-Wallet - Resume Kafka + AI
+
+Objectif
+- Centraliser les logs de login et les tentatives de connexion dans Kafka.
+- Ajouter un service AI dedie pour analyser ces evenements.
+- Produire un score de risque exploitable par le dashboard admin.
+
+Ce qui a ete mis en place
+1. Kafka
+- Kafka et Zookeeper sont declares dans docker-compose.
+- Les services .NET ont maintenant une configuration Kafka.
+- Un projet partage a ete ajoute pour factoriser la production et la consommation des messages.
+- Un contrat de message LoginEventMessage a ete cree pour standardiser les logs de connexion.
+
+2. AuthService
+- AuthService envoie maintenant les evenements de login dans Kafka.
+- Les tentatives reussies et echouees peuvent etre publiees de maniere asynchrone.
+- Le service n'est plus oblige de traiter toute la logique d'analyse directement.
+
+3. AI service
+- Un service ai-security-service a ete cree.
+- Il consomme les messages login-events depuis Kafka.
+- Il prepare l'analyse du risque a partir des donnees de connexion.
+- Pour l'instant, la logique AI est un moteur simple de scoring, pas encore un vrai modele entraine.
+
+4. Dashboard admin
+- Le but est d'afficher les resultats de l'analyse AI dans le dashboard admin.
+- Le dashboard pourra afficher le score de risque, l'historique des connexions suspectes et les alertes.
+
+Ce que cela apporte
+- Architecture plus propre avec event-driven flow.
+- Separation entre authentification, analyse et affichage.
+- Base technique prete pour brancher un vrai modele de machine learning plus tard.
+
+Etat actuel
+- La partie infrastructure Kafka et le service AI existent.
+- Le vrai modele AI n'est pas encore entraine.
+- La compilation doit encore etre validee sur certaines classes partagées.
+
+Status Final
+
+ETAPES COMPLETES:
+- [✓] Étapes 1-10: Infrastructure Kafka + AI service + Tests unitaires Kafka
+- [✓] Étape 11: Integration AI dans le Dashboard Admin (score de risque + affichage)
+
+ETAT ACTUEL
+- AuthService publie les login events dans Kafka (topic: login-events).
+- LoginEventConsumer persiste les events depuis Kafka.
+- ai-security-service consomme les events et prepare l'analyse (stub: score local).
+- Dashboard admin affiche le score de risque (calcule localement pour l'instant).
+- Backend et frontend compilent sans erreurs bloquantes.
+
+Next Steps (optionnel, pour vrai ML)
+1. Ajouter une vraie logique de detection de fraude avec dataset et features.
+2. Brancher le vrai score de ai-security-service au lieu du score local.
+3. Ajouter une section "AI Alerts" detaillee dans le dashboard.
+4. Ajouter des tests d'integration pour verifier le pipeline complet end-to-end.
+
+Voir: Rapport/Docs/Step_11_Admin_Dashboard_AI_Integration.txt pour details complets.

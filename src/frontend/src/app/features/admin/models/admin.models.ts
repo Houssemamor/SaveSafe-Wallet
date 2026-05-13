@@ -7,6 +7,9 @@ export interface AdminSecuritySummary {
   failedLoginEventsLast24Hours: number;
   flaggedEventsLast24Hours: number;
   distinctSourceIpsLast24Hours: number;
+  aiRiskScore: number;
+  aiRiskLevel: 'Low' | 'Medium' | 'High' | string;
+  computedAt: string;
 }
 
 export interface AdminLoginEvent {

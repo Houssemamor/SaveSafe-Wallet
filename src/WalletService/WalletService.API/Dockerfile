@@ -1,9 +1,10 @@
 # Stage 1: Build
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
-COPY WalletService.API/WalletService.API.csproj ./WalletService.API/
+COPY WalletService/WalletService.API/WalletService.API.csproj ./WalletService.API/
+COPY Shared/ ./Shared/
 RUN cd WalletService.API && dotnet restore
-COPY WalletService.API/ ./WalletService.API/
+COPY WalletService/WalletService.API/ ./WalletService.API/
 RUN cd WalletService.API && dotnet publish -c Release -o /app/publish
 
 # Stage 2: Runtime (smaller image)
