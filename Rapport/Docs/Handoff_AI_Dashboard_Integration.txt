@@ -1,0 +1,64 @@
+SaveSafe-Wallet - PASSATION TECHNIQUE
+Integration AI dans le Dashboard Admin
+
+OBJECTIF DU TRAVAIL
+Afficher dans le dashboard admin les resultats de l'analyse des tentatives de login afin de donner a l'administrateur une vue immediate du risque de securite.
+
+CE QUI A ETE AJOUTE
+
+1. Cote backend .NET
+- Un score de risque admin a ete ajoute au resume de securite.
+- Le score est calcule a partir des signaux existants:
+  - nombre d'echecs de connexion
+  - nombre d'evenements flagges
+  - nombre d'adresses IP distinctes
+  - bonus si beaucoup de connexions sont detectees sur une courte periode
+- Un niveau de risque est derive automatiquement: Low, Medium, High.
+- Les donnees sont persistees dans Firestore dans la collection admin_stats.
+- L'API /api/admin/security-summary expose maintenant les champs AI.
+- L'endpoint /api/admin/security-summary/refresh permet de recalculer le resume a la demande.
+
+2. Cote frontend Angular
+- Une carte AI Risk Score est affichee dans le dashboard admin.
+- La couleur change selon le niveau de risque.
+- La date de calcul est affichee.
+- Une colonne AI Flag a ete ajoutee dans la liste des evenements de connexion.
+
+3. Infrastructure evenementielle
+- Kafka est utilise pour publier les login events.
+- Un consumer persiste les evenements.
+- Le service ai-security-service est prepare pour consommer les events et produire une analyse.
+
+FICHIERS PRINCIPAUX MODIFIES
+- src/AuthService/AuthService.API/DTOs/AdminSecuritySummaryDto.cs
+- src/AuthService/AuthService.API/Persistence/Firestore/Repositories/AdminStatsRefresher.cs
+- src/AuthService/AuthService.API/Persistence/Firestore/Documents/AdminStatsDocument.cs
+- src/AuthService/AuthService.API/Services/AdminService.cs
+- src/frontend/src/app/features/admin/models/admin.models.ts
+- src/frontend/src/app/features/admin/pages/admin-dashboard-page/admin-dashboard-page.component.html
+- docker-compose.yml
+- src/AuthService/AuthService.API/Dockerfile
+- src/WalletService/WalletService.API/Dockerfile
+- src/PaymentService/PaymentService.API/Dockerfile
+
+COMMENT TESTER
+1. Lancer: docker compose up -d --build
+2. Ouvrir le dashboard frontend sur http://localhost:4200
+3. Se connecter avec un compte admin
+4. Verifier la carte AI Risk Score et la colonne AI Flag
+5. Faire quelques tentatives de login echouees pour voir le score evoluer
+
+VALIDATION OBSERVEE
+- Le frontend Angular compile correctement.
+- Les services .NET ont ete ajustes pour partager le dossier Shared.
+- Le build Docker a avance, mais il reste a terminer la verification finale des conteneurs apres reconstruction.
+
+PROCHAINE ETAPE RECOMMANDEE
+Brancher le vrai service ai-security-service sur une sortie exploitable pour le dashboard:
+- publier un resultat normalise dans Kafka, par exemple sur risk.score.computed
+- enregistrer le dernier score dans Firestore
+- remplacer le score local du dashboard par le score venant du service AI
+- ajouter une section AI Alerts avec historique, niveau de gravite et actions admin
+
+MESSAGE DE PASSATION
+Le socle technique est en place. Le prochain travail n'est pas de refaire l'UI, mais de remplacer la logique heuristique actuelle par un vrai score AI issu du service Python, puis d'ajouter les alertes detaillees pour que l'administrateur puisse agir rapidement.

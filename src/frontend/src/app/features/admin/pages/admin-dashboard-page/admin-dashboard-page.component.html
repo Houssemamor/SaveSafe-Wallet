@@ -44,6 +44,13 @@
         <p class="text-xs uppercase tracking-wide text-slate-500">Distinct Source IPs (24h)</p>
         <p class="mt-2 text-3xl font-bold">{{ summary.distinctSourceIpsLast24Hours }}</p>
       </article>
+      <article class="rounded-lg border border-slate-200 bg-white p-5">
+        <p class="text-xs uppercase tracking-wide text-slate-500">AI Risk Score</p>
+        <p class="mt-2 text-3xl font-bold" [class.text-red-700]="summary.aiRiskLevel === 'High'" [class.text-orange-700]="summary.aiRiskLevel === 'Medium'" [class.text-green-700]="summary.aiRiskLevel === 'Low'">
+          {{ summary.aiRiskScore }}/100
+        </p>
+        <p class="mt-2 text-xs text-slate-600">Level: {{ summary.aiRiskLevel }} | Updated: {{ formatDate(summary.computedAt) }}</p>
+      </article>
     </section>
 
     <section class="grid grid-cols-1 gap-8 lg:grid-cols-2">
@@ -75,7 +82,7 @@
 
       <article class="rounded-lg border border-slate-200 bg-white p-6">
         <h2 class="text-lg font-semibold">Recent Access Audit</h2>
-        <p class="mt-1 text-sm text-slate-600">Latest authentication events across users.</p>
+        <p class="mt-1 text-sm text-slate-600">Latest authentication events across users. AI can flag suspicious patterns through the summary above.</p>
         <div class="mt-4 overflow-x-auto">
           <table class="min-w-full text-sm">
             <thead>
@@ -83,6 +90,7 @@
                 <th class="px-2 py-2">User</th>
                 <th class="px-2 py-2">Status</th>
                 <th class="px-2 py-2">IP</th>
+                <th class="px-2 py-2">AI Flag</th>
                 <th class="px-2 py-2">Time</th>
               </tr>
             </thead>
@@ -93,10 +101,11 @@
                   <span [class]="event.success ? 'text-green-700' : 'text-red-700'">{{ event.success ? 'Success' : (event.failureReason || 'Failed') }}</span>
                 </td>
                 <td class="px-2 py-2 font-mono">{{ event.ipAddress || 'unknown' }}</td>
+                <td class="px-2 py-2">{{ event.isFlagged ? 'Flagged' : 'Normal' }}</td>
                 <td class="px-2 py-2">{{ formatDate(event.timestamp) }}</td>
               </tr>
               <tr *ngIf="loginEvents.length === 0">
-                <td class="px-2 py-3 text-slate-500" colspan="4">No access events found.</td>
+                <td class="px-2 py-3 text-slate-500" colspan="5">No access events found.</td>
               </tr>
             </tbody>
           </table>

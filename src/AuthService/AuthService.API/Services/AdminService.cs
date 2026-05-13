@@ -166,5 +166,8 @@ public class AdminService : IAdminService
             TotalLoginEventsLast24Hours: snapshot.TotalLoginEventsLast24Hours,
             FailedLoginEventsLast24Hours: snapshot.FailedLoginEventsLast24Hours,
             FlaggedEventsLast24Hours: snapshot.FlaggedEventsLast24Hours,
-            DistinctSourceIpsLast24Hours: snapshot.DistinctSourceIpsLast24Hours);
+            DistinctSourceIpsLast24Hours: snapshot.DistinctSourceIpsLast24Hours,
+            AiRiskScore: snapshot.AiRiskScore,
+            AiRiskLevel: snapshot.AiRiskLevel,
+            ComputedAt: snapshot.ComputedAt);
 }

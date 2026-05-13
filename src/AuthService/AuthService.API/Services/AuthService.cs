@@ -2,6 +2,7 @@ using AuthService.API.DTOs;
 using AuthService.API.Entities;
 using AuthService.API.Persistence;
 using FirebaseAdmin.Auth;
+using KafkaInfrastructure;
 
 namespace AuthService.API.Services;
 
@@ -35,6 +36,7 @@ public class AuthService : IAuthService
     private readonly ITokenService _tokenService;
     private readonly IMfaService _mfaService;
     private readonly IWalletProvisioningService _walletProvisioning;
+    private readonly IKafkaProducer _kafkaProducer;
     private readonly FirebaseAuth _firebaseAuth;
     private readonly ILogger<AuthService> _logger;
 
@@ -47,6 +49,7 @@ public class AuthService : IAuthService
         ITokenService tokenService,
         IMfaService mfaService,
         IWalletProvisioningService walletProvisioning,
+        IKafkaProducer kafkaProducer,
         FirebaseAuth firebaseAuth,
         ILogger<AuthService> logger)
     {
@@ -58,6 +61,7 @@ public class AuthService : IAuthService
         _tokenService = tokenService;
         _mfaService = mfaService;
         _walletProvisioning = walletProvisioning;
+        _kafkaProducer = kafkaProducer;
         _firebaseAuth = firebaseAuth;
         _logger = logger;
     }
@@ -120,6 +124,8 @@ public class AuthService : IAuthService
 
         if (user is null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
         {
+            var failureReason = user is null ? "USER_NOT_FOUND" : "BAD_PASSWORD";
+
             if (loginEvent is not null)
             {
                 loginEvent = loginEvent with
@@ -127,10 +133,20 @@ public class AuthService : IAuthService
                     Success = false,
                     FailureReason = user is null ? "UserNotFound" : "InvalidPassword"
                 };
-
-                await _loginEvents.AddAsync(loginEvent);
                 await _failedLoginByIp.IncrementAsync(NormalizeIp(ipAddress), now);
             }
+
+            var failedLoginMessage = BuildLoginEventMessage(
+                eventId: loginEvent?.EventId ?? Guid.NewGuid(),
+                userId: user?.Id,
+                normalizedEmail: normalizedEmail,
+                ipAddress: ipAddress,
+                userAgent: userAgent,
+                success: false,
+                failureReason: failureReason,
+                timestampUtc: now);
+
+            _ = PublishLoginEventAsync(failedLoginMessage);
 
             throw new UnauthorizedAccessException("Invalid email or password.");
         }
@@ -152,8 +168,19 @@ public class AuthService : IAuthService
         if (loginEvent is not null)
         {
             loginEvent = loginEvent with { Success = true };
-            await _loginEvents.AddAsync(loginEvent);
         }
+
+        var successfulLoginMessage = BuildLoginEventMessage(
+            eventId: loginEvent?.EventId ?? Guid.NewGuid(),
+            userId: user.Id,
+            normalizedEmail: normalizedEmail,
+            ipAddress: ipAddress,
+            userAgent: userAgent,
+            success: true,
+            failureReason: null,
+            timestampUtc: now);
+
+        _ = PublishLoginEventAsync(successfulLoginMessage);
 
         await _users.UpdateLastLoginAsync(user.Id, now);
 
@@ -220,7 +247,18 @@ public class AuthService : IAuthService
                 await _walletProvisioning.CreateWalletForUserAsync(user.Id);
 
                 loginEvent = loginEvent with { Success = true, UserId = user.Id };
-                await _loginEvents.AddAsync(loginEvent);
+
+                var googleLoginCreatedUserMessage = BuildLoginEventMessage(
+                    eventId: loginEvent.EventId,
+                    userId: user.Id,
+                    normalizedEmail: normalizedEmail,
+                    ipAddress: ipAddress,
+                    userAgent: userAgent,
+                    success: true,
+                    failureReason: null,
+                    timestampUtc: now);
+
+                _ = PublishLoginEventAsync(googleLoginCreatedUserMessage);
 
                 await _users.UpdateLastLoginAsync(user.Id, now);
 
@@ -250,7 +288,18 @@ public class AuthService : IAuthService
             await _refreshTokens.CreateAsync(existingRefreshTokenRecord);
 
             loginEvent = loginEvent with { Success = true, UserId = user.Id };
-            await _loginEvents.AddAsync(loginEvent);
+
+            var googleLoginExistingUserMessage = BuildLoginEventMessage(
+                eventId: loginEvent.EventId,
+                userId: user.Id,
+                normalizedEmail: normalizedEmail,
+                ipAddress: ipAddress,
+                userAgent: userAgent,
+                success: true,
+                failureReason: null,
+                timestampUtc: now);
+
+            _ = PublishLoginEventAsync(googleLoginExistingUserMessage);
 
             await _users.UpdateLastLoginAsync(user.Id, now);
 
@@ -430,6 +479,53 @@ public class AuthService : IAuthService
             MfaQuestionId: challenge.QuestionId,
             MfaQuestionText: challenge.QuestionText,
             MfaExpiresAt: challenge.ExpiresAt);
+
+    private LoginEventMessage BuildLoginEventMessage(
+        Guid eventId,
+        Guid? userId,
+        string normalizedEmail,
+        string? ipAddress,
+        string? userAgent,
+        bool success,
+        string? failureReason,
+        DateTime timestampUtc)
+    {
+        return new LoginEventMessage(
+            EventId: eventId,
+            UserId: userId?.ToString(),
+            Email: normalizedEmail,
+            IpAddress: string.IsNullOrWhiteSpace(ipAddress) ? "unknown" : ipAddress,
+            CountryCode: null,
+            Asn: null,
+            UserAgent: string.IsNullOrWhiteSpace(userAgent) ? "unknown" : userAgent,
+            DeviceFingerprint: null,
+            Success: success,
+            FailureReason: failureReason,
+            TimestampUtc: timestampUtc);
+    }
+
+    private async Task PublishLoginEventAsync(LoginEventMessage loginEvent)
+    {
+        try
+        {
+            var key = !string.IsNullOrWhiteSpace(loginEvent.UserId)
+                ? loginEvent.UserId
+                : loginEvent.Email;
+
+            await _kafkaProducer.ProduceAsync(
+                KafkaTopics.LoginEvents,
+                key,
+                loginEvent);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(
+                ex,
+                "Kafka login-event publish failed. EventId={EventId} Email={Email}",
+                loginEvent.EventId,
+                loginEvent.Email);
+        }
+    }
 
     private static string NormalizeIp(string? ipAddress) =>
         string.IsNullOrWhiteSpace(ipAddress)

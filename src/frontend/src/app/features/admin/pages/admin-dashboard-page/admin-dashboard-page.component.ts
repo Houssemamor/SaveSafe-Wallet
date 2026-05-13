@@ -1,8 +1,9 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { SessionService } from '../../../../core/session/session.service';
+import { Subscription } from 'rxjs';
 import { AuthService } from '../../../auth/data-access/auth.service';
 import { SessionUser } from '../../../auth/models/auth.models';
 import { AdminService } from '../../data-access/admin.service';
@@ -19,7 +20,7 @@ import {
   imports: [CommonModule, RouterLink],
   templateUrl: './admin-dashboard-page.component.html'
 })
-export class AdminDashboardPageComponent implements OnInit {
+export class AdminDashboardPageComponent implements OnInit, OnDestroy {
   user: SessionUser | null = null;
   summary: AdminSecuritySummary | null = null;
   failedLogins: AdminFailedLoginByIp[] = [];
@@ -40,6 +41,33 @@ export class AdminDashboardPageComponent implements OnInit {
   ngOnInit(): void {
     this.user = this.sessionService.currentUser;
     this.loadDashboard();
+    this.ensureRefreshOnLogin();
+  }
+
+  ngOnDestroy(): void {
+    this.currentUserSub?.unsubscribe();
+  }
+
+  private currentUserSub: Subscription | null = null;
+
+  // Subscribe to session changes so we reload the dashboard when an admin logs in
+  // This ensures the admin view is refreshed immediately after login navigation.
+  private ensureRefreshOnLogin(): void {
+    if (this.currentUserSub) {
+      return;
+    }
+
+    this.currentUserSub = this.sessionService.currentUser$.subscribe((u) => {
+      if (!u) {
+        return;
+      }
+
+      const role = u.role?.toLowerCase();
+      if (role === 'admin') {
+        // If the component is already visible, reload data.
+        this.loadDashboard();
+      }
+    });
   }
 
   logout(): void {

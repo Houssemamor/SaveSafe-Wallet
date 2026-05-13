@@ -118,8 +118,8 @@ services:
   # ── Auth Service ─────────────────────────────────────────────────────────────
   auth-service:
     build:
-      context: ./src/AuthService
-      dockerfile: AuthService.API/Dockerfile
+      context: ./src
+      dockerfile: AuthService/AuthService.API/Dockerfile
     container_name: ssw-auth-service
     depends_on:
       redis:
@@ -154,8 +154,8 @@ services:
   # ── Wallet Service ───────────────────────────────────────────────────────────
   wallet-service:
     build:
-      context: ./src/WalletService
-      dockerfile: WalletService.API/Dockerfile
+      context: ./src
+      dockerfile: WalletService/WalletService.API/Dockerfile
     container_name: ssw-wallet-service
     ports:
       - "5002:8080"
@@ -181,8 +181,8 @@ services:
   # ── Payment Service ─────────────────────────────────────────────────────────
   payment-service:
     build:
-      context: ./src/PaymentService
-      dockerfile: PaymentService.API/Dockerfile
+      context: ./src
+      dockerfile: PaymentService/PaymentService.API/Dockerfile
     container_name: ssw-payment-service
     depends_on:
       wallet-service:
@@ -207,6 +207,25 @@ services:
       Frontend__CancelUrl: ${FRONTEND_CANCEL_URL:-http://localhost:4200/wallet/topup}
     volumes:
       - ${FIRESTORE_CREDENTIALS_PATH:-./secrets/firebase.json}:/secrets/firebase.json:ro
+    networks:
+      - ssw-network
+    restart: unless-stopped
+
+  # ── AI Security Service (Kafka consumer for login events) ───────────────
+  ai-security-service:
+    build: ./ai-security-service
+    container_name: savesafe-wallet-ai-security-service
+    ports:
+      - "5010:8000"
+    depends_on:
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      REDIS_URL: redis://redis:6379
+      DATABASE_URL: postgresql://user:password@postgres:5432/ai_db
     networks:
       - ssw-network
     restart: unless-stopped

@@ -6,6 +6,7 @@ using FirebaseAdmin;
 using AuthService.API.Persistence.Firestore;
 using AuthService.API.Persistence.Firestore.Repositories;
 using AuthService.API.Services;
+using KafkaInfrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Google.Apis.Auth.OAuth2;
@@ -37,6 +38,7 @@ builder.Services.AddSingleton<IAdminStatsRepository, AdminStatsRepository>();
 builder.Services.AddSingleton<IAdminStatsRefresher, AdminStatsRefresher>();
 builder.Services.AddSingleton<IAuthRegistrationStore, AuthRegistrationStore>();
 builder.Services.AddSingleton<IMfaQuestionRepository, MfaQuestionRepository>();
+builder.Services.AddSingleton<IKafkaProducer, KafkaProducer>();
 
 var firebaseCredentialsPath = builder.Configuration["Firestore:CredentialsPath"]
     ?? Environment.GetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS");
@@ -81,6 +83,7 @@ builder.Services.AddScoped<IMfaService, MfaService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<IDefaultAdminSeeder, DefaultAdminSeeder>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddHostedService<LoginEventConsumer>();
 builder.Services.AddHttpClient<IWalletProvisioningService, WalletProvisioningService>(client =>
 {
     client.BaseAddress = new Uri(

@@ -35,6 +35,8 @@ public sealed class AdminStatsRepository : IAdminStatsRepository
             doc.FailedLoginEventsLast24Hours,
             doc.FlaggedEventsLast24Hours,
             doc.DistinctSourceIpsLast24Hours,
+            doc.AiRiskScore,
+            doc.AiRiskLevel,
             doc.ComputedAt);
     }
 
@@ -51,6 +53,8 @@ public sealed class AdminStatsRepository : IAdminStatsRepository
             FailedLoginEventsLast24Hours = snapshot.FailedLoginEventsLast24Hours,
             FlaggedEventsLast24Hours = snapshot.FlaggedEventsLast24Hours,
             DistinctSourceIpsLast24Hours = snapshot.DistinctSourceIpsLast24Hours,
+            AiRiskScore = snapshot.AiRiskScore,
+            AiRiskLevel = snapshot.AiRiskLevel,
             ComputedAt = snapshot.ComputedAt
         };
 

@@ -1,9 +1,10 @@
 # Stage 1: Build
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
-COPY PaymentService.API/PaymentService.API.csproj ./PaymentService.API/
+COPY PaymentService/PaymentService.API/PaymentService.API.csproj ./PaymentService.API/
+COPY Shared/ ./Shared/
 RUN cd PaymentService.API && dotnet restore
-COPY PaymentService.API/ ./PaymentService.API/
+COPY PaymentService/PaymentService.API/ ./PaymentService.API/
 RUN cd PaymentService.API && dotnet publish -c Release -o /app/publish
 
 # Stage 2: Runtime
