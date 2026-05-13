@@ -66,7 +66,7 @@ public class CreateWalletResponseDto
     /// </summary>
     public string? ErrorMessage { get; set; }
 }
-Implemented the QR transfer
+
 /// <summary>
 /// Response data transfer object for receive QR creation
 /// </summary>
