@@ -10,6 +10,7 @@ public interface IWalletService
     Task<WalletBalanceResponseDto?> GetBalanceAsync(Guid userId);
     Task<WalletHistoryResponseDto?> GetWalletHistoryAsync(Guid userId, string? pageToken, int pageSize = 10);
     Task<WalletTransferResponseDto> TransferFundsAsync(Guid senderUserId, string recipientEmail, decimal amount, string? description);
+    Task<WalletTransferResponseDto> TransferFundsToWalletAsync(Guid senderUserId, string recipientWalletId, decimal amount, string? description);
     Task<string> ExportTransactionHistoryAsync(Guid userId, string? startDate, string? endDate);
     Task<InternalTopUpResponseDto> CreditTopUpAsync(InternalTopUpRequestDto request);
 }
@@ -227,6 +228,134 @@ public class WalletService : IWalletService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Transfer failed for transaction {TransactionId}", transactionId);
+            return new WalletTransferResponseDto
+            {
+                Success = false,
+                ErrorMessage = "Transfer failed due to a system error. Please try again."
+            };
+        }
+    }
+
+    /// <summary>Transfer funds directly to an existing recipient wallet.</summary>
+    public async Task<WalletTransferResponseDto> TransferFundsToWalletAsync(
+        Guid senderUserId, string recipientWalletId, decimal amount, string? description)
+    {
+        if (amount <= 0)
+        {
+            return new WalletTransferResponseDto
+            {
+                Success = false,
+                ErrorMessage = "Transfer amount must be greater than zero."
+            };
+        }
+
+        if (!Guid.TryParse(recipientWalletId, out var recipientGuid))
+        {
+            return new WalletTransferResponseDto
+            {
+                Success = false,
+                ErrorMessage = "Invalid recipient wallet ID."
+            };
+        }
+
+        var senderAccount = await _accounts.GetByUserIdAsync(senderUserId);
+        if (senderAccount is null)
+        {
+            return new WalletTransferResponseDto
+            {
+                Success = false,
+                ErrorMessage = "Sender account not found."
+            };
+        }
+
+        if (senderAccount.Balance < amount)
+        {
+            return new WalletTransferResponseDto
+            {
+                Success = false,
+                ErrorMessage = "Insufficient balance for transfer."
+            };
+        }
+
+        var recipientAccount = await _accounts.GetByIdAsync(recipientGuid);
+        if (recipientAccount is null)
+        {
+            return new WalletTransferResponseDto
+            {
+                Success = false,
+                ErrorMessage = "Recipient wallet not found."
+            };
+        }
+
+        if (!recipientAccount.IsActive)
+        {
+            return new WalletTransferResponseDto
+            {
+                Success = false,
+                ErrorMessage = "Recipient wallet is inactive."
+            };
+        }
+
+        if (recipientAccount.Id == senderAccount.Id)
+        {
+            return new WalletTransferResponseDto
+            {
+                Success = false,
+                ErrorMessage = "Cannot transfer to the same wallet."
+            };
+        }
+
+        var transactionId = Guid.NewGuid();
+        var now = DateTime.UtcNow;
+
+        try
+        {
+            var senderLedgerEntry = new LedgerEntry
+            {
+                Id = Guid.NewGuid(),
+                AccountId = senderAccount.Id,
+                Type = LedgerEntryType.Debit,
+                Amount = -amount,
+                BalanceAfter = senderAccount.Balance - amount,
+                Description = description ?? $"Transfer to {recipientAccount.Name ?? recipientAccount.AccountNumber}",
+                CreatedAt = now
+            };
+
+            var recipientLedgerEntry = new LedgerEntry
+            {
+                Id = Guid.NewGuid(),
+                AccountId = recipientAccount.Id,
+                Type = LedgerEntryType.Credit,
+                Amount = amount,
+                BalanceAfter = recipientAccount.Balance + amount,
+                Description = description ?? $"Transfer from {senderAccount.AccountNumber}",
+                CreatedAt = now
+            };
+
+            senderAccount.Balance -= amount;
+            senderAccount.LedgerCount++;
+            senderAccount.UpdatedAt = now;
+
+            recipientAccount.Balance += amount;
+            recipientAccount.LedgerCount++;
+            recipientAccount.UpdatedAt = now;
+
+            await _accounts.UpdateAsync(senderAccount);
+            await _accounts.UpdateAsync(recipientAccount);
+            await _ledger.CreateAsync(senderLedgerEntry);
+            await _ledger.CreateAsync(recipientLedgerEntry);
+
+            return new WalletTransferResponseDto
+            {
+                Success = true,
+                TransactionId = transactionId,
+                NewBalance = senderAccount.Balance,
+                RecipientName = recipientAccount.Name ?? recipientAccount.AccountNumber
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Transfer to wallet failed for transaction {TransactionId}", transactionId);
             return new WalletTransferResponseDto
             {
                 Success = false,

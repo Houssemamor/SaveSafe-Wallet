@@ -37,6 +37,7 @@ builder.Services.AddSingleton<IFailedLoginByIpRepository, FailedLoginByIpReposit
 builder.Services.AddSingleton<IAdminStatsRepository, AdminStatsRepository>();
 builder.Services.AddSingleton<IAdminStatsRefresher, AdminStatsRefresher>();
 builder.Services.AddSingleton<IAuthRegistrationStore, AuthRegistrationStore>();
+builder.Services.AddSingleton<IMfaQuestionRepository, MfaQuestionRepository>();
 builder.Services.AddSingleton<IKafkaProducer, KafkaProducer>();
 
 var firebaseCredentialsPath = builder.Configuration["Firestore:CredentialsPath"]
@@ -77,6 +78,8 @@ builder.Services.AddAuthorization();
 // ── Application Services ────────────────────────────────────────────────────
 builder.Services.AddScoped<IAuthService, AuthService.API.Services.AuthService>();
 builder.Services.AddScoped<ITokenService, TokenService>();
+builder.Services.AddSingleton<ISecurityQuestionCipher, SecurityQuestionCipher>();
+builder.Services.AddScoped<IMfaService, MfaService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<IDefaultAdminSeeder, DefaultAdminSeeder>();
 builder.Services.AddScoped<IUserService, UserService>();

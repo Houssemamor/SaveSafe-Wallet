@@ -1,0 +1,39 @@
+.notification-item {
+  @apply flex w-full items-start gap-3 border-b border-outline-variant/10 px-4 py-3 text-left transition-colors hover:bg-surface-container-highest cursor-pointer;
+}
+
+.notification-item.unread {
+  @apply bg-primary/5;
+}
+
+.notification-indicator {
+  @apply mt-1 flex h-2.5 w-2.5 shrink-0 rounded-full;
+}
+
+.notification-indicator.unread {
+  @apply bg-error;
+}
+
+.notification-indicator.read {
+  @apply bg-outline-variant/40;
+}
+
+.notification-content {
+  @apply min-w-0 flex-1;
+}
+
+.notification-header {
+  @apply flex items-start justify-between gap-3;
+}
+
+.notification-title {
+  @apply truncate text-sm font-semibold text-on-surface;
+}
+
+.notification-time {
+  @apply shrink-0 text-[11px] text-on-surface-variant;
+}
+
+.notification-message {
+  @apply mt-1 text-xs leading-5 text-on-surface-variant;
+}

@@ -1,12 +1,15 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
+import { Observable } from 'rxjs';
 import { WalletHistoryEntry } from '../../models/wallet.models';
 import { SessionService } from '../../../../core/session/session.service';
 import { UserAvatarComponent } from '../../../../core/components/user-avatar/user-avatar.component';
 import { AuthService } from '../../../auth/data-access/auth.service';
 import { SessionUser } from '../../../auth/models/auth.models';
 import { WalletService } from '../../data-access/wallet.service';
+import { Notification, NotificationService } from '../../../../core/notifications/notification.service';
+import { NotificationItemComponent } from '../../../dashboard/components/notification-item/notification-item.component';
 
 type ActivityFilter = 'all' | 'income' | 'expenses';
 type DateFilter = '30d' | 'all';
@@ -14,7 +17,7 @@ type DateFilter = '30d' | 'all';
 @Component({
   selector: 'app-wallet-history-page',
   standalone: true,
-  imports: [RouterLink, CommonModule, UserAvatarComponent],
+  imports: [RouterLink, CommonModule, UserAvatarComponent, NotificationItemComponent],
   templateUrl: './wallet-history-page.component.html'
 })
 export class WalletHistoryPageComponent implements OnInit {
@@ -23,6 +26,9 @@ export class WalletHistoryPageComponent implements OnInit {
   filteredEntries: WalletHistoryEntry[] = [];
   isLoading = false;
   errorMessage = '';
+  readonly unreadNotificationCount$ = this.notificationService.getUnreadCount();
+  readonly notifications$: Observable<Notification[]> = this.notificationService.getNotifications();
+  showNotificationPopover = false;
 
   page = 1;
   pageSize = 10;
@@ -43,7 +49,8 @@ export class WalletHistoryPageComponent implements OnInit {
     private readonly walletService: WalletService,
     private readonly sessionService: SessionService,
     private readonly authService: AuthService,
-    private readonly router: Router
+    private readonly router: Router,
+    private readonly notificationService: NotificationService
   ) {}
 
   ngOnInit(): void {
@@ -90,6 +97,10 @@ export class WalletHistoryPageComponent implements OnInit {
     this.applyFilters();
   }
 
+  onSearchSubmit(term: string): void {
+    this.onSearch(term);
+  }
+
   previousPage(): void {
     if (this.page <= 1 || this.isLoading) {
       return;
@@ -121,12 +132,43 @@ export class WalletHistoryPageComponent implements OnInit {
   }
 
   /**
+   * Toggle notifications popover visibility
+   */
+  toggleNotificationsPopover(): void {
+    this.showNotificationPopover = !this.showNotificationPopover;
+  }
+
+  /**
+   * Close notifications popover
+   */
+  closeNotificationsPopover(): void {
+    this.showNotificationPopover = false;
+  }
+
+  /**
+   * Handle notification item click
+   * Marks notification as read and closes popover
+   */
+  onNotificationClick(notification: Notification): void {
+    if (!notification.isRead) {
+      this.notificationService.markAsRead(notification.id).subscribe();
+    }
+    this.showNotificationPopover = false;
+  }
+
+  /**
+   * Track by function for notification ngFor optimization
+   */
+  trackByNotificationId(_: number, notification: Notification): string {
+    return notification.id;
+  }
+
+  /**
    * Handle notifications button click
    * Shows notifications panel or navigates to notifications page
    */
   onNotificationsClick(): void {
-    // Navigate to profile page
-    this.router.navigate(['/profile']);
+    this.toggleNotificationsPopover();
   }
 
   /**
@@ -258,7 +300,25 @@ export class WalletHistoryPageComponent implements OnInit {
         return true;
       }
 
-      return (entry.description ?? '').toLowerCase().includes(normalizedSearch);
+      return this.getSearchableEntryText(entry).includes(normalizedSearch);
     });
+  }
+
+  private getSearchableEntryText(entry: WalletHistoryEntry): string {
+    const parts = [
+      entry.description,
+      entry.type,
+      entry.amount.toFixed(2),
+      new Date(entry.createdAt).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      })
+    ];
+
+    return parts
+      .filter((value): value is string => typeof value === 'string' && value.length > 0)
+      .join(' ')
+      .toLowerCase();
   }
 }

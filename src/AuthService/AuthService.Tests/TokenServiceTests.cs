@@ -1,7 +1,7 @@
-using AuthService.API.Services;
-using Microsoft.Extensions.Configuration;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using AuthService.API.Services;
+using Microsoft.Extensions.Configuration;
 using Xunit;
 
 namespace AuthService.Tests;
@@ -116,9 +116,9 @@ public class TokenServiceTests
 
         // Act
         var token = _tokenService.GenerateAccessToken(user);
+        var jwt = new JwtSecurityTokenHandler().ReadJwtToken(token);
 
         // Assert
-        var jwt = new JwtSecurityTokenHandler().ReadJwtToken(token);
         Assert.Equal(userId.ToString(), jwt.Claims.First(c => c.Type == JwtRegisteredClaimNames.Sub).Value);
         Assert.Equal("test@example.com", jwt.Claims.First(c => c.Type == JwtRegisteredClaimNames.Email).Value);
         Assert.Equal("Test User", jwt.Claims.First(c => c.Type == ClaimTypes.Name).Value);

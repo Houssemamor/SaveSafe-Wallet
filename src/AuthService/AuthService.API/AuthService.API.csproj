@@ -21,7 +21,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Shared\KafkaInfrastructure\KafkaInfrastructure.csproj" />
+    <ProjectReference Include="..\..\Shared\KafkaInfrastructure\KafkaInfrastructure.csproj" />
   </ItemGroup>
 
 </Project>

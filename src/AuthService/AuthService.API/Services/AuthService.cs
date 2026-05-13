@@ -10,15 +10,20 @@ public interface IAuthService
 {
     Task<(AuthResponseDto response, string rawRefreshToken)> RegisterAsync(
         RegisterRequestDto request, string? ipAddress, string? userAgent);
-    Task<(AuthResponseDto response, string rawRefreshToken)> LoginAsync(
+    Task<(AuthResponseDto response, string? rawRefreshToken)> LoginAsync(
         LoginRequestDto request, string? ipAddress, string? userAgent);
-    Task<(AuthResponseDto response, string rawRefreshToken)> GoogleLoginAsync(
+    Task<(AuthResponseDto response, string? rawRefreshToken)> GoogleLoginAsync(
         string idToken, string? ipAddress, string? userAgent);
     Task<(AuthResponseDto response, string rawRefreshToken)> RefreshAsync(string rawRefreshToken);
     Task LogoutAsync(string rawRefreshToken);
     Task<UserProfileDto> GetUserProfileAsync(Guid userId);
     Task UpdateUserProfileAsync(Guid userId, UpdateProfileRequestDto request);
     Task DeleteUserAccountAsync(Guid userId);
+    IReadOnlyList<SecurityQuestionCatalogDto> GetMfaQuestionCatalog();
+    Task<MfaEnrollResponseDto> EnrollMfaAsync(Guid userId, MfaEnrollRequestDto request);
+    Task<MfaDisableResponseDto> DisableMfaAsync(Guid userId);
+    Task<(AuthResponseDto response, string rawRefreshToken)> VerifyMfaLoginAsync(
+        MfaVerifyRequestDto request, string? ipAddress, string? userAgent);
 }
 
 public class AuthService : IAuthService
@@ -29,6 +34,7 @@ public class AuthService : IAuthService
     private readonly IFailedLoginByIpRepository _failedLoginByIp;
     private readonly IAuthRegistrationStore _registrationStore;
     private readonly ITokenService _tokenService;
+    private readonly IMfaService _mfaService;
     private readonly IWalletProvisioningService _walletProvisioning;
     private readonly IKafkaProducer _kafkaProducer;
     private readonly FirebaseAuth _firebaseAuth;
@@ -41,6 +47,7 @@ public class AuthService : IAuthService
         IFailedLoginByIpRepository failedLoginByIp,
         IAuthRegistrationStore registrationStore,
         ITokenService tokenService,
+        IMfaService mfaService,
         IWalletProvisioningService walletProvisioning,
         IKafkaProducer kafkaProducer,
         FirebaseAuth firebaseAuth,
@@ -52,6 +59,7 @@ public class AuthService : IAuthService
         _failedLoginByIp = failedLoginByIp;
         _registrationStore = registrationStore;
         _tokenService = tokenService;
+        _mfaService = mfaService;
         _walletProvisioning = walletProvisioning;
         _kafkaProducer = kafkaProducer;
         _firebaseAuth = firebaseAuth;
@@ -92,7 +100,7 @@ public class AuthService : IAuthService
         return (BuildAuthResponse(user, _tokenService.GenerateAccessToken(user)), rawRefreshToken);
     }
 
-    public async Task<(AuthResponseDto response, string rawRefreshToken)> LoginAsync(
+    public async Task<(AuthResponseDto response, string? rawRefreshToken)> LoginAsync(
         LoginRequestDto request, string? ipAddress, string? userAgent)
     {
         var normalizedEmail = request.Email.Trim().ToLowerInvariant();
@@ -146,6 +154,12 @@ public class AuthService : IAuthService
         if (user.AccountStatus != UserAccountStatus.Active)
             throw new UnauthorizedAccessException("Account is not active.");
 
+        if (user.MfaEnabled)
+        {
+            var challenge = await _mfaService.CreateChallengeAsync(user.Id);
+            return (BuildMfaChallengeResponse(user, challenge), null);
+        }
+
         await _refreshTokens.RevokeAllActiveForUserAsync(user.Id);
 
         var (rawRefreshToken, refreshTokenRecord) = CreateRefreshToken(user.Id, now);
@@ -173,7 +187,7 @@ public class AuthService : IAuthService
         return (BuildAuthResponse(user, _tokenService.GenerateAccessToken(user)), rawRefreshToken);
     }
 
-    public async Task<(AuthResponseDto response, string rawRefreshToken)> GoogleLoginAsync(
+    public async Task<(AuthResponseDto response, string? rawRefreshToken)> GoogleLoginAsync(
         string idToken, string? ipAddress, string? userAgent)
     {
         try
@@ -253,6 +267,12 @@ public class AuthService : IAuthService
 
             if (user.AccountStatus != UserAccountStatus.Active)
                 throw new UnauthorizedAccessException("Account is not active.");
+
+            if (user.MfaEnabled)
+            {
+                var challenge = await _mfaService.CreateChallengeAsync(user.Id);
+                return (BuildMfaChallengeResponse(user, challenge), null);
+            }
 
             // Update profile picture if available (user may have changed it on Google)
             if (!string.IsNullOrWhiteSpace(profilePictureUrl))
@@ -371,6 +391,56 @@ public class AuthService : IAuthService
         _logger.LogInformation("User {UserId} account deleted (soft)", userId);
     }
 
+    public IReadOnlyList<SecurityQuestionCatalogDto> GetMfaQuestionCatalog() => _mfaService.GetQuestionCatalog();
+
+    public async Task<MfaEnrollResponseDto> EnrollMfaAsync(Guid userId, MfaEnrollRequestDto request)
+    {
+        await _mfaService.EnableAsync(userId, request.Questions);
+        return new MfaEnrollResponseDto(true, true, request.Questions.Count);
+    }
+
+    public async Task<MfaDisableResponseDto> DisableMfaAsync(Guid userId)
+    {
+        await _mfaService.DisableAsync(userId);
+        return new MfaDisableResponseDto(true, false);
+    }
+
+    public async Task<(AuthResponseDto response, string rawRefreshToken)> VerifyMfaLoginAsync(
+        MfaVerifyRequestDto request, string? ipAddress, string? userAgent)
+    {
+        var userId = await _mfaService.VerifyChallengeAsync(request.ChallengeToken, request.Answer);
+        var user = await _users.GetByIdAsync(userId);
+        if (user is null)
+            throw new UnauthorizedAccessException("Invalid MFA challenge.");
+
+        if (user.AccountStatus != UserAccountStatus.Active)
+            throw new UnauthorizedAccessException("Account is not active.");
+
+        var now = DateTime.UtcNow;
+        await _refreshTokens.RevokeAllActiveForUserAsync(user.Id);
+
+        var (rawRefreshToken, refreshTokenRecord) = CreateRefreshToken(user.Id, now);
+        await _refreshTokens.CreateAsync(refreshTokenRecord);
+
+        var loginEvent = new LoginEventRecord(
+            EventId: Guid.NewGuid(),
+            UserId: user.Id,
+            UserEmail: user.Email,
+            UserName: user.Name,
+            IpAddress: ipAddress,
+            Country: null,
+            Success: true,
+            FailureReason: null,
+            IsFlagged: false,
+            Timestamp: now,
+            UserAgent: userAgent);
+
+        await _loginEvents.AddAsync(loginEvent);
+        await _users.UpdateLastLoginAsync(user.Id, now);
+
+        return (BuildAuthResponse(user, _tokenService.GenerateAccessToken(user)), rawRefreshToken);
+    }
+
     private (string raw, RefreshTokenRecord record) CreateRefreshToken(Guid userId, DateTime now)
     {
         var raw = _tokenService.GenerateRefreshToken();
@@ -393,6 +463,22 @@ public class AuthService : IAuthService
             Name: user.Name,
             Role: user.Role.ToString(),
             ProfilePictureUrl: user.ProfilePictureUrl);
+
+    private static AuthResponseDto BuildMfaChallengeResponse(User user, MfaChallengeResult challenge) =>
+        new(
+            AccessToken: string.Empty,
+            TokenType: "Bearer",
+            ExpiresIn: 0,
+            UserId: user.Id,
+            Email: user.Email,
+            Name: user.Name,
+            Role: user.Role.ToString(),
+            ProfilePictureUrl: user.ProfilePictureUrl,
+            MfaRequired: true,
+            MfaChallengeToken: challenge.ChallengeToken,
+            MfaQuestionId: challenge.QuestionId,
+            MfaQuestionText: challenge.QuestionText,
+            MfaExpiresAt: challenge.ExpiresAt);
 
     private LoginEventMessage BuildLoginEventMessage(
         Guid eventId,

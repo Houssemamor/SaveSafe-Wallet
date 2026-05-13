@@ -7,6 +7,13 @@ public record WalletTransferRequestDto
     public string? Description { get; init; }
 }
 
+public record WalletTransferToWalletRequestDto
+{
+    public string RecipientWalletId { get; init; } = string.Empty;
+    public decimal Amount { get; init; }
+    public string? Description { get; init; }
+}
+
 public record WalletTransferResponseDto
 {
     public bool Success { get; init; }

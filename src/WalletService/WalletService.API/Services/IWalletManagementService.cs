@@ -60,4 +60,14 @@ public interface IWalletManagementService
         string sourceWalletId,
         string targetWalletId,
         decimal amount);
+
+    /// <summary>
+    /// Create a signed QR token for receiving funds at a wallet
+    /// </summary>
+    Task<ReceiveWalletQrResponseDto> CreateReceiveQrAsync(string userId, string? walletId = null);
+
+    /// <summary>
+    /// Resolve a signed receive QR token into wallet details
+    /// </summary>
+    Task<ResolveWalletQrResponseDto> ResolveReceiveQrAsync(string token);
 }

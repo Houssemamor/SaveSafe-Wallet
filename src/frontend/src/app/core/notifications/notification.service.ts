@@ -46,16 +46,21 @@ export class NotificationService {
   private readonly notificationsSubject = new BehaviorSubject<Notification[]>([]);
   private readonly unreadCountSubject = new BehaviorSubject<number>(0);
 
-  constructor(private readonly http: HttpClient) {}
+  constructor(private readonly http: HttpClient) {
+    const initialNotifications = this.getMockNotifications();
+
+    this.notificationsSubject.next(initialNotifications);
+    this.updateUnreadCount(initialNotifications);
+  }
 
   /**
    * Get all notifications for the current user
    * @returns Observable containing array of notifications
    */
   getNotifications(): Observable<Notification[]> {
-    // In production, this would call the backend API
-    // For now, return mock notifications
-    return of(this.getMockNotifications());
+    // In production, this would call the backend API.
+    // The shared subject keeps unread counts and read state consistent across the UI.
+    return this.notificationsSubject.asObservable();
   }
 
   /**
@@ -167,8 +172,8 @@ export class NotificationService {
         id: '1',
         type: NotificationType.TRANSACTION,
         priority: NotificationPriority.HIGH,
-        title: 'Transfer Completed',
-        message: 'Your transfer of $150.00 to john@example.com has been completed successfully.',
+        title: 'Money Received',
+        message: 'You received $150.00 from john@example.com.',
         isRead: false,
         createdAt: now.toISOString(),
         actionUrl: '/wallet/history'

@@ -3,14 +3,25 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { Observable } from 'rxjs';
+import QRCode from 'qrcode';
+import jsQR from 'jsqr';
 import { SessionService } from '../../../../core/session/session.service';
 import { UserAvatarComponent } from '../../../../core/components/user-avatar/user-avatar.component';
 import { AuthService } from '../../../auth/data-access/auth.service';
 import { SessionUser } from '../../../auth/models/auth.models';
-import { WalletService, Wallet, CreateWalletRequest } from '../../../wallet-history/data-access/wallet.service';
+import {
+  WalletService,
+  Wallet,
+  CreateWalletRequest,
+  ReceiveWalletQrResponse,
+  ResolveWalletQrResponse,
+  WalletTransferResponse
+} from '../../../wallet-history/data-access/wallet.service';
 import { WalletBalanceResponse, WalletHistoryEntry } from '../../../wallet-history/models/wallet.models';
 import { SecurityService, SecurityLevel } from '../../../../core/security/security.service';
-import { NotificationService } from '../../../../core/notifications/notification.service';
+import { Notification, NotificationService } from '../../../../core/notifications/notification.service';
+import { NotificationItemComponent } from '../../components/notification-item/notification-item.component';
 
 /**
  * Dashboard statistics interface for real-time data display
@@ -34,16 +45,26 @@ interface BalanceDistributionItem {
   colorValue: string;   // Actual hex/rgb for gradient
 }
 
+interface QrTransferRecipient {
+  walletId: string;
+  walletName: string;
+  currency: string;
+  holderName?: string;
+}
+
 @Component({
   selector: 'app-dashboard-page',
   standalone: true,
-  imports: [RouterLink, CommonModule, ReactiveFormsModule, UserAvatarComponent],
+  imports: [RouterLink, CommonModule, ReactiveFormsModule, UserAvatarComponent, NotificationItemComponent],
   templateUrl: './dashboard-page.component.html'
 })
 export class DashboardPageComponent implements OnInit {
   user: SessionUser | null = null;
   balance: WalletBalanceResponse | null = null;
   balanceError = '';
+  readonly unreadNotificationCount$ = this.notificationService.getUnreadCount();
+  readonly notifications$: Observable<Notification[]> = this.notificationService.getNotifications();
+  showNotificationPopover = false;
 
   // Recent transactions
   recentTransactions: WalletHistoryEntry[] = [];
@@ -80,6 +101,31 @@ export class DashboardPageComponent implements OnInit {
   isTransferringAll = false;
   transferAllError = '';
   transferAllSuccess = '';
+
+  // QR receive workflow
+  showReceiveQrModal = false;
+  isLoadingReceiveQr = false;
+  receiveQrError = '';
+  receiveQrToken = '';
+  receiveQrImageDataUrl = '';
+  receiveQrWalletId = '';
+  receiveQrWalletName = '';
+  receiveQrCurrency = '';
+  receiveQrExpiresAt = '';
+
+  // QR transfer workflow
+  showQrTransferModal = false;
+  isResolvingQrTransfer = false;
+  isSubmittingQrTransfer = false;
+  qrTransferError = '';
+  qrTransferSuccess = '';
+  qrTransferTokenInput = '';
+  qrTransferScannerError = '';
+  qrTransferScannerStatus = '';
+  qrTransferResolvedRecipient: QrTransferRecipient | null = null;
+  private qrTransferScannerStream: MediaStream | null = null;
+  private qrTransferScannerTimer: number | null = null;
+  private qrTransferScanInProgress = false;
 
   // Wallet management
   wallets: Wallet[] = [];
@@ -120,6 +166,11 @@ export class DashboardPageComponent implements OnInit {
     sourceWallet: ['', [Validators.required]],
     targetWallet: ['', [Validators.required]],
     amount: ['', [Validators.required, Validators.min(0.01)]]
+  });
+
+  readonly qrTransferForm = this.fb.nonNullable.group({
+    amount: ['', [Validators.required, Validators.min(0.01)]],
+    description: ['']
   });
 
   // Download functionality
@@ -493,18 +544,37 @@ export class DashboardPageComponent implements OnInit {
    */
   onSearch(query: string): void {
     this.searchQuery = query.trim();
+    this.isSearching = this.searchQuery.length > 0;
+  }
 
-    if (this.searchQuery) {
-      this.isSearching = true;
-      // Filter recent transactions based on search query
-      const filtered = this.recentTransactions.filter(entry =>
-        entry.description?.toLowerCase().includes(this.searchQuery.toLowerCase()) ||
-        entry.type.toLowerCase().includes(this.searchQuery.toLowerCase())
-      );
-      // In a real implementation, this would trigger an API call with search parameters
-    } else {
-      this.isSearching = false;
+  toggleNotificationsPopover(): void {
+    this.showNotificationPopover = !this.showNotificationPopover;
+  }
+
+  closeNotificationsPopover(): void {
+    this.showNotificationPopover = false;
+  }
+
+  onNotificationClick(notification: Notification): void {
+    if (!notification.isRead) {
+      this.notificationService.markAsRead(notification.id).subscribe();
     }
+
+    this.showNotificationPopover = false;
+    this.router.navigate(['/wallet-history']);
+  }
+
+  trackByNotificationId(_: number, notification: Notification): string {
+    return notification.id;
+  }
+
+  get filteredRecentTransactions(): WalletHistoryEntry[] {
+    if (!this.searchQuery) {
+      return this.recentTransactions;
+    }
+
+    const query = this.searchQuery.toLowerCase();
+    return this.recentTransactions.filter(entry => this.getSearchableTransactionText(entry).includes(query));
   }
 
   /**
@@ -512,10 +582,7 @@ export class DashboardPageComponent implements OnInit {
    * Shows notifications panel or navigates to notifications page
    */
   onNotificationsClick(): void {
-    // Navigate to notifications page
-    // In a full implementation, this would open a notifications panel
-    /* this.router.navigate(['/notifications']); */
-    this.router.navigate(['/profile'])
+    this.toggleNotificationsPopover();
   }
 
   /**
@@ -546,6 +613,328 @@ export class DashboardPageComponent implements OnInit {
     this.showWalletTransferModal = false;
     this.transferAllSuccess = '';
     this.transferAllError = '';
+  }
+
+  openReceiveQrModal(): void {
+    const receiveWallet = this.selectedWallet ?? this.wallets.find(wallet => wallet.isDefault && wallet.isActive) ?? this.wallets.find(wallet => wallet.isActive) ?? null;
+
+    this.showReceiveQrModal = true;
+    this.receiveQrError = '';
+    this.receiveQrToken = '';
+    this.receiveQrImageDataUrl = '';
+    this.receiveQrWalletId = receiveWallet?.id ?? '';
+    this.receiveQrWalletName = receiveWallet?.name ?? '';
+    this.receiveQrCurrency = receiveWallet?.currency ?? 'USD';
+    this.receiveQrExpiresAt = '';
+
+    if (!receiveWallet) {
+      this.receiveQrError = 'Create or activate a wallet before generating a receive QR code.';
+      return;
+    }
+
+    this.loadReceiveQr(receiveWallet.id);
+  }
+
+  closeReceiveQrModal(): void {
+    this.showReceiveQrModal = false;
+    this.receiveQrError = '';
+    this.receiveQrToken = '';
+    this.receiveQrImageDataUrl = '';
+    this.receiveQrWalletId = '';
+    this.receiveQrWalletName = '';
+    this.receiveQrCurrency = '';
+    this.receiveQrExpiresAt = '';
+    this.isLoadingReceiveQr = false;
+  }
+
+  onReceiveWalletChange(walletId: string): void {
+    this.receiveQrWalletId = walletId;
+    if (walletId) {
+      this.loadReceiveQr(walletId);
+    }
+  }
+
+  openQrTransferModal(): void {
+    this.showQrTransferModal = true;
+    this.qrTransferError = '';
+    this.qrTransferSuccess = '';
+    this.qrTransferScannerError = '';
+    this.qrTransferScannerStatus = '';
+    this.qrTransferTokenInput = '';
+    this.qrTransferResolvedRecipient = null;
+    this.qrTransferForm.reset();
+
+    setTimeout(() => {
+      void this.startQrScanner();
+    });
+  }
+
+  closeQrTransferModal(): void {
+    this.stopQrScanner();
+    this.showQrTransferModal = false;
+    this.qrTransferError = '';
+    this.qrTransferSuccess = '';
+    this.qrTransferScannerError = '';
+    this.qrTransferScannerStatus = '';
+    this.qrTransferTokenInput = '';
+    this.qrTransferResolvedRecipient = null;
+    this.isResolvingQrTransfer = false;
+    this.isSubmittingQrTransfer = false;
+    this.qrTransferForm.reset();
+  }
+
+  async loadReceiveQr(walletId: string): Promise<void> {
+    if (!walletId) {
+      this.receiveQrError = 'Select a wallet first.';
+      return;
+    }
+
+    this.isLoadingReceiveQr = true;
+    this.receiveQrError = '';
+
+    this.walletService.getReceiveQr(walletId).subscribe({
+      next: (response: ReceiveWalletQrResponse) => {
+        this.isLoadingReceiveQr = false;
+
+        if (!response.success || !response.token) {
+          this.receiveQrError = response.errorMessage || 'Unable to generate a receive QR code.';
+          return;
+        }
+
+        this.receiveQrToken = response.token;
+        this.receiveQrWalletId = response.walletId || walletId;
+        this.receiveQrWalletName = response.walletName || this.receiveQrWalletName;
+        this.receiveQrCurrency = response.currency || this.receiveQrCurrency;
+        this.receiveQrExpiresAt = response.expiresAt ? new Date(response.expiresAt).toLocaleString() : '';
+
+        void this.renderReceiveQrImage(response.token);
+      },
+      error: () => {
+        this.isLoadingReceiveQr = false;
+        this.receiveQrError = 'Unable to generate a receive QR code. Please try again.';
+      }
+    });
+  }
+
+  async renderReceiveQrImage(token: string): Promise<void> {
+    try {
+      this.receiveQrImageDataUrl = await QRCode.toDataURL(token, {
+        width: 320,
+        margin: 1,
+        errorCorrectionLevel: 'M'
+      });
+    } catch {
+      this.receiveQrError = 'Unable to render the QR code image.';
+    }
+  }
+
+  copyReceiveQrToken(): void {
+    if (!this.receiveQrToken || !navigator.clipboard) {
+      return;
+    }
+
+    navigator.clipboard.writeText(this.receiveQrToken).catch(() => {
+      this.receiveQrError = 'Unable to copy the QR token.';
+    });
+  }
+
+  async startQrScanner(): Promise<void> {
+    if (!this.showQrTransferModal || this.qrTransferResolvedRecipient) {
+      return;
+    }
+
+    this.stopQrScanner();
+    this.qrTransferScannerError = '';
+    this.qrTransferScannerStatus = '';
+    this.qrTransferScanInProgress = false;
+
+    if (!window.isSecureContext) {
+      this.qrTransferScannerError = 'Camera scanning requires HTTPS (or localhost). Paste the token below instead.';
+      return;
+    }
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      this.qrTransferScannerError = 'This browser does not expose camera access. Paste the token below instead.';
+      return;
+    }
+
+    const barcodeDetectorFactory = (window as Window & {
+      BarcodeDetector?: new (options: { formats: string[] }) => {
+        detect(source: HTMLVideoElement): Promise<Array<{ rawValue?: string }>>;
+      };
+    }).BarcodeDetector;
+
+    const videoElement = document.getElementById('qr-transfer-video') as HTMLVideoElement | null;
+    if (!videoElement) {
+      this.qrTransferScannerError = 'QR scanner is not ready yet.';
+      return;
+    }
+
+    try {
+      this.qrTransferScannerStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' },
+        audio: false
+      });
+      videoElement.srcObject = this.qrTransferScannerStream;
+      await videoElement.play().catch(() => undefined);
+
+      const detector = barcodeDetectorFactory ? new barcodeDetectorFactory({ formats: ['qr_code'] }) : null;
+      this.qrTransferScannerStatus = detector
+        ? 'Scanning for a QR code...'
+        : 'Scanning for a QR code (compatibility mode)...';
+
+      this.qrTransferScannerTimer = window.setInterval(() => {
+        if (!this.showQrTransferModal || this.qrTransferResolvedRecipient || this.qrTransferScanInProgress) {
+          return;
+        }
+
+        this.qrTransferScanInProgress = true;
+        void this.scanQrFrame(videoElement, detector).finally(() => {
+          this.qrTransferScanInProgress = false;
+        });
+      }, 500);
+    } catch {
+      this.qrTransferScannerError = 'Unable to access the camera. You can paste the QR token instead.';
+    }
+  }
+
+  private async scanQrFrame(
+    videoElement: HTMLVideoElement,
+    detector: { detect(source: HTMLVideoElement): Promise<Array<{ rawValue?: string }>> } | null
+  ): Promise<void> {
+    try {
+      let token = '';
+
+      if (detector) {
+        const codes = await detector.detect(videoElement);
+        token = (codes.find(code => code.rawValue)?.rawValue || '').trim();
+      } else {
+        token = this.decodeQrWithJsQr(videoElement);
+      }
+
+      if (token) {
+        this.resolveQrTransferToken(token);
+      }
+    } catch {
+      this.qrTransferScannerError = 'Unable to read the QR code from the camera.';
+    }
+  }
+
+  private decodeQrWithJsQr(videoElement: HTMLVideoElement): string {
+    const width = videoElement.videoWidth;
+    const height = videoElement.videoHeight;
+    if (!width || !height) {
+      return '';
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext('2d', { willReadFrequently: true });
+    if (!context) {
+      return '';
+    }
+
+    context.drawImage(videoElement, 0, 0, width, height);
+    const imageData = context.getImageData(0, 0, width, height);
+    const result = jsQR(imageData.data, width, height, { inversionAttempts: 'dontInvert' });
+    return result?.data?.trim() || '';
+  }
+
+  stopQrScanner(): void {
+    if (this.qrTransferScannerTimer !== null) {
+      window.clearInterval(this.qrTransferScannerTimer);
+      this.qrTransferScannerTimer = null;
+    }
+
+    if (this.qrTransferScannerStream) {
+      this.qrTransferScannerStream.getTracks().forEach(track => track.stop());
+      this.qrTransferScannerStream = null;
+    }
+
+    const videoElement = document.getElementById('qr-transfer-video') as HTMLVideoElement | null;
+    if (videoElement) {
+      videoElement.srcObject = null;
+    }
+
+    this.qrTransferScannerStatus = '';
+    this.qrTransferScanInProgress = false;
+  }
+
+  resolveQrTransferToken(token?: string): void {
+    const qrToken = (token || this.qrTransferTokenInput).trim();
+    if (!qrToken || this.isResolvingQrTransfer) {
+      return;
+    }
+
+    this.isResolvingQrTransfer = true;
+    this.qrTransferError = '';
+    this.qrTransferScannerError = '';
+    this.qrTransferScannerStatus = 'Resolving QR token...';
+
+    this.walletService.resolveReceiveQr(qrToken).subscribe({
+      next: (response: ResolveWalletQrResponse) => {
+        this.isResolvingQrTransfer = false;
+
+        if (!response.success || !response.walletId || !response.walletName || !response.currency) {
+          this.qrTransferError = response.errorMessage || 'Unable to resolve the scanned QR code.';
+          this.qrTransferResolvedRecipient = null;
+          return;
+        }
+
+        this.stopQrScanner();
+        this.qrTransferResolvedRecipient = {
+          walletId: response.walletId,
+          walletName: response.walletName,
+          holderName: response.ownerName ?? response.walletName,
+          currency: response.currency
+        };
+        this.qrTransferScannerStatus = `Ready to send to ${response.walletName}.`;
+        this.qrTransferTokenInput = qrToken;
+      },
+      error: () => {
+        this.isResolvingQrTransfer = false;
+        this.qrTransferError = 'Unable to resolve the scanned QR code. Please try again.';
+        this.qrTransferScannerStatus = '';
+      }
+    });
+  }
+
+  submitQrTransfer(): void {
+    if (this.qrTransferForm.invalid || this.isSubmittingQrTransfer || !this.qrTransferResolvedRecipient) {
+      this.qrTransferForm.markAllAsTouched();
+      return;
+    }
+
+    this.isSubmittingQrTransfer = true;
+    this.qrTransferError = '';
+    this.qrTransferSuccess = '';
+
+    const { amount, description } = this.qrTransferForm.getRawValue();
+    const amountAsNumber = parseFloat(amount);
+
+    this.walletService.transferToWallet(this.qrTransferResolvedRecipient.walletId, amountAsNumber, description).subscribe({
+      next: (response: WalletTransferResponse) => {
+        this.isSubmittingQrTransfer = false;
+
+        if (response.success) {
+          this.qrTransferSuccess = `Transfer of $${amountAsNumber.toFixed(2)} to ${this.qrTransferResolvedRecipient?.walletName || 'the scanned wallet'} completed successfully.`;
+          this.loadWallets();
+          this.loadBalanceDistribution();
+          if (this.selectedWallet) {
+            this.loadWalletBalance(this.selectedWallet.id);
+          }
+          setTimeout(() => this.closeQrTransferModal(), 2000);
+          return;
+        }
+
+        this.qrTransferError = response.errorMessage || 'QR transfer failed. Please try again.';
+      },
+      error: (error: HttpErrorResponse) => {
+        this.isSubmittingQrTransfer = false;
+        this.qrTransferError = error?.error?.message || 'QR transfer failed. Please check your connection and try again.';
+      }
+    });
   }
 
   /**
@@ -728,6 +1117,25 @@ export class DashboardPageComponent implements OnInit {
     } else {
       return 'Debit';
     }
+  }
+
+  private getSearchableTransactionText(entry: WalletHistoryEntry): string {
+    const parts = [
+      entry.description,
+      entry.type,
+      entry.amount.toFixed(2),
+      entry.createdAt,
+      new Date(entry.createdAt).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      })
+    ];
+
+    return parts
+      .filter((value): value is string => typeof value === 'string' && value.length > 0)
+      .join(' ')
+      .toLowerCase();
   }
 
   /**

@@ -44,7 +44,34 @@
           <input class="bg-transparent border-none focus:ring-0 text-sm w-full placeholder:text-on-surface-variant/50" placeholder="Search transactions..." type="text" (input)="onSearch($any($event.target).value)" />
         </div>
         <div class="flex items-center gap-4 text-[#434654] dark:text-slate-400">
-          <button class="material-symbols-outlined hover:text-[#0052CC] transition-all opacity-80 active:opacity-100" (click)="onNotificationsClick()" type="button">notifications</button>
+          <button *ngIf="showNotificationPopover" class="fixed inset-0 z-40 cursor-default" type="button" aria-label="Close notifications" (click)="closeNotificationsPopover()"></button>
+          <div class="relative inline-flex items-center z-50">
+            <button class="material-symbols-outlined hover:text-[#0052CC] transition-all opacity-80 active:opacity-100" (click)="onNotificationsClick()" type="button" aria-label="Notifications">notifications</button>
+            <span *ngIf="(unreadNotificationCount$ | async) as unreadCount" class="absolute -top-2 -right-2 min-w-5 h-5 px-1.5 flex items-center justify-center rounded-full bg-error text-white text-[10px] font-bold leading-none shadow-sm" [class.invisible]="unreadCount <= 0">
+              {{ unreadCount > 99 ? '99+' : unreadCount }}
+            </span>
+          </div>
+          <div *ngIf="showNotificationPopover" class="absolute right-[105px] top-14 z-50 w-[22rem] overflow-hidden rounded-2xl border border-outline-variant/15 bg-surface-container-lowest shadow-[0_24px_60px_rgba(25,28,29,0.18)] dark:bg-slate-900">
+            <div class="flex items-center justify-between border-b border-outline-variant/10 px-4 py-3">
+              <div>
+                <p class="text-sm font-bold text-on-surface">Notifications</p>
+                <p class="text-xs text-on-surface-variant">Recent activity and wallet updates</p>
+              </div>
+              <span class="rounded-full bg-secondary-container px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-on-secondary-container">Live</span>
+            </div>
+            <div class="max-h-80 overflow-y-auto">
+              <ng-container *ngIf="notifications$ | async as notifications">
+                <app-notification-item 
+                  *ngFor="let notification of notifications; trackBy: trackByNotificationId"
+                  [notification]="notification"
+                  (notificationClick)="onNotificationClick($event)">
+                </app-notification-item>
+              </ng-container>
+              <div *ngIf="(notifications$ | async)?.length === 0" class="px-4 py-8 text-center text-sm text-on-surface-variant">
+                No notifications right now.
+              </div>
+            </div>
+          </div>
           <button class="material-symbols-outlined hover:text-[#0052CC] transition-all opacity-80 active:opacity-100" (click)="onSettingsClick()" type="button">settings</button>
         </div>
       </div>
@@ -118,6 +145,58 @@
                 <span class="text-sm font-bold">{{ profile?.mfaEnabled ? 'Yes' : 'No' }}</span>
               </div>
             </div>
+          </div>
+
+          <div class="bg-surface-container-lowest rounded-xl p-8 shadow-sm space-y-6">
+            <div class="flex items-start justify-between gap-4">
+              <div>
+                <h4 class="text-sm font-bold font-headline uppercase tracking-widest text-on-surface-variant">Security Questions MFA</h4>
+                <p class="text-xs text-on-surface-variant mt-2">Use predefined security questions to protect login with a second verification step.</p>
+              </div>
+              <span class="rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider" [ngClass]="profile?.mfaEnabled ? 'bg-secondary-container text-on-secondary-container' : 'bg-outline-variant/10 text-on-surface-variant'">
+                {{ profile?.mfaEnabled ? 'Enabled' : 'Disabled' }}
+              </span>
+            </div>
+
+            <div *ngIf="mfaSuccessMessage" class="rounded-lg border border-primary/20 bg-primary/10 px-4 py-3 text-sm text-primary">{{ mfaSuccessMessage }}</div>
+            <div *ngIf="mfaErrorMessage" class="rounded-lg border border-error/20 bg-error/10 px-4 py-3 text-sm text-error">{{ mfaErrorMessage }}</div>
+
+            <ng-container *ngIf="!profile?.mfaEnabled; else mfaDisableBlock">
+              <form class="space-y-4" [formGroup]="mfaForm" (ngSubmit)="enableMfa()">
+                <div class="grid grid-cols-1 gap-4">
+                  <div class="space-y-2">
+                    <label class="text-xs font-bold font-headline text-on-surface-variant uppercase tracking-wider" for="mfa-question-1">Question 1</label>
+                    <select id="mfa-question-1" class="w-full bg-surface-container-highest border-none rounded-lg py-3 px-4 text-sm font-medium" formControlName="question1Id">
+                      <option value="" disabled>Select a question</option>
+                      <option *ngFor="let question of securityQuestions" [value]="question.questionId">{{ question.questionText }}</option>
+                    </select>
+                    <input class="w-full bg-surface-container-highest border-none rounded-lg py-3 px-4 focus:ring-2 focus:ring-surface-tint transition-all text-sm font-medium" type="text" formControlName="question1Answer" placeholder="Answer for question 1" />
+                  </div>
+
+                  <div class="space-y-2">
+                    <label class="text-xs font-bold font-headline text-on-surface-variant uppercase tracking-wider" for="mfa-question-2">Question 2</label>
+                    <select id="mfa-question-2" class="w-full bg-surface-container-highest border-none rounded-lg py-3 px-4 text-sm font-medium" formControlName="question2Id">
+                      <option value="" disabled>Select a question</option>
+                      <option *ngFor="let question of securityQuestions" [value]="question.questionId">{{ question.questionText }}</option>
+                    </select>
+                    <input class="w-full bg-surface-container-highest border-none rounded-lg py-3 px-4 focus:ring-2 focus:ring-surface-tint transition-all text-sm font-medium" type="text" formControlName="question2Answer" placeholder="Answer for question 2" />
+                  </div>
+                </div>
+
+                <button class="w-full bg-gradient-to-br from-primary to-primary-container text-white px-6 py-3 rounded-lg font-headline font-extrabold text-xs tracking-widest shadow-lg hover:brightness-110 active:scale-95 transition-all disabled:opacity-60" type="submit" [disabled]="isMfaUpdating">
+                  {{ isMfaUpdating ? 'ENABLING...' : 'ENABLE MFA' }}
+                </button>
+              </form>
+            </ng-container>
+
+            <ng-template #mfaDisableBlock>
+              <div class="space-y-4">
+                <p class="text-sm text-on-surface-variant">MFA is currently active on this account.</p>
+                <button class="w-full bg-surface-container-highest text-on-surface px-6 py-3 rounded-lg font-headline font-extrabold text-xs tracking-widest hover:bg-surface-container-high transition-all disabled:opacity-60" type="button" [disabled]="isMfaUpdating" (click)="disableMfa()">
+                  {{ isMfaUpdating ? 'DISABLING...' : 'DISABLE MFA' }}
+                </button>
+              </div>
+            </ng-template>
           </div>
 
           <div class="bg-surface-container-highest rounded-xl p-8">

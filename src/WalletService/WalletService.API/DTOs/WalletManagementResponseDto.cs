@@ -68,6 +68,99 @@ public class CreateWalletResponseDto
 }
 
 /// <summary>
+/// Response data transfer object for receive QR creation
+/// </summary>
+public class ReceiveWalletQrResponseDto
+{
+    /// <summary>
+    /// Whether the operation was successful
+    /// </summary>
+    public bool Success { get; set; }
+
+    /// <summary>
+    /// Signed token embedded in the QR code
+    /// </summary>
+    public string? Token { get; set; }
+
+    /// <summary>
+    /// Wallet identifier encoded in the token
+    /// </summary>
+    public string? WalletId { get; set; }
+
+    /// <summary>
+    /// Wallet name shown to the user
+    /// </summary>
+    public string? WalletName { get; set; }
+
+    /// <summary>
+    /// Owner / holder display name for the wallet (may be included in token)
+    /// </summary>
+    public string? OwnerName { get; set; }
+
+    /// <summary>
+    /// Wallet currency
+    /// </summary>
+    public string? Currency { get; set; }
+
+    /// <summary>
+    /// Token expiration timestamp
+    /// </summary>
+    public DateTime? ExpiresAt { get; set; }
+
+    /// <summary>
+    /// Error message (if unsuccessful)
+    /// </summary>
+    public string? ErrorMessage { get; set; }
+}
+
+/// <summary>
+/// Request data transfer object for resolving a receive QR token
+/// </summary>
+public class ResolveWalletQrRequestDto
+{
+    /// <summary>
+    /// Signed receive QR token
+    /// </summary>
+    public string Token { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Response data transfer object for resolving a receive QR token
+/// </summary>
+public class ResolveWalletQrResponseDto
+{
+    /// <summary>
+    /// Whether the operation was successful
+    /// </summary>
+    public bool Success { get; set; }
+
+    /// <summary>
+    /// Wallet identifier recovered from the token
+    /// </summary>
+    public string? WalletId { get; set; }
+
+    /// <summary>
+    /// Wallet name recovered from the token
+    /// </summary>
+    public string? WalletName { get; set; }
+
+    /// <summary>
+    /// Owner / holder display name for the wallet
+    /// </summary>
+    public string? OwnerName { get; set; }
+
+    /// <summary>
+    /// Wallet currency recovered from the token
+    /// </summary>
+    public string? Currency { get; set; }
+
+    /// <summary>
+    /// Error message (if unsuccessful)
+    /// </summary>
+    public string? ErrorMessage { get; set; }
+}
+
+/// <summary>
 /// Response data transfer object for internal wallet transfer
 /// </summary>
 public class InternalTransferResponseDto

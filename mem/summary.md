@@ -15,12 +15,21 @@
 - Balance Distribution was recently made dynamic from existing wallets
 - User reports color rendering issue in dashboard component
 - Fixed incorrect Angular class binding syntax in pie chart rendering
+- Added unread notification badge and popover menu to the dashboard notifications button
+- Seeded the shared notification service with mock unread notifications so the badge renders on load
+- Notification popover items now navigate to wallet history and mark unread items as read
 - Implemented Transfer All button functionality for wallet operations
 - Fixed Transfer All button remaining inactive despite valid wallet selections
 - Fixed wallet name bug during transfers
 - Google sign-in registration now uses Firebase Auth on the frontend and Firebase Admin verification on the AuthService backend
 - AuthService now validates Firebase ID tokens instead of Google OAuth tokens
 - Rebuilt and validated frontend and auth-service Docker images after the Firebase changes
+- Implemented security-question MFA in AuthService with a separate Firestore collection for encrypted answers
+- Login and Google login now return an MFA challenge when `MfaEnabled` is true
+- Added `/api/auth/mfa/questions`, `/api/auth/mfa/enroll`, `/api/auth/mfa/disable`, and `/api/auth/mfa/verify`
+- Frontend login page now handles the MFA challenge step and profile page can enroll/disable MFA
+- Added MFA service tests and fixed a pre-existing TokenService test typo/claim assertion
+- Rebuilt and validated the Docker stack after MFA changes
 
 ## Completed Work
 - Unified layout structure across /wallet-history, /dashboard, and /profile pages
@@ -33,6 +42,7 @@
 - Changed incorrect `[item.color]` syntax to proper `[ngClass]="item.color"` binding
 - Verified color palette is properly defined in Tailwind config
 - Each wallet now gets unique color: bg-primary, bg-secondary, bg-tertiary, bg-error, bg-surface-tint
+- Dashboard notifications button now shows a red unread-count badge backed by NotificationService state
 - Implemented Transfer All button functionality in dashboard-page.component.ts
 - Added state variables: isTransferringAll, transferAllError, transferAllSuccess
 - Added onTransferAll() method to transfer entire wallet balance
@@ -45,6 +55,10 @@
 - Fixed wallet name bug: AccountRepository.UpdateAsync now preserves Name, IsActive, and IsDefault fields
 - Added Google registration entry point in the registration page and aligned OAuth popup handling with COOP-safe headers
 - Rebuilt the AuthService service file cleanly after a corrupted edit and confirmed the backend publishes successfully
+- Fixed QR transfer camera scanner permission flow in dashboard: camera access is now requested before detector capability checks.
+- Added jsQR compatibility fallback for browsers where BarcodeDetector is unavailable so QR scanning still works on Chromium desktop/mobile.
+- Frontend builds successfully after scanner changes and dependency update.
+- AuthService and frontend builds both succeed after MFA work.
 
 ## Key Files
 - Frontend: Z:\Desktop\Project\SaveSafe-Wallet\src\frontend

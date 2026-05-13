@@ -14,13 +14,15 @@ public class WalletManagementServiceTests
 {
     private readonly Mock<IAccountRepository> _mockAccountRepository;
     private readonly Mock<ILedgerRepository> _mockLedgerRepository;
+    private readonly Mock<IUserLookupService> _mockUserLookupService;
     private readonly WalletManagementService _service;
 
     public WalletManagementServiceTests()
     {
         _mockAccountRepository = new Mock<IAccountRepository>();
         _mockLedgerRepository = new Mock<ILedgerRepository>();
-        _service = new WalletManagementService(_mockAccountRepository.Object, _mockLedgerRepository.Object);
+        _mockUserLookupService = new Mock<IUserLookupService>();
+        _service = new WalletManagementService(_mockAccountRepository.Object, _mockLedgerRepository.Object, _mockUserLookupService.Object);
     }
 
     [Fact]

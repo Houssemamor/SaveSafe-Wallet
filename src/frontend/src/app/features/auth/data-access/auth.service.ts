@@ -4,7 +4,17 @@ import { Observable, tap, from, switchMap } from 'rxjs';
 // Firebase imports are optional - only used for Google login
 import { Auth, GoogleAuthProvider, signInWithPopup, UserCredential } from '@angular/fire/auth';
 import { API_CONFIG } from '../../../core/config/api.config';
-import { AuthResponse, LoginRequest, RegisterRequest, SessionUser } from '../models/auth.models';
+import {
+  AuthResponse,
+  LoginRequest,
+  MfaDisableResponse,
+  MfaEnrollRequest,
+  MfaEnrollResponse,
+  MfaVerifyRequest,
+  RegisterRequest,
+  SecurityQuestionCatalogResponse,
+  SessionUser
+} from '../models/auth.models';
 import { SessionService } from '../../../core/session/session.service';
 
 @Injectable({ providedIn: 'root' })
@@ -53,6 +63,40 @@ export class AuthService {
     );
   }
 
+  verifyMfaLogin(request: MfaVerifyRequest): Observable<AuthResponse> {
+    return this.http
+      .post<AuthResponse>(`${API_CONFIG.authBaseUrl}/mfa/verify`, request, { withCredentials: true })
+      .pipe(tap((response) => this.saveAuthSession(response)));
+  }
+
+  getMfaQuestions(): Observable<SecurityQuestionCatalogResponse> {
+    return this.http.get<SecurityQuestionCatalogResponse>(`${API_CONFIG.authBaseUrl}/mfa/questions`, { withCredentials: true });
+  }
+
+  enrollMfa(request: MfaEnrollRequest): Observable<MfaEnrollResponse> {
+    return this.http.post<MfaEnrollResponse>(`${API_CONFIG.authBaseUrl}/mfa/enroll`, request, { withCredentials: true });
+  }
+
+  initiateForgotPassword(email: { email: string }): Observable<{ success: boolean; questionText?: string; challengeToken?: string }> {
+    return this.http.post<{ success: boolean; questionText?: string; challengeToken?: string }>(
+      `${API_CONFIG.authBaseUrl}/mfa/forgot/initiate`,
+      email,
+      { withCredentials: true }
+    );
+  }
+
+  verifyForgotPassword(request: { challengeToken: string; answer: string }): Observable<{ success: boolean; passwordResetToken?: string }> {
+    return this.http.post<{ success: boolean; passwordResetToken?: string }>(`${API_CONFIG.authBaseUrl}/mfa/forgot/verify`, request, { withCredentials: true });
+  }
+
+  resetPassword(request: { passwordResetToken: string; newPassword: string }): Observable<{ success: boolean }> {
+    return this.http.post<{ success: boolean }>(`${API_CONFIG.authBaseUrl}/reset-password`, request, { withCredentials: true });
+  }
+
+  disableMfa(): Observable<MfaDisableResponse> {
+    return this.http.post<MfaDisableResponse>(`${API_CONFIG.authBaseUrl}/mfa/disable`, {}, { withCredentials: true });
+  }
+
   refresh(): Observable<AuthResponse> {
     return this.http
       .post<AuthResponse>(`${API_CONFIG.authBaseUrl}/refresh`, {}, { withCredentials: true })
@@ -75,6 +119,10 @@ export class AuthService {
   }
 
   private saveAuthSession(response: AuthResponse): void {
+    if (!response.accessToken || !response.userId || !response.email || !response.name || !response.role) {
+      return;
+    }
+
     const user: SessionUser = {
       userId: response.userId,
       email: response.email,
