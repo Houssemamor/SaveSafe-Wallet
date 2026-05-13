@@ -76,6 +76,28 @@ public class WalletController : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>Transfer funds to a specific recipient wallet identified by a QR code.</summary>
+    [HttpPost("transfer-to-wallet")]
+    [ProducesResponseType(typeof(WalletTransferResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> TransferFundsToWallet([FromBody] WalletTransferToWalletRequestDto request)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userId is null) return Unauthorized();
+
+        var result = await _walletService.TransferFundsToWalletAsync(
+            Guid.Parse(userId),
+            request.RecipientWalletId,
+            request.Amount,
+            request.Description);
+
+        if (!result.Success)
+            return BadRequest(new { message = result.ErrorMessage });
+
+        return Ok(result);
+    }
+
     /// <summary>Export wallet transaction history as CSV.</summary>
     [HttpGet("export")]
     [ProducesResponseType(StatusCodes.Status200OK)]

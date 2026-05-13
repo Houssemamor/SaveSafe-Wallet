@@ -38,6 +38,32 @@ export interface CreateWalletResponse {
   errorMessage?: string;
 }
 
+export interface ReceiveWalletQrResponse {
+  success: boolean;
+  token?: string;
+  walletId?: string;
+  walletName?: string;
+  currency?: string;
+  expiresAt?: string;
+  errorMessage?: string;
+}
+
+export interface ResolveWalletQrResponse {
+  success: boolean;
+  walletId?: string;
+  walletName?: string;
+  currency?: string;
+  errorMessage?: string;
+}
+
+export interface WalletTransferResponse {
+  success: boolean;
+  errorMessage?: string;
+  transactionId?: string;
+  newBalance?: number;
+  recipientName?: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class WalletService {
   constructor(private readonly http: HttpClient) {}
@@ -60,6 +86,14 @@ export class WalletService {
   transferFunds(recipientEmail: string, amount: number, description?: string): Observable<any> {
     return this.http.post(`${API_CONFIG.walletBaseUrl}/transfer`, {
       recipientEmail,
+      amount,
+      description
+    });
+  }
+
+  transferToWallet(recipientWalletId: string, amount: number, description?: string): Observable<WalletTransferResponse> {
+    return this.http.post<WalletTransferResponse>(`${API_CONFIG.walletBaseUrl}/transfer-to-wallet`, {
+      recipientWalletId,
       amount,
       description
     });
@@ -131,6 +165,23 @@ export class WalletService {
    */
   setDefaultWallet(walletId: string): Observable<void> {
     return this.http.post<void>(`${API_CONFIG.walletBaseUrl}/wallets/${walletId}/set-default`, {});
+  }
+
+  getReceiveQr(walletId?: string): Observable<ReceiveWalletQrResponse> {
+    const params: Record<string, string> = {};
+    if (walletId) {
+      params['walletId'] = walletId;
+    }
+
+    return this.http.get<ReceiveWalletQrResponse>(`${API_CONFIG.walletBaseUrl}/wallets/receive-qr`, {
+      params
+    });
+  }
+
+  resolveReceiveQr(token: string): Observable<ResolveWalletQrResponse> {
+    return this.http.post<ResolveWalletQrResponse>(`${API_CONFIG.walletBaseUrl}/wallets/resolve-receive-qr`, {
+      token
+    });
   }
 
   /**

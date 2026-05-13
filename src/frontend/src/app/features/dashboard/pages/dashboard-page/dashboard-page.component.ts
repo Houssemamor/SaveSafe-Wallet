@@ -4,11 +4,19 @@ import { Component, OnInit } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Observable } from 'rxjs';
+import QRCode from 'qrcode';
 import { SessionService } from '../../../../core/session/session.service';
 import { UserAvatarComponent } from '../../../../core/components/user-avatar/user-avatar.component';
 import { AuthService } from '../../../auth/data-access/auth.service';
 import { SessionUser } from '../../../auth/models/auth.models';
-import { WalletService, Wallet, CreateWalletRequest } from '../../../wallet-history/data-access/wallet.service';
+import {
+  WalletService,
+  Wallet,
+  CreateWalletRequest,
+  ReceiveWalletQrResponse,
+  ResolveWalletQrResponse,
+  WalletTransferResponse
+} from '../../../wallet-history/data-access/wallet.service';
 import { WalletBalanceResponse, WalletHistoryEntry } from '../../../wallet-history/models/wallet.models';
 import { SecurityService, SecurityLevel } from '../../../../core/security/security.service';
 import { Notification, NotificationService } from '../../../../core/notifications/notification.service';
@@ -34,6 +42,12 @@ interface BalanceDistributionItem {
   percentage: number;
   color: string;        // CSS class for legend dot
   colorValue: string;   // Actual hex/rgb for gradient
+}
+
+interface QrTransferRecipient {
+  walletId: string;
+  walletName: string;
+  currency: string;
 }
 
 @Component({
@@ -86,6 +100,30 @@ export class DashboardPageComponent implements OnInit {
   transferAllError = '';
   transferAllSuccess = '';
 
+  // QR receive workflow
+  showReceiveQrModal = false;
+  isLoadingReceiveQr = false;
+  receiveQrError = '';
+  receiveQrToken = '';
+  receiveQrImageDataUrl = '';
+  receiveQrWalletId = '';
+  receiveQrWalletName = '';
+  receiveQrCurrency = '';
+  receiveQrExpiresAt = '';
+
+  // QR transfer workflow
+  showQrTransferModal = false;
+  isResolvingQrTransfer = false;
+  isSubmittingQrTransfer = false;
+  qrTransferError = '';
+  qrTransferSuccess = '';
+  qrTransferTokenInput = '';
+  qrTransferScannerError = '';
+  qrTransferScannerStatus = '';
+  qrTransferResolvedRecipient: QrTransferRecipient | null = null;
+  private qrTransferScannerStream: MediaStream | null = null;
+  private qrTransferScannerTimer: number | null = null;
+
   // Wallet management
   wallets: Wallet[] = [];
   isLoadingWallets = false;
@@ -125,6 +163,11 @@ export class DashboardPageComponent implements OnInit {
     sourceWallet: ['', [Validators.required]],
     targetWallet: ['', [Validators.required]],
     amount: ['', [Validators.required, Validators.min(0.01)]]
+  });
+
+  readonly qrTransferForm = this.fb.nonNullable.group({
+    amount: ['', [Validators.required, Validators.min(0.01)]],
+    description: ['']
   });
 
   // Download functionality
@@ -567,6 +610,278 @@ export class DashboardPageComponent implements OnInit {
     this.showWalletTransferModal = false;
     this.transferAllSuccess = '';
     this.transferAllError = '';
+  }
+
+  openReceiveQrModal(): void {
+    const receiveWallet = this.selectedWallet ?? this.wallets.find(wallet => wallet.isDefault && wallet.isActive) ?? this.wallets.find(wallet => wallet.isActive) ?? null;
+
+    this.showReceiveQrModal = true;
+    this.receiveQrError = '';
+    this.receiveQrToken = '';
+    this.receiveQrImageDataUrl = '';
+    this.receiveQrWalletId = receiveWallet?.id ?? '';
+    this.receiveQrWalletName = receiveWallet?.name ?? '';
+    this.receiveQrCurrency = receiveWallet?.currency ?? 'USD';
+    this.receiveQrExpiresAt = '';
+
+    if (!receiveWallet) {
+      this.receiveQrError = 'Create or activate a wallet before generating a receive QR code.';
+      return;
+    }
+
+    this.loadReceiveQr(receiveWallet.id);
+  }
+
+  closeReceiveQrModal(): void {
+    this.showReceiveQrModal = false;
+    this.receiveQrError = '';
+    this.receiveQrToken = '';
+    this.receiveQrImageDataUrl = '';
+    this.receiveQrWalletId = '';
+    this.receiveQrWalletName = '';
+    this.receiveQrCurrency = '';
+    this.receiveQrExpiresAt = '';
+    this.isLoadingReceiveQr = false;
+  }
+
+  onReceiveWalletChange(walletId: string): void {
+    this.receiveQrWalletId = walletId;
+    if (walletId) {
+      this.loadReceiveQr(walletId);
+    }
+  }
+
+  openQrTransferModal(): void {
+    this.showQrTransferModal = true;
+    this.qrTransferError = '';
+    this.qrTransferSuccess = '';
+    this.qrTransferScannerError = '';
+    this.qrTransferScannerStatus = '';
+    this.qrTransferTokenInput = '';
+    this.qrTransferResolvedRecipient = null;
+    this.qrTransferForm.reset();
+
+    setTimeout(() => {
+      void this.startQrScanner();
+    });
+  }
+
+  closeQrTransferModal(): void {
+    this.stopQrScanner();
+    this.showQrTransferModal = false;
+    this.qrTransferError = '';
+    this.qrTransferSuccess = '';
+    this.qrTransferScannerError = '';
+    this.qrTransferScannerStatus = '';
+    this.qrTransferTokenInput = '';
+    this.qrTransferResolvedRecipient = null;
+    this.isResolvingQrTransfer = false;
+    this.isSubmittingQrTransfer = false;
+    this.qrTransferForm.reset();
+  }
+
+  async loadReceiveQr(walletId: string): Promise<void> {
+    if (!walletId) {
+      this.receiveQrError = 'Select a wallet first.';
+      return;
+    }
+
+    this.isLoadingReceiveQr = true;
+    this.receiveQrError = '';
+
+    this.walletService.getReceiveQr(walletId).subscribe({
+      next: (response: ReceiveWalletQrResponse) => {
+        this.isLoadingReceiveQr = false;
+
+        if (!response.success || !response.token) {
+          this.receiveQrError = response.errorMessage || 'Unable to generate a receive QR code.';
+          return;
+        }
+
+        this.receiveQrToken = response.token;
+        this.receiveQrWalletId = response.walletId || walletId;
+        this.receiveQrWalletName = response.walletName || this.receiveQrWalletName;
+        this.receiveQrCurrency = response.currency || this.receiveQrCurrency;
+        this.receiveQrExpiresAt = response.expiresAt ? new Date(response.expiresAt).toLocaleString() : '';
+
+        void this.renderReceiveQrImage(response.token);
+      },
+      error: () => {
+        this.isLoadingReceiveQr = false;
+        this.receiveQrError = 'Unable to generate a receive QR code. Please try again.';
+      }
+    });
+  }
+
+  async renderReceiveQrImage(token: string): Promise<void> {
+    try {
+      this.receiveQrImageDataUrl = await QRCode.toDataURL(token, {
+        width: 320,
+        margin: 1,
+        errorCorrectionLevel: 'M'
+      });
+    } catch {
+      this.receiveQrError = 'Unable to render the QR code image.';
+    }
+  }
+
+  copyReceiveQrToken(): void {
+    if (!this.receiveQrToken || !navigator.clipboard) {
+      return;
+    }
+
+    navigator.clipboard.writeText(this.receiveQrToken).catch(() => {
+      this.receiveQrError = 'Unable to copy the QR token.';
+    });
+  }
+
+  async startQrScanner(): Promise<void> {
+    if (!this.showQrTransferModal || this.qrTransferResolvedRecipient) {
+      return;
+    }
+
+    this.qrTransferScannerError = '';
+    this.qrTransferScannerStatus = '';
+
+    const barcodeDetectorFactory = (window as Window & {
+      BarcodeDetector?: new (options: { formats: string[] }) => {
+        detect(source: HTMLVideoElement): Promise<Array<{ rawValue?: string }>>;
+      };
+    }).BarcodeDetector;
+
+    if (!barcodeDetectorFactory) {
+      this.qrTransferScannerError = 'This browser does not support camera-based QR scanning. Paste the token below instead.';
+      return;
+    }
+
+    const videoElement = document.getElementById('qr-transfer-video') as HTMLVideoElement | null;
+    if (!videoElement) {
+      this.qrTransferScannerError = 'QR scanner is not ready yet.';
+      return;
+    }
+
+    try {
+      this.qrTransferScannerStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' },
+        audio: false
+      });
+      videoElement.srcObject = this.qrTransferScannerStream;
+      await videoElement.play();
+
+      const detector = new barcodeDetectorFactory({ formats: ['qr_code'] });
+      this.qrTransferScannerStatus = 'Scanning for a QR code...';
+      this.qrTransferScannerTimer = window.setInterval(async () => {
+        if (!this.showQrTransferModal || this.qrTransferResolvedRecipient) {
+          return;
+        }
+
+        try {
+          const codes = await detector.detect(videoElement);
+          const token = codes.find(code => code.rawValue)?.rawValue;
+          if (token) {
+            this.resolveQrTransferToken(token);
+          }
+        } catch {
+          this.qrTransferScannerError = 'Unable to read the QR code from the camera.';
+        }
+      }, 700);
+    } catch {
+      this.qrTransferScannerError = 'Unable to access the camera. You can paste the QR token instead.';
+    }
+  }
+
+  stopQrScanner(): void {
+    if (this.qrTransferScannerTimer !== null) {
+      window.clearInterval(this.qrTransferScannerTimer);
+      this.qrTransferScannerTimer = null;
+    }
+
+    if (this.qrTransferScannerStream) {
+      this.qrTransferScannerStream.getTracks().forEach(track => track.stop());
+      this.qrTransferScannerStream = null;
+    }
+
+    const videoElement = document.getElementById('qr-transfer-video') as HTMLVideoElement | null;
+    if (videoElement) {
+      videoElement.srcObject = null;
+    }
+
+    this.qrTransferScannerStatus = '';
+  }
+
+  resolveQrTransferToken(token?: string): void {
+    const qrToken = (token || this.qrTransferTokenInput).trim();
+    if (!qrToken || this.isResolvingQrTransfer) {
+      return;
+    }
+
+    this.isResolvingQrTransfer = true;
+    this.qrTransferError = '';
+    this.qrTransferScannerError = '';
+    this.qrTransferScannerStatus = 'Resolving QR token...';
+
+    this.walletService.resolveReceiveQr(qrToken).subscribe({
+      next: (response: ResolveWalletQrResponse) => {
+        this.isResolvingQrTransfer = false;
+
+        if (!response.success || !response.walletId || !response.walletName || !response.currency) {
+          this.qrTransferError = response.errorMessage || 'Unable to resolve the scanned QR code.';
+          this.qrTransferResolvedRecipient = null;
+          return;
+        }
+
+        this.stopQrScanner();
+        this.qrTransferResolvedRecipient = {
+          walletId: response.walletId,
+          walletName: response.walletName,
+          currency: response.currency
+        };
+        this.qrTransferScannerStatus = `Ready to send to ${response.walletName}.`;
+        this.qrTransferTokenInput = qrToken;
+      },
+      error: () => {
+        this.isResolvingQrTransfer = false;
+        this.qrTransferError = 'Unable to resolve the scanned QR code. Please try again.';
+        this.qrTransferScannerStatus = '';
+      }
+    });
+  }
+
+  submitQrTransfer(): void {
+    if (this.qrTransferForm.invalid || this.isSubmittingQrTransfer || !this.qrTransferResolvedRecipient) {
+      this.qrTransferForm.markAllAsTouched();
+      return;
+    }
+
+    this.isSubmittingQrTransfer = true;
+    this.qrTransferError = '';
+    this.qrTransferSuccess = '';
+
+    const { amount, description } = this.qrTransferForm.getRawValue();
+    const amountAsNumber = parseFloat(amount);
+
+    this.walletService.transferToWallet(this.qrTransferResolvedRecipient.walletId, amountAsNumber, description).subscribe({
+      next: (response: WalletTransferResponse) => {
+        this.isSubmittingQrTransfer = false;
+
+        if (response.success) {
+          this.qrTransferSuccess = `Transfer of $${amountAsNumber.toFixed(2)} to ${this.qrTransferResolvedRecipient?.walletName || 'the scanned wallet'} completed successfully.`;
+          this.loadWallets();
+          this.loadBalanceDistribution();
+          if (this.selectedWallet) {
+            this.loadWalletBalance(this.selectedWallet.id);
+          }
+          setTimeout(() => this.closeQrTransferModal(), 2000);
+          return;
+        }
+
+        this.qrTransferError = response.errorMessage || 'QR transfer failed. Please try again.';
+      },
+      error: (error: HttpErrorResponse) => {
+        this.isSubmittingQrTransfer = false;
+        this.qrTransferError = error?.error?.message || 'QR transfer failed. Please check your connection and try again.';
+      }
+    });
   }
 
   /**

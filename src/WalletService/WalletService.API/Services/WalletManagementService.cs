@@ -1,3 +1,7 @@
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
+using Microsoft.Extensions.Configuration;
 using WalletService.API.DTOs;
 using WalletService.API.Persistence;
 
@@ -11,13 +15,16 @@ public class WalletManagementService : IWalletManagementService
 {
     private readonly IAccountRepository _accountRepository;
     private readonly ILedgerRepository _ledgerRepository;
+    private readonly IConfiguration? _configuration;
 
     public WalletManagementService(
         IAccountRepository accountRepository,
-        ILedgerRepository ledgerRepository)
+        ILedgerRepository ledgerRepository,
+        IConfiguration? configuration = null)
     {
         _accountRepository = accountRepository;
         _ledgerRepository = ledgerRepository;
+        _configuration = configuration;
     }
 
     /// <summary>
@@ -389,6 +396,257 @@ public class WalletManagementService : IWalletManagementService
                 Success = false,
                 ErrorMessage = $"Transfer failed: {ex.Message}"
             };
+        }
+    }
+
+    /// <summary>
+    /// Create a signed QR token for receiving funds at a wallet.
+    /// The token only identifies the wallet; it does not expose secrets.
+    /// </summary>
+    public async Task<ReceiveWalletQrResponseDto> CreateReceiveQrAsync(string userId, string? walletId = null)
+    {
+        var account = await ResolveWalletForReceiveQrAsync(userId, walletId);
+        if (account is null)
+        {
+            return new ReceiveWalletQrResponseDto
+            {
+                Success = false,
+                ErrorMessage = "No active wallet was found for QR generation."
+            };
+        }
+
+        if (!TryGetQrSigningKey(out var signingKey))
+        {
+            return new ReceiveWalletQrResponseDto
+            {
+                Success = false,
+                ErrorMessage = "QR signing key is not configured."
+            };
+        }
+
+        var expiresAt = DateTimeOffset.UtcNow.AddMinutes(15);
+        var payload = new ReceiveQrTokenPayload(
+            WalletId: account.Id.ToString(),
+            UserId: userId,
+            Purpose: ReceiveQrPurpose,
+            ExpiresAtUnixSeconds: expiresAt.ToUnixTimeSeconds(),
+            Nonce: Guid.NewGuid().ToString("N"));
+
+        return new ReceiveWalletQrResponseDto
+        {
+            Success = true,
+            Token = ReceiveQrTokenCodec.Create(payload, signingKey),
+            WalletId = account.Id.ToString(),
+            WalletName = account.Name ?? "Default Wallet",
+            Currency = account.Currency ?? "USD",
+            ExpiresAt = expiresAt.UtcDateTime
+        };
+    }
+
+    /// <summary>
+    /// Resolve a signed receive QR token into wallet details.
+    /// The caller can use the returned wallet ID to submit a transfer.
+    /// </summary>
+    public async Task<ResolveWalletQrResponseDto> ResolveReceiveQrAsync(string token)
+    {
+        if (!TryGetQrSigningKey(out var signingKey))
+        {
+            return new ResolveWalletQrResponseDto
+            {
+                Success = false,
+                ErrorMessage = "QR signing key is not configured."
+            };
+        }
+
+        if (!ReceiveQrTokenCodec.TryValidate(token, signingKey, out var payload, out var validationError))
+        {
+            return new ResolveWalletQrResponseDto
+            {
+                Success = false,
+                ErrorMessage = validationError
+            };
+        }
+
+        if (!string.Equals(payload.Purpose, ReceiveQrPurpose, StringComparison.Ordinal))
+        {
+            return new ResolveWalletQrResponseDto
+            {
+                Success = false,
+                ErrorMessage = "The scanned QR code is not a valid receive token."
+            };
+        }
+
+        var account = await _accountRepository.GetAccountByIdAsync(payload.WalletId);
+        if (account is null || account.UserId != payload.UserId)
+        {
+            return new ResolveWalletQrResponseDto
+            {
+                Success = false,
+                ErrorMessage = "The scanned QR code no longer matches an active wallet."
+            };
+        }
+
+        if (!account.IsActive)
+        {
+            return new ResolveWalletQrResponseDto
+            {
+                Success = false,
+                ErrorMessage = "The scanned wallet is inactive."
+            };
+        }
+
+        return new ResolveWalletQrResponseDto
+        {
+            Success = true,
+            WalletId = account.Id.ToString(),
+            WalletName = account.Name ?? "Default Wallet",
+            Currency = account.Currency ?? "USD"
+        };
+    }
+
+    private async Task<Entities.Account?> ResolveWalletForReceiveQrAsync(string userId, string? walletId)
+    {
+        if (!string.IsNullOrWhiteSpace(walletId))
+        {
+            var selectedWallet = await _accountRepository.GetAccountByIdAsync(walletId);
+            if (selectedWallet is not null && selectedWallet.UserId == userId && selectedWallet.IsActive)
+            {
+                return selectedWallet;
+            }
+
+            return null;
+        }
+
+        var defaultWallet = await _accountRepository.GetDefaultAccountAsync(userId);
+        if (defaultWallet is not null && defaultWallet.IsActive)
+        {
+            return defaultWallet;
+        }
+
+        var accounts = await _accountRepository.GetAccountsByUserIdAsync(userId);
+        return accounts.FirstOrDefault(account => account.IsActive);
+    }
+
+    private bool TryGetQrSigningKey(out string signingKey)
+    {
+        signingKey = _configuration?["Jwt:Key"] ?? string.Empty;
+        return !string.IsNullOrWhiteSpace(signingKey);
+    }
+
+    private const string ReceiveQrPurpose = "wallet-receive";
+
+    private sealed record ReceiveQrTokenPayload(
+        string WalletId,
+        string UserId,
+        string Purpose,
+        long ExpiresAtUnixSeconds,
+        string Nonce);
+
+    private static class ReceiveQrTokenCodec
+    {
+        private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+
+        public static string Create(ReceiveQrTokenPayload payload, string signingKey)
+        {
+            var payloadJson = JsonSerializer.Serialize(payload, JsonOptions);
+            var encodedPayload = Base64UrlEncode(Encoding.UTF8.GetBytes(payloadJson));
+            var signature = CreateSignature(encodedPayload, signingKey);
+            return string.Join('.', "sswqr", encodedPayload, signature);
+        }
+
+        public static bool TryValidate(
+            string token,
+            string signingKey,
+            out ReceiveQrTokenPayload payload,
+            out string errorMessage)
+        {
+            payload = default!;
+            errorMessage = string.Empty;
+
+            if (string.IsNullOrWhiteSpace(token))
+            {
+                errorMessage = "QR token is required.";
+                return false;
+            }
+
+            var segments = token.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            if (segments.Length != 3 || !string.Equals(segments[0], "sswqr", StringComparison.Ordinal))
+            {
+                errorMessage = "Invalid QR token format.";
+                return false;
+            }
+
+            var expectedSignature = CreateSignature(segments[1], signingKey);
+            if (!FixedTimeEquals(expectedSignature, segments[2]))
+            {
+                errorMessage = "QR token signature is invalid.";
+                return false;
+            }
+
+            if (!TryBase64UrlDecode(segments[1], out var payloadBytes))
+            {
+                errorMessage = "QR token payload is invalid.";
+                return false;
+            }
+
+            try
+            {
+                payload = JsonSerializer.Deserialize<ReceiveQrTokenPayload>(payloadBytes, JsonOptions)
+                    ?? throw new JsonException("Missing payload.");
+            }
+            catch
+            {
+                errorMessage = "QR token payload could not be read.";
+                return false;
+            }
+
+            if (payload.ExpiresAtUnixSeconds < DateTimeOffset.UtcNow.ToUnixTimeSeconds())
+            {
+                errorMessage = "QR token has expired.";
+                return false;
+            }
+
+            return true;
+        }
+
+        private static string CreateSignature(string payload, string signingKey)
+        {
+            using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(signingKey));
+            var hash = hmac.ComputeHash(Encoding.UTF8.GetBytes(payload));
+            return Base64UrlEncode(hash);
+        }
+
+        private static bool TryBase64UrlDecode(string value, out byte[] bytes)
+        {
+            bytes = Array.Empty<byte>();
+
+            var normalized = value.Replace('-', '+').Replace('_', '/');
+            normalized = normalized.PadRight(normalized.Length + (4 - normalized.Length % 4) % 4, '=');
+
+            try
+            {
+                bytes = Convert.FromBase64String(normalized);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static string Base64UrlEncode(byte[] bytes)
+        {
+            return Convert.ToBase64String(bytes)
+                .TrimEnd('=')
+                .Replace('+', '-')
+                .Replace('/', '_');
+        }
+
+        private static bool FixedTimeEquals(string left, string right)
+        {
+            var leftBytes = Encoding.UTF8.GetBytes(left);
+            var rightBytes = Encoding.UTF8.GetBytes(right);
+            return leftBytes.Length == rightBytes.Length && CryptographicOperations.FixedTimeEquals(leftBytes, rightBytes);
         }
     }
 }

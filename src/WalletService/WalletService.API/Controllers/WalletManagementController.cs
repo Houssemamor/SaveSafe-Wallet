@@ -227,4 +227,59 @@ public class WalletManagementController : ControllerBase
             return StatusCode(500, "An error occurred while processing the transfer.");
         }
     }
+
+    /// <summary>
+    /// Create a signed QR token for a wallet that can receive funds.
+    /// </summary>
+    [HttpGet("wallets/receive-qr")]
+    [ProducesResponseType(typeof(ReceiveWalletQrResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<ReceiveWalletQrResponseDto>> CreateReceiveQr([FromQuery] string? walletId = null)
+    {
+        try
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                ?? throw new UnauthorizedAccessException("User not authenticated.");
+
+            var response = await _walletManagementService.CreateReceiveQrAsync(userId, walletId);
+            if (!response.Success)
+            {
+                return BadRequest(response);
+            }
+
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating receive QR token");
+            return StatusCode(500, "An error occurred while creating the receive QR token.");
+        }
+    }
+
+    /// <summary>
+    /// Resolve a signed QR token into wallet details.
+    /// </summary>
+    [HttpPost("wallets/resolve-receive-qr")]
+    [ProducesResponseType(typeof(ResolveWalletQrResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<ResolveWalletQrResponseDto>> ResolveReceiveQr([FromBody] ResolveWalletQrRequestDto request)
+    {
+        try
+        {
+            var response = await _walletManagementService.ResolveReceiveQrAsync(request.Token);
+            if (!response.Success)
+            {
+                return BadRequest(response);
+            }
+
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error resolving receive QR token");
+            return StatusCode(500, "An error occurred while resolving the QR token.");
+        }
+    }
 }
