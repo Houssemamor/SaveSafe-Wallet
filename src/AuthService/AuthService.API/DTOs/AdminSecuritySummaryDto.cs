@@ -13,3 +13,7 @@ public record AdminSecuritySummaryDto(
     string AiRiskLevel,
     DateTime ComputedAt
 );
+
+public sealed record AdminResetUserPasswordRequestDto(
+    string NewPassword
+);

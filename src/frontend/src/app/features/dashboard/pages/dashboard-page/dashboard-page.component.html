@@ -223,6 +223,35 @@
               <p class="text-sm text-on-surface-variant">No active wallets with balance found.</p>
             </div>
           </div>
+
+          <div class="bg-surface-container-lowest rounded-xl p-8">
+            <div class="flex items-start justify-between gap-4">
+              <div>
+                <h4 class="text-xl font-headline font-bold">Assistance</h4>
+                <p class="mt-1 text-sm text-on-surface-variant">Messages and account help from the SaveSafe admin team.</p>
+              </div>
+              <span class="rounded-full bg-secondary-container px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-on-secondary-container">{{ assistanceMessages.length }} open</span>
+            </div>
+
+            <div class="mt-6 space-y-4 max-h-64 overflow-y-auto pr-2">
+              <article *ngFor="let message of assistanceMessages" class="rounded-lg border border-outline-variant/20 bg-surface-container-low p-4">
+                <div class="flex items-start gap-3">
+                  <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary text-white">
+                    <span class="material-symbols-outlined text-base">support_agent</span>
+                  </div>
+                  <div>
+                    <p class="font-bold text-on-surface">{{ message.title }}</p>
+                    <p class="mt-1 text-sm leading-5 text-on-surface-variant">{{ message.message }}</p>
+                    <p class="mt-2 text-xs font-semibold text-on-surface-variant">{{ message.createdAt | date:'short' }}</p>
+                  </div>
+                </div>
+              </article>
+
+              <div *ngIf="assistanceMessages.length === 0" class="rounded-lg bg-surface-container-low p-4 text-sm text-on-surface-variant">
+                No admin assistance messages right now.
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Wallet Management Section -->

@@ -561,7 +561,7 @@ export class DashboardPageComponent implements OnInit {
     }
 
     this.showNotificationPopover = false;
-    this.router.navigate(['/wallet-history']);
+    this.router.navigate([notification.actionUrl || '/wallet-history']);
   }
 
   trackByNotificationId(_: number, notification: Notification): string {
@@ -575,6 +575,10 @@ export class DashboardPageComponent implements OnInit {
 
     const query = this.searchQuery.toLowerCase();
     return this.recentTransactions.filter(entry => this.getSearchableTransactionText(entry).includes(query));
+  }
+
+  get assistanceMessages(): Notification[] {
+    return this.notificationService.getAdminMessagesForCurrentUser();
   }
 
   /**

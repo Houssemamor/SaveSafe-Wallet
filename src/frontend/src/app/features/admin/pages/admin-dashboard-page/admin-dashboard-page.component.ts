@@ -1,11 +1,12 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { SessionService } from '../../../../core/session/session.service';
 import { Subscription } from 'rxjs';
 import { AuthService } from '../../../auth/data-access/auth.service';
+import { NotificationService } from '../../../../core/notifications/notification.service';
 import { SessionUser } from '../../../auth/models/auth.models';
 import { AdminService } from '../../data-access/admin.service';
 import {
@@ -30,7 +31,7 @@ interface SourceSignal {
 @Component({
   selector: 'app-admin-dashboard-page',
   standalone: true,
-  imports: [CommonModule, RouterLink, FormsModule],
+  imports: [CommonModule, RouterLink, FormsModule, ReactiveFormsModule],
   templateUrl: './admin-dashboard-page.component.html',
   styles: [`
     :host {
@@ -98,6 +99,10 @@ export class AdminDashboardPageComponent implements OnInit, OnDestroy {
   observabilityQuery = 'sum by (service) (count_over_time({service=~".+"}[5m]))';
   observabilityHours = 1;
   observabilityResult: AdminLokiQueryResponse | null = null;
+  selectedUserForContact: AdminUser | null = null;
+  selectedUserForPassword: AdminUser | null = null;
+  adminActionMessage = '';
+  isResettingPassword = false;
   readonly generatedAt = new Date();
   readonly observabilityPalette = [
     '#0052cc',
@@ -110,10 +115,22 @@ export class AdminDashboardPageComponent implements OnInit, OnDestroy {
     '#4338ca'
   ];
 
+  readonly contactForm = this.fb.nonNullable.group({
+    subject: ['Account support message', [Validators.required, Validators.maxLength(120)]],
+    message: ['', [Validators.required, Validators.minLength(8), Validators.maxLength(500)]]
+  });
+
+  readonly passwordResetForm = this.fb.nonNullable.group({
+    newPassword: ['', [Validators.required, Validators.minLength(8)]],
+    confirmPassword: ['', [Validators.required]]
+  });
+
   constructor(
     private readonly adminService: AdminService,
     private readonly sessionService: SessionService,
     private readonly authService: AuthService,
+    private readonly notificationService: NotificationService,
+    private readonly fb: FormBuilder,
     private readonly router: Router
   ) {}
 
@@ -574,5 +591,78 @@ export class AdminDashboardPageComponent implements OnInit, OnDestroy {
 
   canDeleteUser(user: AdminUser): boolean {
     return user.accountStatus !== 'Deleted';
+  }
+
+  openContactUser(user: AdminUser): void {
+    this.selectedUserForContact = user;
+    this.adminActionMessage = '';
+    this.contactForm.reset({
+      subject: 'Account support message',
+      message: `Hello ${user.name}, an administrator reviewed your account and left a support note.`
+    });
+  }
+
+  closeContactUser(): void {
+    this.selectedUserForContact = null;
+    this.contactForm.reset();
+  }
+
+  sendContactMessage(): void {
+    if (!this.selectedUserForContact || this.contactForm.invalid) {
+      this.contactForm.markAllAsTouched();
+      return;
+    }
+
+    const values = this.contactForm.getRawValue();
+    this.notificationService.addAdminMessageForUser(
+      this.selectedUserForContact.email,
+      values.subject,
+      values.message
+    );
+
+    this.adminActionMessage = `Message sent to ${this.selectedUserForContact.email}.`;
+    this.closeContactUser();
+  }
+
+  openPasswordReset(user: AdminUser): void {
+    this.selectedUserForPassword = user;
+    this.adminActionMessage = '';
+    this.passwordResetForm.reset();
+  }
+
+  closePasswordReset(): void {
+    this.selectedUserForPassword = null;
+    this.passwordResetForm.reset();
+  }
+
+  resetUserPassword(): void {
+    if (!this.selectedUserForPassword || this.passwordResetForm.invalid || this.isResettingPassword) {
+      this.passwordResetForm.markAllAsTouched();
+      return;
+    }
+
+    const values = this.passwordResetForm.getRawValue();
+    if (values.newPassword !== values.confirmPassword) {
+      this.passwordResetForm.controls.confirmPassword.setErrors({ mismatch: true });
+      return;
+    }
+
+    this.isResettingPassword = true;
+    this.adminService.resetUserPassword(this.selectedUserForPassword.userId, values.newPassword).subscribe({
+      next: () => {
+        this.isResettingPassword = false;
+        this.notificationService.addAdminMessageForUser(
+          this.selectedUserForPassword!.email,
+          'Your password was changed',
+          'An administrator updated your account password. If you did not request this, contact support immediately.'
+        );
+        this.adminActionMessage = `Password updated for ${this.selectedUserForPassword!.email}.`;
+        this.closePasswordReset();
+      },
+      error: () => {
+        this.isResettingPassword = false;
+        this.adminActionMessage = 'Unable to update user password.';
+      }
+    });
   }
 }

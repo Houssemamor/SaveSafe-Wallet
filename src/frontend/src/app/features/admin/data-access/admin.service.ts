@@ -55,4 +55,8 @@ export class AdminService {
   deleteUser(userId: string): Observable<void> {
     return this.http.delete<void>(`${API_CONFIG.adminBaseUrl}/users/${userId}`);
   }
+
+  resetUserPassword(userId: string, newPassword: string): Observable<void> {
+    return this.http.put<void>(`${API_CONFIG.adminBaseUrl}/users/${userId}/password`, { newPassword });
+  }
 }

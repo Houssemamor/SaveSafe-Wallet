@@ -17,6 +17,7 @@ public interface IAdminService
     Task SuspendUserAsync(Guid userId);
     Task ActivateUserAsync(Guid userId);
     Task DeleteUserAsync(Guid userId);
+    Task ResetUserPasswordAsync(Guid userId, AdminResetUserPasswordRequestDto request);
 }
 
 public class AdminService : IAdminService
@@ -242,6 +243,23 @@ public class AdminService : IAdminService
         user.AccountStatus = UserAccountStatus.Deleted;
         user.UpdatedAt = DateTime.UtcNow;
         await _users.UpdateAsync(user);
+    }
+
+    public async Task ResetUserPasswordAsync(Guid userId, AdminResetUserPasswordRequestDto request)
+    {
+        var user = await _users.GetByIdAsync(userId);
+        if (user is null)
+            throw new KeyNotFoundException($"User {userId} not found.");
+
+        if (string.IsNullOrWhiteSpace(request.NewPassword) || request.NewPassword.Length < 8)
+            throw new ArgumentException("Password must be at least 8 characters long.");
+
+        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword, workFactor: 12);
+        user.UpdatedAt = DateTime.UtcNow;
+
+        await _users.UpdateAsync(user);
+
+        _logger.LogInformation("Admin reset password for user {UserId}", userId);
     }
 
     private static AdminSecuritySummaryDto MapSnapshot(AdminStatsSnapshot snapshot) =>

@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { Observable, of, BehaviorSubject } from 'rxjs';
 import { HttpClient } from '@angular/common/http';
 import { API_CONFIG } from '../config/api.config';
+import { SessionService } from '../session/session.service';
 
 /**
  * Notification type enumeration for categorizing different notification kinds
@@ -37,6 +38,8 @@ export interface Notification {
   actionUrl?: string;
 }
 
+const ADMIN_NOTIFICATION_STORAGE_KEY = 'ssw_admin_notifications';
+
 /**
  * Service for managing user notifications
  * Handles notification retrieval, marking as read, and notification counts
@@ -46,11 +49,20 @@ export class NotificationService {
   private readonly notificationsSubject = new BehaviorSubject<Notification[]>([]);
   private readonly unreadCountSubject = new BehaviorSubject<number>(0);
 
-  constructor(private readonly http: HttpClient) {
-    const initialNotifications = this.getMockNotifications();
+  constructor(
+    private readonly http: HttpClient,
+    private readonly sessionService: SessionService
+  ) {
+    const initialNotifications = this.buildNotificationsForCurrentUser();
 
     this.notificationsSubject.next(initialNotifications);
     this.updateUnreadCount(initialNotifications);
+
+    this.sessionService.currentUser$.subscribe(() => {
+      const notifications = this.buildNotificationsForCurrentUser();
+      this.notificationsSubject.next(notifications);
+      this.updateUnreadCount(notifications);
+    });
   }
 
   /**
@@ -78,6 +90,8 @@ export class NotificationService {
    */
   markAsRead(notificationId: string): Observable<void> {
     // In production, this would call the backend API
+    this.updateAdminMailboxNotification(notificationId, (notification) => ({ ...notification, isRead: true }));
+
     const currentNotifications = this.notificationsSubject.value;
     const updatedNotifications = currentNotifications.map(notification =>
       notification.id === notificationId ? { ...notification, isRead: true } : notification
@@ -95,6 +109,8 @@ export class NotificationService {
    */
   markAllAsRead(): Observable<void> {
     // In production, this would call the backend API
+    this.markAllAdminMailboxNotificationsAsRead();
+
     const currentNotifications = this.notificationsSubject.value;
     const updatedNotifications = currentNotifications.map(notification => ({
       ...notification,
@@ -114,6 +130,8 @@ export class NotificationService {
    */
   deleteNotification(notificationId: string): Observable<void> {
     // In production, this would call the backend API
+    this.deleteAdminMailboxNotification(notificationId);
+
     const currentNotifications = this.notificationsSubject.value;
     const updatedNotifications = currentNotifications.filter(
       notification => notification.id !== notificationId
@@ -145,6 +163,41 @@ export class NotificationService {
     console.error(`Error: ${message}`);
   }
 
+  addAdminMessageForUser(email: string, title: string, message: string): Notification {
+    const notification: Notification = {
+      id: `admin-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      type: NotificationType.SYSTEM,
+      priority: NotificationPriority.HIGH,
+      title,
+      message,
+      isRead: false,
+      createdAt: new Date().toISOString(),
+      actionUrl: '/dashboard'
+    };
+
+    const mailbox = this.readAdminMailbox();
+    const normalizedEmail = email.trim().toLowerCase();
+    mailbox[normalizedEmail] = [notification, ...(mailbox[normalizedEmail] ?? [])].slice(0, 20);
+    localStorage.setItem(ADMIN_NOTIFICATION_STORAGE_KEY, JSON.stringify(mailbox));
+
+    if (this.sessionService.currentUser?.email?.toLowerCase() === normalizedEmail) {
+      const notifications = this.buildNotificationsForCurrentUser();
+      this.notificationsSubject.next(notifications);
+      this.updateUnreadCount(notifications);
+    }
+
+    return notification;
+  }
+
+  getAdminMessagesForCurrentUser(): Notification[] {
+    const email = this.sessionService.currentUser?.email?.trim().toLowerCase();
+    if (!email) {
+      return [];
+    }
+
+    return this.readAdminMailbox()[email] ?? [];
+  }
+
   /**
    * Update unread count based on notifications array
    * @param notifications - Array of notifications to count
@@ -152,6 +205,73 @@ export class NotificationService {
   private updateUnreadCount(notifications: Notification[]): void {
     const unreadCount = notifications.filter(notification => !notification.isRead).length;
     this.unreadCountSubject.next(unreadCount);
+  }
+
+  private buildNotificationsForCurrentUser(): Notification[] {
+    return [
+      ...this.getAdminMessagesForCurrentUser(),
+      ...this.getMockNotifications()
+    ];
+  }
+
+  private readAdminMailbox(): Record<string, Notification[]> {
+    const raw = localStorage.getItem(ADMIN_NOTIFICATION_STORAGE_KEY);
+    if (!raw) {
+      return {};
+    }
+
+    try {
+      return JSON.parse(raw) as Record<string, Notification[]>;
+    } catch {
+      localStorage.removeItem(ADMIN_NOTIFICATION_STORAGE_KEY);
+      return {};
+    }
+  }
+
+  private updateAdminMailboxNotification(notificationId: string, update: (notification: Notification) => Notification): void {
+    const mailbox = this.readAdminMailbox();
+    let changed = false;
+
+    for (const email of Object.keys(mailbox)) {
+      mailbox[email] = mailbox[email].map((notification) => {
+        if (notification.id !== notificationId) {
+          return notification;
+        }
+
+        changed = true;
+        return update(notification);
+      });
+    }
+
+    if (changed) {
+      localStorage.setItem(ADMIN_NOTIFICATION_STORAGE_KEY, JSON.stringify(mailbox));
+    }
+  }
+
+  private markAllAdminMailboxNotificationsAsRead(): void {
+    const mailbox = this.readAdminMailbox();
+    const email = this.sessionService.currentUser?.email?.trim().toLowerCase();
+    if (!email || !mailbox[email]) {
+      return;
+    }
+
+    mailbox[email] = mailbox[email].map((notification) => ({ ...notification, isRead: true }));
+    localStorage.setItem(ADMIN_NOTIFICATION_STORAGE_KEY, JSON.stringify(mailbox));
+  }
+
+  private deleteAdminMailboxNotification(notificationId: string): void {
+    const mailbox = this.readAdminMailbox();
+    let changed = false;
+
+    for (const email of Object.keys(mailbox)) {
+      const before = mailbox[email].length;
+      mailbox[email] = mailbox[email].filter((notification) => notification.id !== notificationId);
+      changed = changed || mailbox[email].length !== before;
+    }
+
+    if (changed) {
+      localStorage.setItem(ADMIN_NOTIFICATION_STORAGE_KEY, JSON.stringify(mailbox));
+    }
   }
 
   /**

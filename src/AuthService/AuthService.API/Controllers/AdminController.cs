@@ -123,6 +123,23 @@ public class AdminController : ControllerBase
         return NoContent();
     }
 
+    [HttpPut("users/{userId}/password")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ResetUserPassword(Guid userId, [FromBody] AdminResetUserPasswordRequestDto request)
+    {
+        try
+        {
+            await _adminService.ResetUserPasswordAsync(userId, request);
+            return NoContent();
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
+
     /// <summary>Debug endpoint to check user count and database status.</summary>
     [HttpGet("debug/user-count")]
     [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
