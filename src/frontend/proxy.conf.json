@@ -5,6 +5,12 @@
     "changeOrigin": true,
     "logLevel": "debug"
   },
+  "/api/admin/withdrawals": {
+    "target": "http://localhost:5003",
+    "secure": false,
+    "changeOrigin": true,
+    "logLevel": "debug"
+  },
   "/api/admin": {
     "target": "http://localhost:5001",
     "secure": false,

@@ -45,7 +45,7 @@ export class TopUpPageComponent implements OnInit {
     this.submitError = '';
 
     const amount = Number(this.topUpForm.getRawValue().amount);
-    this.paymentService.createCheckoutSession(amount).subscribe({
+    this.paymentService.createCheckoutSession(amount, window.location.origin).subscribe({
       next: (response) => {
         this.isSubmitting = false;
 

@@ -9,6 +9,7 @@ import { DashboardPageComponent } from './features/dashboard/pages/dashboard-pag
 import { UserProfilePageComponent } from './features/profile/pages/user-profile-page/user-profile-page.component';
 import { WalletHistoryPageComponent } from './features/wallet-history/pages/wallet-history-page/wallet-history-page.component';
 import { AdminDashboardPageComponent } from './features/admin/pages/admin-dashboard-page/admin-dashboard-page.component';
+import { AdminWithdrawalsPageComponent } from './features/admin/pages/admin-withdrawals-page/admin-withdrawals-page.component';
 import { TopUpPageComponent } from './features/payment/pages/topup-page/topup-page.component';
 import { PaymentSuccessPageComponent } from './features/payment/pages/payment-success-page/payment-success-page.component';
 import { PaymentCancelPageComponent } from './features/payment/pages/payment-cancel-page/payment-cancel-page.component';
@@ -21,6 +22,12 @@ export const routes: Routes = [
   {
     path: 'admin',
     component: AdminDashboardPageComponent,
+    canActivate: [authGuard, roleGuard],
+    data: { roles: ['Admin'] }
+  },
+  {
+    path: 'admin/withdrawals',
+    component: AdminWithdrawalsPageComponent,
     canActivate: [authGuard, roleGuard],
     data: { roles: ['Admin'] }
   },

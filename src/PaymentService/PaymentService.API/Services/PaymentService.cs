@@ -17,11 +17,38 @@ public interface IPaymentService
         string bearerToken,
         Guid userId,
         decimal amount,
+        string? returnBaseUrl,
         CancellationToken ct = default);
 
     Task<StripeWebhookResponseDto> HandleStripeWebhookAsync(
         string payload,
         string signatureHeader,
+        CancellationToken ct = default);
+
+    Task<CreateWithdrawResponseDto> CreateWithdrawRequestAsync(
+        string bearerToken,
+        Guid userId,
+        decimal amount,
+        string? notes,
+        CancellationToken ct = default);
+
+    Task<IReadOnlyList<WithdrawalRequestDto>> GetWithdrawRequestsAsync(
+        Guid userId,
+        CancellationToken ct = default);
+
+    Task<IReadOnlyList<WithdrawalRequestDto>> GetAllWithdrawRequestsAsync(
+        string? status,
+        CancellationToken ct = default);
+
+    Task<WithdrawalRequestDto?> ApproveWithdrawalAsync(
+        Guid withdrawalRequestId,
+        Guid adminId,
+        CancellationToken ct = default);
+
+    Task<WithdrawalRequestDto?> RejectWithdrawalAsync(
+        Guid withdrawalRequestId,
+        Guid adminId,
+        string? rejectionReason,
         CancellationToken ct = default);
 }
 
@@ -29,6 +56,7 @@ public interface IWalletServiceClient
 {
     Task<WalletSummaryDto?> GetDefaultWalletAsync(string bearerToken, Guid userId, CancellationToken ct = default);
     Task<InternalTopUpResponseDto> CreditTopUpAsync(InternalTopUpRequestDto request, CancellationToken ct = default);
+    Task<InternalWithdrawResponseDto> DebitWithdrawalAsync(InternalWithdrawRequestDto request, CancellationToken ct = default);
 }
 
 public sealed class WalletServiceClient : IWalletServiceClient
@@ -175,12 +203,45 @@ public sealed class WalletServiceClient : IWalletServiceClient
             ErrorMessage = fallback.ErrorMessage ?? "Wallet credit failed."
         };
     }
+
+    public async Task<InternalWithdrawResponseDto> DebitWithdrawalAsync(InternalWithdrawRequestDto request, CancellationToken ct = default)
+    {
+        using var httpRequest = new HttpRequestMessage(HttpMethod.Post, "/api/internal/wallet/withdraw")
+        {
+            Content = JsonContent.Create(request)
+        };
+
+        httpRequest.Headers.TryAddWithoutValidation("X-Internal-Api-Key", _internalApiOptions.ApiKey);
+
+        using var response = await _httpClient.SendAsync(httpRequest, ct);
+        await using var stream = await response.Content.ReadAsStreamAsync(ct);
+
+        if (response.IsSuccessStatusCode)
+        {
+            return await JsonSerializer.DeserializeAsync<InternalWithdrawResponseDto>(
+                stream,
+                JsonOptions,
+                ct) ?? new InternalWithdrawResponseDto(false, "Unable to parse wallet debit response.", request.WalletId, 0, request.Currency, null, false);
+        }
+
+        var fallback = await JsonSerializer.DeserializeAsync<InternalWithdrawResponseDto>(
+            stream,
+            JsonOptions,
+            ct) ?? new InternalWithdrawResponseDto(false, "Wallet debit failed.", request.WalletId, 0, request.Currency, null, false);
+
+        return fallback with
+        {
+            Success = false,
+            ErrorMessage = fallback.ErrorMessage ?? "Wallet debit failed."
+        };
+    }
 }
 
 public sealed class StripePaymentService : IPaymentService
 {
     private static readonly TimeSpan WebhookTolerance = TimeSpan.FromMinutes(5);
     private readonly IPaymentTransactionRepository _transactions;
+    private readonly IWithdrawalRequestRepository _withdrawalRequests;
     private readonly IWalletServiceClient _walletServiceClient;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly StripeOptions _stripeOptions;
@@ -189,6 +250,7 @@ public sealed class StripePaymentService : IPaymentService
 
     public StripePaymentService(
         IPaymentTransactionRepository transactions,
+        IWithdrawalRequestRepository withdrawalRequests,
         IWalletServiceClient walletServiceClient,
         IHttpClientFactory httpClientFactory,
         IOptions<StripeOptions> stripeOptions,
@@ -196,6 +258,7 @@ public sealed class StripePaymentService : IPaymentService
         ILogger<StripePaymentService> logger)
     {
         _transactions = transactions;
+        _withdrawalRequests = withdrawalRequests;
         _walletServiceClient = walletServiceClient;
         _httpClientFactory = httpClientFactory;
         _stripeOptions = stripeOptions.Value;
@@ -203,10 +266,209 @@ public sealed class StripePaymentService : IPaymentService
         _logger = logger;
     }
 
+    public async Task<CreateWithdrawResponseDto> CreateWithdrawRequestAsync(
+        string bearerToken,
+        Guid userId,
+        decimal amount,
+        string? notes,
+        CancellationToken ct = default)
+    {
+        var normalizedAmount = decimal.Round(amount, 2, MidpointRounding.AwayFromZero);
+        if (normalizedAmount < 1m)
+        {
+            return new CreateWithdrawResponseDto(false, null, null, null, null, "Amount must be greater than or equal to 1.");
+        }
+
+        var wallet = await _walletServiceClient.GetDefaultWalletAsync(bearerToken, userId, ct);
+        if (wallet is null)
+        {
+            return new CreateWithdrawResponseDto(false, null, null, null, null, "No active wallet found for the authenticated user.");
+        }
+
+        var walletCurrency = string.IsNullOrWhiteSpace(wallet.Currency) ? "USD" : wallet.Currency.ToUpperInvariant();
+        var operationId = Guid.NewGuid().ToString("N");
+        var debitResponse = await _walletServiceClient.DebitWithdrawalAsync(
+            new InternalWithdrawRequestDto(
+                userId,
+                Guid.Parse(wallet.Id),
+                normalizedAmount,
+                walletCurrency,
+                operationId,
+                notes),
+            ct);
+
+        if (!debitResponse.Success)
+        {
+            return new CreateWithdrawResponseDto(
+                false,
+                null,
+                null,
+                null,
+                walletCurrency,
+                debitResponse.ErrorMessage ?? "Unable to debit wallet for withdrawal request.");
+        }
+
+        var request = new WithdrawalRequest
+        {
+            UserId = userId,
+            WalletId = Guid.Parse(wallet.Id),
+            Amount = normalizedAmount,
+            Currency = walletCurrency,
+            Status = WithdrawalRequestStatus.Pending.ToString(),
+            Notes = string.IsNullOrWhiteSpace(notes) ? null : notes.Trim(),
+            OperationId = operationId,
+            LedgerEntryId = debitResponse.LedgerEntryId,
+            BalanceAfterDebit = debitResponse.NewBalance,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        await _withdrawalRequests.CreateAsync(request, ct);
+
+        // TODO: trigger Stripe payout when Connect is configured
+
+        return new CreateWithdrawResponseDto(
+            true,
+            request.Id,
+            request.Status,
+            debitResponse.NewBalance,
+            walletCurrency,
+            null);
+    }
+
+    public async Task<IReadOnlyList<WithdrawalRequestDto>> GetWithdrawRequestsAsync(
+        Guid userId,
+        CancellationToken ct = default)
+    {
+        var requests = await _withdrawalRequests.ListByUserIdAsync(userId, ct);
+
+        return requests
+            .OrderByDescending(request => request.CreatedAt)
+            .Select(MapWithdrawal)
+            .ToList();
+    }
+
+    public async Task<IReadOnlyList<WithdrawalRequestDto>> GetAllWithdrawRequestsAsync(
+        string? status,
+        CancellationToken ct = default)
+    {
+        var normalizedStatus = NormalizeWithdrawalStatus(status);
+        var requests = await _withdrawalRequests.ListAllAsync(normalizedStatus, ct);
+
+        return requests
+            .OrderByDescending(request => request.CreatedAt)
+            .Select(MapWithdrawal)
+            .ToList();
+    }
+
+    public async Task<WithdrawalRequestDto?> ApproveWithdrawalAsync(
+        Guid withdrawalRequestId,
+        Guid adminId,
+        CancellationToken ct = default)
+    {
+        var request = await _withdrawalRequests.GetByIdAsync(withdrawalRequestId, ct);
+        if (request is null)
+        {
+            return null;
+        }
+
+        if (!string.Equals(request.Status, WithdrawalRequestStatus.Pending.ToString(), StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("Only Pending withdrawal requests can be approved.");
+        }
+
+        request.Status = WithdrawalRequestStatus.Approved.ToString();
+        request.ProcessedAt = DateTime.UtcNow;
+        request.ProcessedBy = adminId;
+        request.UpdatedAt = DateTime.UtcNow;
+
+        // TODO: trigger Stripe payout here when Connect is configured
+
+        await _withdrawalRequests.UpdateAsync(request, ct);
+        return MapWithdrawal(request);
+    }
+
+    public async Task<WithdrawalRequestDto?> RejectWithdrawalAsync(
+        Guid withdrawalRequestId,
+        Guid adminId,
+        string? rejectionReason,
+        CancellationToken ct = default)
+    {
+        var request = await _withdrawalRequests.GetByIdAsync(withdrawalRequestId, ct);
+        if (request is null)
+        {
+            return null;
+        }
+
+        if (!string.Equals(request.Status, WithdrawalRequestStatus.Pending.ToString(), StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("Only Pending withdrawal requests can be rejected.");
+        }
+
+        var refundReference = $"withdraw-reject-{request.Id:N}";
+        var refundResponse = await _walletServiceClient.CreditTopUpAsync(
+            new InternalTopUpRequestDto(
+                request.UserId,
+                request.WalletId,
+                request.Amount,
+                request.Currency,
+                refundReference,
+                refundReference,
+                refundReference),
+            ct);
+
+        if (!refundResponse.Success && !refundResponse.Duplicate)
+        {
+            throw new InvalidOperationException(refundResponse.ErrorMessage ?? "Unable to refund wallet for rejected withdrawal.");
+        }
+
+        request.Status = WithdrawalRequestStatus.Rejected.ToString();
+        request.RejectionReason = string.IsNullOrWhiteSpace(rejectionReason) ? null : rejectionReason.Trim();
+        request.ProcessedAt = DateTime.UtcNow;
+        request.ProcessedBy = adminId;
+        request.UpdatedAt = DateTime.UtcNow;
+        request.BalanceAfterDebit = refundResponse.NewBalance;
+
+        await _withdrawalRequests.UpdateAsync(request, ct);
+        return MapWithdrawal(request);
+    }
+
+    private static string? NormalizeWithdrawalStatus(string? status)
+    {
+        if (string.IsNullOrWhiteSpace(status))
+        {
+            return null;
+        }
+
+        if (Enum.TryParse<WithdrawalRequestStatus>(status, true, out var parsedStatus))
+        {
+            return parsedStatus.ToString();
+        }
+
+        return null;
+    }
+
+    private static WithdrawalRequestDto MapWithdrawal(WithdrawalRequest request)
+    {
+        return new WithdrawalRequestDto(
+            request.Id,
+            request.UserId,
+            request.WalletId,
+            request.Amount,
+            request.Currency,
+            request.Status,
+            request.Notes,
+            request.CreatedAt,
+            request.ProcessedAt,
+            request.ProcessedBy,
+            request.RejectionReason);
+    }
+
     public async Task<CreateCheckoutSessionResponseDto> CreateCheckoutSessionAsync(
         string bearerToken,
         Guid userId,
         decimal amount,
+        string? returnBaseUrl,
         CancellationToken ct = default)
     {
         var normalizedAmount = decimal.Round(amount, 2, MidpointRounding.AwayFromZero);
@@ -236,7 +498,7 @@ public sealed class StripePaymentService : IPaymentService
 
         try
         {
-            var stripeSession = await CreateStripeCheckoutSessionAsync(transaction, ct);
+            var stripeSession = await CreateStripeCheckoutSessionAsync(transaction, returnBaseUrl, ct);
             transaction.StripeSessionId = stripeSession.SessionId;
             await _transactions.UpdateAsync(transaction, ct);
 
@@ -457,7 +719,7 @@ public sealed class StripePaymentService : IPaymentService
         return null;
     }
 
-    private async Task<(string SessionId, string SessionUrl)> CreateStripeCheckoutSessionAsync(TopUpTransaction transaction, CancellationToken ct)
+    private async Task<(string SessionId, string SessionUrl)> CreateStripeCheckoutSessionAsync(TopUpTransaction transaction, string? returnBaseUrl, CancellationToken ct)
     {
         var stripeClient = _httpClientFactory.CreateClient("Stripe");
         stripeClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _stripeOptions.SecretKey);
@@ -469,8 +731,8 @@ public sealed class StripePaymentService : IPaymentService
         {
             new("mode", "payment"),
             new("payment_method_types[0]", "card"),
-            new("success_url", BuildReturnUrl(_frontendOptions.SuccessUrl)),
-            new("cancel_url", BuildReturnUrl(_frontendOptions.CancelUrl)),
+            new("success_url", BuildReturnUrl(_frontendOptions.SuccessUrl, returnBaseUrl)),
+            new("cancel_url", BuildReturnUrl(_frontendOptions.CancelUrl, returnBaseUrl)),
             new("line_items[0][price_data][currency]", transaction.Currency.ToLowerInvariant()),
             new("line_items[0][price_data][unit_amount]", amountInMinorUnits.ToString(CultureInfo.InvariantCulture)),
             new("line_items[0][price_data][product_data][name]", productName),
@@ -503,11 +765,24 @@ public sealed class StripePaymentService : IPaymentService
             root.GetProperty("url").GetString() ?? throw new InvalidOperationException("Stripe session url missing."));
     }
 
-    private static string BuildReturnUrl(string url)
+    private static string BuildReturnUrl(string url, string? returnBaseUrl = null)
     {
         if (string.IsNullOrWhiteSpace(url))
         {
             return url;
+        }
+
+        if (!string.IsNullOrWhiteSpace(returnBaseUrl) && Uri.TryCreate(url, UriKind.Absolute, out var configuredUri) && Uri.TryCreate(returnBaseUrl, UriKind.Absolute, out var baseUri))
+        {
+            var pathAndQuery = configuredUri.PathAndQuery;
+            var baseText = baseUri.GetLeftPart(UriPartial.Authority).TrimEnd('/');
+            var combined = $"{baseText}{pathAndQuery}";
+
+            return combined.Contains("{CHECKOUT_SESSION_ID}", StringComparison.OrdinalIgnoreCase)
+                ? combined
+                : combined.Contains('?')
+                    ? $"{combined}&session_id={{CHECKOUT_SESSION_ID}}"
+                    : $"{combined}?session_id={{CHECKOUT_SESSION_ID}}";
         }
 
         return url.Contains("{CHECKOUT_SESSION_ID}", StringComparison.OrdinalIgnoreCase)

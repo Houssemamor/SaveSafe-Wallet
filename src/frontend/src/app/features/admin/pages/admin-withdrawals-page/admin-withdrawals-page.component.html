@@ -1,0 +1,104 @@
+<div class="min-h-screen bg-[#f8f9fa] text-[#191c1d]">
+  <header class="sticky top-0 z-40 border-b border-slate-200/80 bg-white/95 backdrop-blur">
+    <div class="mx-auto max-w-7xl px-6 py-4">
+      <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div class="flex items-center gap-4">
+          <div class="flex h-12 w-12 items-center justify-center rounded-lg bg-[#003d9b] text-white shadow-sm">
+            <span class="material-symbols-outlined">payments</span>
+          </div>
+          <div>
+            <p class="text-xs font-bold uppercase tracking-widest text-[#0052cc]">Admin Finance</p>
+            <h1 class="text-2xl font-black tracking-tight text-slate-950">Demandes de Retrait</h1>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-3">
+          <a class="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50" routerLink="/admin">
+            <span class="material-symbols-outlined text-base">arrow_back</span>
+            Dashboard Admin
+          </a>
+          <button class="inline-flex items-center gap-2 rounded-lg bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800" (click)="logout()" type="button">
+            <span class="material-symbols-outlined text-base">logout</span>
+            Logout
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="mx-auto max-w-7xl space-y-6 px-6 py-8">
+    <section class="rounded-lg border border-slate-200 bg-white p-6">
+      <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <h2 class="text-lg font-black text-slate-950">Suivi des demandes</h2>
+          <p class="mt-1 text-sm text-slate-600">Approuver ou rejeter les demandes en attente. Un rejet rembourse automatiquement le wallet.</p>
+        </div>
+
+        <div class="flex flex-wrap gap-2">
+          <button class="rounded-lg px-3 py-2 text-xs font-bold border transition-colors" [ngClass]="activeFilter === 'All' ? 'bg-[#003d9b] text-white border-[#003d9b]' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'" (click)="setFilter('All')" type="button">Tous</button>
+          <button class="rounded-lg px-3 py-2 text-xs font-bold border transition-colors" [ngClass]="activeFilter === 'Pending' ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'" (click)="setFilter('Pending')" type="button">Pending</button>
+          <button class="rounded-lg px-3 py-2 text-xs font-bold border transition-colors" [ngClass]="activeFilter === 'Approved' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'" (click)="setFilter('Approved')" type="button">Approved</button>
+          <button class="rounded-lg px-3 py-2 text-xs font-bold border transition-colors" [ngClass]="activeFilter === 'Rejected' ? 'bg-rose-600 text-white border-rose-600' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'" (click)="setFilter('Rejected')" type="button">Rejected</button>
+        </div>
+      </div>
+
+      <p *ngIf="isLoading" class="mt-4 text-sm text-slate-600">Chargement...</p>
+      <p *ngIf="errorMessage" class="mt-4 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{{ errorMessage }}</p>
+      <p *ngIf="successMessage" class="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">{{ successMessage }}</p>
+
+      <div class="mt-6 overflow-x-auto rounded-lg border border-slate-200" *ngIf="!isLoading">
+        <table class="min-w-full text-sm">
+          <thead class="bg-slate-50 text-left text-xs uppercase tracking-widest text-slate-500">
+            <tr>
+              <th class="px-4 py-3">Utilisateur</th>
+              <th class="px-4 py-3">Montant</th>
+              <th class="px-4 py-3">Notes / Infos carte</th>
+              <th class="px-4 py-3">Date</th>
+              <th class="px-4 py-3">Statut</th>
+              <th class="px-4 py-3">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100 bg-white">
+            <tr *ngFor="let item of filteredWithdrawals">
+              <td class="px-4 py-3 font-semibold text-slate-900">{{ getUserLabel(item) }}</td>
+              <td class="px-4 py-3 font-bold">{{ item.currency }} {{ item.amount | number: '1.2-2' }}</td>
+              <td class="px-4 py-3 text-slate-600">{{ item.notes || '-' }}</td>
+              <td class="px-4 py-3 text-slate-600">{{ item.createdAt | date: 'MMM d, y, HH:mm' }}</td>
+              <td class="px-4 py-3">
+                <span class="inline-flex rounded-full border px-2.5 py-1 text-xs font-bold" [ngClass]="statusClass(item.status)">{{ item.status }}</span>
+              </td>
+              <td class="px-4 py-3">
+                <div class="flex items-center gap-2" *ngIf="canProcess(item)">
+                  <button class="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-60" (click)="approve(item)" [disabled]="isRowLoading(item.id)" type="button">
+                    {{ isRowLoading(item.id) ? '...' : 'Approuver' }}
+                  </button>
+                  <button class="rounded-lg bg-rose-600 px-3 py-2 text-xs font-bold text-white hover:bg-rose-700 disabled:opacity-60" (click)="openRejectModal(item)" [disabled]="isRowLoading(item.id)" type="button">
+                    Rejeter
+                  </button>
+                </div>
+                <span class="text-xs text-slate-500" *ngIf="!canProcess(item)">Traitee</span>
+              </td>
+            </tr>
+            <tr *ngIf="filteredWithdrawals.length === 0">
+              <td class="px-4 py-6 text-center text-slate-500" colspan="6">Aucune demande trouvee.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4" *ngIf="rejectModalOpen">
+    <div class="w-full max-w-lg rounded-lg border border-slate-200 bg-white p-6 shadow-xl">
+      <h3 class="text-lg font-black text-slate-950">Rejeter la demande</h3>
+      <p class="mt-1 text-sm text-slate-600">Vous pouvez saisir une raison optionnelle. Le wallet sera rembourse automatiquement.</p>
+
+      <textarea class="mt-4 w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-[#0052cc] focus:ring-2 focus:ring-blue-100" rows="4" [(ngModel)]="rejectReason" placeholder="Raison de rejet (optionnel)"></textarea>
+
+      <div class="mt-5 flex justify-end gap-2">
+        <button class="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50" (click)="closeRejectModal()" type="button">Annuler</button>
+        <button class="rounded-lg bg-rose-600 px-3 py-2 text-sm font-semibold text-white hover:bg-rose-700" (click)="confirmReject()" type="button">Confirmer le rejet</button>
+      </div>
+    </div>
+  </div>
+</div>

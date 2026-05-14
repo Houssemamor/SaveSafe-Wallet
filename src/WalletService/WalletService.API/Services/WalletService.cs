@@ -13,6 +13,7 @@ public interface IWalletService
     Task<WalletTransferResponseDto> TransferFundsToWalletAsync(Guid senderUserId, string recipientWalletId, decimal amount, string? description);
     Task<string> ExportTransactionHistoryAsync(Guid userId, string? startDate, string? endDate);
     Task<InternalTopUpResponseDto> CreditTopUpAsync(InternalTopUpRequestDto request);
+    Task<InternalWithdrawResponseDto> DebitWithdrawalAsync(InternalWithdrawRequestDto request);
 }
 
 public class WalletService : IWalletService
@@ -492,6 +493,123 @@ public class WalletService : IWalletService
         await _accounts.UpdateAsync(account);
 
         return new InternalTopUpResponseDto(
+            Success: true,
+            ErrorMessage: null,
+            WalletId: account.Id,
+            NewBalance: newBalance,
+            Currency: currency,
+            LedgerEntryId: ledgerEntry.Id.ToString(),
+            Duplicate: false);
+    }
+
+    public async Task<InternalWithdrawResponseDto> DebitWithdrawalAsync(InternalWithdrawRequestDto request)
+    {
+        if (request.Amount <= 0)
+        {
+            return new InternalWithdrawResponseDto(
+                Success: false,
+                ErrorMessage: "Withdrawal amount must be greater than zero.",
+                WalletId: request.WalletId,
+                NewBalance: 0,
+                Currency: request.Currency,
+                LedgerEntryId: null,
+                Duplicate: false);
+        }
+
+        var account = await _accounts.GetByIdAsync(request.WalletId);
+        if (account is null)
+        {
+            return new InternalWithdrawResponseDto(
+                Success: false,
+                ErrorMessage: "Wallet not found.",
+                WalletId: request.WalletId,
+                NewBalance: 0,
+                Currency: request.Currency,
+                LedgerEntryId: null,
+                Duplicate: false);
+        }
+
+        if (account.UserId != request.UserId.ToString())
+        {
+            return new InternalWithdrawResponseDto(
+                Success: false,
+                ErrorMessage: "Wallet ownership mismatch.",
+                WalletId: request.WalletId,
+                NewBalance: 0,
+                Currency: request.Currency,
+                LedgerEntryId: null,
+                Duplicate: false);
+        }
+
+        if (!account.IsActive)
+        {
+            return new InternalWithdrawResponseDto(
+                Success: false,
+                ErrorMessage: "Wallet is inactive.",
+                WalletId: account.Id,
+                NewBalance: account.Balance,
+                Currency: account.Currency ?? request.Currency,
+                LedgerEntryId: null,
+                Duplicate: false);
+        }
+
+        if (account.Balance < request.Amount)
+        {
+            return new InternalWithdrawResponseDto(
+                Success: false,
+                ErrorMessage: "Insufficient wallet balance.",
+                WalletId: account.Id,
+                NewBalance: account.Balance,
+                Currency: account.Currency ?? request.Currency,
+                LedgerEntryId: null,
+                Duplicate: false);
+        }
+
+        var referenceId = request.ReferenceId?.Trim();
+        if (!string.IsNullOrWhiteSpace(referenceId))
+        {
+            var existing = await _ledger.GetByReferenceIdAsync(account.Id, referenceId);
+            if (existing is not null)
+            {
+                return new InternalWithdrawResponseDto(
+                    Success: true,
+                    ErrorMessage: null,
+                    WalletId: account.Id,
+                    NewBalance: existing.BalanceAfter,
+                    Currency: account.Currency ?? request.Currency,
+                    LedgerEntryId: existing.Id.ToString(),
+                    Duplicate: true);
+            }
+        }
+
+        var now = DateTime.UtcNow;
+        var currency = string.IsNullOrWhiteSpace(request.Currency)
+            ? account.Currency ?? "USD"
+            : request.Currency.ToUpperInvariant();
+        var newBalance = account.Balance - request.Amount;
+
+        var ledgerEntry = new LedgerEntry
+        {
+            Id = Guid.NewGuid(),
+            AccountId = account.Id,
+            Type = LedgerEntryType.Debit,
+            Amount = -request.Amount,
+            BalanceAfter = newBalance,
+            Description = string.IsNullOrWhiteSpace(request.Notes)
+                ? $"Withdrawal request ({referenceId ?? "manual"})"
+                : $"Withdrawal request: {request.Notes}",
+            ReferenceId = referenceId,
+            CreatedAt = now
+        };
+
+        account.Balance = newBalance;
+        account.LedgerCount++;
+        account.UpdatedAt = now;
+
+        await _ledger.CreateAsync(ledgerEntry);
+        await _accounts.UpdateAsync(account);
+
+        return new InternalWithdrawResponseDto(
             Success: true,
             ErrorMessage: null,
             WalletId: account.Id,

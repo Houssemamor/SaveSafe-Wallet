@@ -21,6 +21,10 @@
             <span class="material-symbols-outlined text-base">open_in_new</span>
             Grafana
           </a>
+          <a class="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50" routerLink="/admin/withdrawals">
+            <span class="material-symbols-outlined text-base">payments</span>
+            Withdrawals
+          </a>
           <button class="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60" (click)="refreshSummary()" [disabled]="isRefreshing" type="button">
             <span class="material-symbols-outlined text-base" [class.animate-spin]="isRefreshing">sync</span>
             {{ isRefreshing ? 'Refreshing' : 'Refresh' }}

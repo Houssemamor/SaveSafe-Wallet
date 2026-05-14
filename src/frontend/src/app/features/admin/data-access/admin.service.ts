@@ -9,6 +9,7 @@ import {
   AdminLokiQueryResponse,
   AdminLoginEvent,
   AdminSecuritySummary,
+  AdminWithdrawalRequest,
   AdminUser
 } from '../models/admin.models';
 
@@ -68,5 +69,24 @@ export class AdminService {
 
   resetUserPassword(userId: string, newPassword: string): Observable<void> {
     return this.http.put<void>(`${API_CONFIG.adminBaseUrl}/users/${userId}/password`, { newPassword });
+  }
+
+  getWithdrawalRequests(status?: string): Observable<AdminWithdrawalRequest[]> {
+    let params = new HttpParams();
+    if (status) {
+      params = params.set('status', status);
+    }
+
+    return this.http.get<AdminWithdrawalRequest[]>(`${API_CONFIG.adminBaseUrl}/withdrawals`, { params });
+  }
+
+  approveWithdrawalRequest(id: string): Observable<AdminWithdrawalRequest> {
+    return this.http.patch<AdminWithdrawalRequest>(`${API_CONFIG.adminBaseUrl}/withdrawals/${id}/approve`, {});
+  }
+
+  rejectWithdrawalRequest(id: string, rejectionReason?: string): Observable<AdminWithdrawalRequest> {
+    return this.http.patch<AdminWithdrawalRequest>(`${API_CONFIG.adminBaseUrl}/withdrawals/${id}/reject`, {
+      rejectionReason: rejectionReason?.trim() ? rejectionReason.trim() : null
+    });
   }
 }

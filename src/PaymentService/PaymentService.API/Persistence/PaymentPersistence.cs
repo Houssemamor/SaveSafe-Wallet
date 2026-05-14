@@ -7,6 +7,7 @@ namespace PaymentService.API.Persistence;
 public static class FirestoreCollections
 {
     public const string TopUpTransactions = "top_up_transactions";
+    public const string WithdrawalRequests = "withdrawal_requests";
 }
 
 public sealed class FirestoreOptions
@@ -122,6 +123,58 @@ public sealed class TopUpTransactionDocument
     public string? FailureReason { get; set; }
 }
 
+[FirestoreData]
+public sealed class WithdrawalRequestDocument
+{
+    [FirestoreDocumentId]
+    public string Id { get; set; } = string.Empty;
+
+    [FirestoreProperty("userId")]
+    public string UserId { get; set; } = string.Empty;
+
+    [FirestoreProperty("walletId")]
+    public string WalletId { get; set; } = string.Empty;
+
+    [FirestoreProperty("amount")]
+    public double Amount { get; set; }
+
+    [FirestoreProperty("currency")]
+    public string Currency { get; set; } = string.Empty;
+
+    [FirestoreProperty("status")]
+    public string Status { get; set; } = string.Empty;
+
+    [FirestoreProperty("notes")]
+    public string? Notes { get; set; }
+
+    [FirestoreProperty("operationId")]
+    public string? OperationId { get; set; }
+
+    [FirestoreProperty("ledgerEntryId")]
+    public string? LedgerEntryId { get; set; }
+
+    [FirestoreProperty("balanceAfterDebit")]
+    public double? BalanceAfterDebit { get; set; }
+
+    [FirestoreProperty("failureReason")]
+    public string? FailureReason { get; set; }
+
+    [FirestoreProperty("rejectionReason")]
+    public string? RejectionReason { get; set; }
+
+    [FirestoreProperty("processedAt")]
+    public DateTime? ProcessedAt { get; set; }
+
+    [FirestoreProperty("processedBy")]
+    public string? ProcessedBy { get; set; }
+
+    [FirestoreProperty("createdAt")]
+    public DateTime CreatedAt { get; set; }
+
+    [FirestoreProperty("updatedAt")]
+    public DateTime? UpdatedAt { get; set; }
+}
+
 public interface IPaymentTransactionRepository
 {
     Task CreateAsync(TopUpTransaction transaction, CancellationToken ct = default);
@@ -130,6 +183,15 @@ public interface IPaymentTransactionRepository
     Task<TopUpTransaction?> GetByStripeSessionIdAsync(string sessionId, CancellationToken ct = default);
     Task<TopUpTransaction?> GetByStripePaymentIntentIdAsync(string paymentIntentId, CancellationToken ct = default);
     Task<TopUpTransaction?> GetByStripeEventIdAsync(string eventId, CancellationToken ct = default);
+}
+
+public interface IWithdrawalRequestRepository
+{
+    Task CreateAsync(WithdrawalRequest request, CancellationToken ct = default);
+    Task UpdateAsync(WithdrawalRequest request, CancellationToken ct = default);
+    Task<WithdrawalRequest?> GetByIdAsync(Guid requestId, CancellationToken ct = default);
+    Task<IReadOnlyList<WithdrawalRequest>> ListByUserIdAsync(Guid userId, CancellationToken ct = default);
+    Task<IReadOnlyList<WithdrawalRequest>> ListAllAsync(string? status, CancellationToken ct = default);
 }
 
 public sealed class PaymentTransactionRepository : IPaymentTransactionRepository
@@ -226,5 +288,107 @@ public sealed class PaymentTransactionRepository : IPaymentTransactionRepository
         CreatedAt = document.CreatedAt,
         CompletedAt = document.CompletedAt,
         FailureReason = document.FailureReason
+    };
+}
+
+public sealed class WithdrawalRequestRepository : IWithdrawalRequestRepository
+{
+    private readonly IFirestoreDbProvider _dbProvider;
+
+    public WithdrawalRequestRepository(IFirestoreDbProvider dbProvider)
+    {
+        _dbProvider = dbProvider;
+    }
+
+    private FirestoreDb Db => _dbProvider.GetDb();
+
+    private CollectionReference Requests => Db.Collection(FirestoreCollections.WithdrawalRequests);
+
+    public async Task CreateAsync(WithdrawalRequest request, CancellationToken ct = default)
+    {
+        var doc = ToDocument(request);
+        await Requests.Document(doc.Id).SetAsync(doc, cancellationToken: ct);
+    }
+
+    public async Task UpdateAsync(WithdrawalRequest request, CancellationToken ct = default)
+    {
+        var doc = ToDocument(request);
+        await Requests.Document(doc.Id).SetAsync(doc, cancellationToken: ct);
+    }
+
+    public async Task<WithdrawalRequest?> GetByIdAsync(Guid requestId, CancellationToken ct = default)
+    {
+        var snapshot = await Requests.Document(requestId.ToString()).GetSnapshotAsync(ct);
+        return snapshot.Exists ? ToEntity(snapshot.ConvertTo<WithdrawalRequestDocument>()) : null;
+    }
+
+    public async Task<IReadOnlyList<WithdrawalRequest>> ListByUserIdAsync(Guid userId, CancellationToken ct = default)
+    {
+        var snapshot = await Requests
+            .WhereEqualTo("userId", userId.ToString())
+            .OrderByDescending("createdAt")
+            .GetSnapshotAsync(ct);
+
+        return snapshot.Documents
+            .Select(document => ToEntity(document.ConvertTo<WithdrawalRequestDocument>()))
+            .ToList();
+    }
+
+    public async Task<IReadOnlyList<WithdrawalRequest>> ListAllAsync(string? status, CancellationToken ct = default)
+    {
+        Query query = Requests.OrderByDescending("createdAt");
+
+        if (!string.IsNullOrWhiteSpace(status))
+        {
+            query = Requests
+                .WhereEqualTo("status", status)
+                .OrderByDescending("createdAt");
+        }
+
+        var snapshot = await query.GetSnapshotAsync(ct);
+
+        return snapshot.Documents
+            .Select(document => ToEntity(document.ConvertTo<WithdrawalRequestDocument>()))
+            .ToList();
+    }
+
+    private static WithdrawalRequestDocument ToDocument(WithdrawalRequest request) => new()
+    {
+        Id = request.Id.ToString(),
+        UserId = request.UserId.ToString(),
+        WalletId = request.WalletId.ToString(),
+        Amount = (double)request.Amount,
+        Currency = request.Currency,
+        Status = request.Status,
+        Notes = request.Notes,
+        OperationId = request.OperationId,
+        LedgerEntryId = request.LedgerEntryId,
+        BalanceAfterDebit = request.BalanceAfterDebit.HasValue ? (double)request.BalanceAfterDebit.Value : null,
+        FailureReason = request.FailureReason,
+        RejectionReason = request.RejectionReason,
+        ProcessedAt = request.ProcessedAt,
+        ProcessedBy = request.ProcessedBy?.ToString(),
+        CreatedAt = request.CreatedAt,
+        UpdatedAt = request.UpdatedAt
+    };
+
+    private static WithdrawalRequest ToEntity(WithdrawalRequestDocument document) => new()
+    {
+        Id = Guid.Parse(document.Id),
+        UserId = Guid.Parse(document.UserId),
+        WalletId = Guid.Parse(document.WalletId),
+        Amount = (decimal)document.Amount,
+        Currency = document.Currency,
+        Status = document.Status,
+        Notes = document.Notes,
+        OperationId = document.OperationId,
+        LedgerEntryId = document.LedgerEntryId,
+        BalanceAfterDebit = document.BalanceAfterDebit.HasValue ? (decimal)document.BalanceAfterDebit.Value : null,
+        FailureReason = document.FailureReason,
+        RejectionReason = document.RejectionReason,
+        ProcessedAt = document.ProcessedAt,
+        ProcessedBy = Guid.TryParse(document.ProcessedBy, out var processedBy) ? processedBy : null,
+        CreatedAt = document.CreatedAt,
+        UpdatedAt = document.UpdatedAt
     };
 }

@@ -40,7 +40,12 @@ public sealed class PaymentController : ControllerBase
             ? authorizationHeader["Bearer ".Length..]
             : string.Empty;
 
-        var response = await _paymentService.CreateCheckoutSessionAsync(bearerToken, userId, request.Amount, ct);
+        var response = await _paymentService.CreateCheckoutSessionAsync(
+            bearerToken,
+            userId,
+            request.Amount,
+            request.ReturnBaseUrl,
+            ct);
         if (!response.Success)
         {
             return BadRequest(response);
@@ -86,6 +91,57 @@ public sealed class PaymentController : ControllerBase
         }
 
         _logger.LogInformation("Stripe webhook processed successfully");
+        return Ok(response);
+    }
+
+    [HttpPost("withdraw")]
+    [Authorize]
+    [ProducesResponseType(typeof(CreateWithdrawResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<CreateWithdrawResponseDto>> Withdraw(
+        [FromBody] CreateWithdrawRequestDto request,
+        CancellationToken ct)
+    {
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!Guid.TryParse(userIdClaim, out var userId))
+        {
+            return Unauthorized(new { message = "User is not authenticated." });
+        }
+
+        var authorizationHeader = Request.Headers.Authorization.FirstOrDefault();
+        var bearerToken = authorizationHeader?.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase) == true
+            ? authorizationHeader["Bearer ".Length..]
+            : string.Empty;
+
+        var response = await _paymentService.CreateWithdrawRequestAsync(
+            bearerToken,
+            userId,
+            request.Amount,
+            request.Notes,
+            ct);
+
+        if (!response.Success)
+        {
+            return BadRequest(response);
+        }
+
+        return Ok(response);
+    }
+
+    [HttpGet("withdrawals")]
+    [Authorize]
+    [ProducesResponseType(typeof(IReadOnlyList<WithdrawalRequestDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<IReadOnlyList<WithdrawalRequestDto>>> GetWithdrawals(CancellationToken ct)
+    {
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!Guid.TryParse(userIdClaim, out var userId))
+        {
+            return Unauthorized(new { message = "User is not authenticated." });
+        }
+
+        var response = await _paymentService.GetWithdrawRequestsAsync(userId, ct);
         return Ok(response);
     }
 }

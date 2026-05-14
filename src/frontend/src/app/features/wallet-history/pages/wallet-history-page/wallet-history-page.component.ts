@@ -1,5 +1,7 @@
 import { CommonModule } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit } from '@angular/core';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { Observable } from 'rxjs';
 import { WalletHistoryEntry } from '../../models/wallet.models';
@@ -10,6 +12,8 @@ import { SessionUser } from '../../../auth/models/auth.models';
 import { WalletService } from '../../data-access/wallet.service';
 import { Notification, NotificationService } from '../../../../core/notifications/notification.service';
 import { NotificationItemComponent } from '../../../dashboard/components/notification-item/notification-item.component';
+import { PaymentService } from '../../../payment/data-access/payment.service';
+import { WithdrawalRequest } from '../../../payment/models/payment.models';
 
 type ActivityFilter = 'all' | 'income' | 'expenses';
 type DateFilter = '30d' | 'all';
@@ -17,7 +21,7 @@ type DateFilter = '30d' | 'all';
 @Component({
   selector: 'app-wallet-history-page',
   standalone: true,
-  imports: [RouterLink, CommonModule, UserAvatarComponent, NotificationItemComponent],
+  imports: [RouterLink, CommonModule, ReactiveFormsModule, UserAvatarComponent, NotificationItemComponent],
   templateUrl: './wallet-history-page.component.html'
 })
 export class WalletHistoryPageComponent implements OnInit {
@@ -29,6 +33,24 @@ export class WalletHistoryPageComponent implements OnInit {
   readonly unreadNotificationCount$ = this.notificationService.getUnreadCount();
   readonly notifications$: Observable<Notification[]> = this.notificationService.getNotifications();
   showNotificationPopover = false;
+
+  balance = 0;
+  balanceCurrency = 'USD';
+  isLoadingBalance = false;
+
+  isWithdrawSubmitting = false;
+  withdrawErrorMessage = '';
+  withdrawSuccessMessage = '';
+  amountValidationError = '';
+
+  isWithdrawalsLoading = false;
+  withdrawalsErrorMessage = '';
+  withdrawals: WithdrawalRequest[] = [];
+
+  readonly withdrawForm = this.fb.nonNullable.group({
+    amount: [1, [Validators.required, Validators.min(1)]],
+    notes: ['']
+  });
 
   page = 1;
   pageSize = 10;
@@ -47,6 +69,8 @@ export class WalletHistoryPageComponent implements OnInit {
 
   constructor(
     private readonly walletService: WalletService,
+    private readonly paymentService: PaymentService,
+    private readonly fb: FormBuilder,
     private readonly sessionService: SessionService,
     private readonly authService: AuthService,
     private readonly router: Router,
@@ -55,7 +79,9 @@ export class WalletHistoryPageComponent implements OnInit {
 
   ngOnInit(): void {
     this.user = this.sessionService.currentUser;
+    this.loadBalance();
     this.loadHistory();
+    this.loadWithdrawals();
   }
 
   get totalPages(): number {
@@ -184,6 +210,81 @@ export class WalletHistoryPageComponent implements OnInit {
     return entry.id;
   }
 
+  trackByWithdrawal(_: number, withdrawal: WithdrawalRequest): string {
+    return withdrawal.id;
+  }
+
+  get maxWithdrawAmount(): number {
+    return this.balance > 0 ? this.balance : 1;
+  }
+
+  onWithdrawSubmit(): void {
+    this.withdrawSuccessMessage = '';
+    this.withdrawErrorMessage = '';
+    this.amountValidationError = '';
+
+    if (this.withdrawForm.invalid || this.isWithdrawSubmitting) {
+      this.withdrawForm.markAllAsTouched();
+      return;
+    }
+
+    const amount = Number(this.withdrawForm.getRawValue().amount);
+    if (amount <= 0) {
+      this.amountValidationError = 'Le montant doit etre superieur a 0.';
+      return;
+    }
+
+    if (amount > this.balance) {
+      this.amountValidationError = 'Le montant depasse le solde disponible.';
+      return;
+    }
+
+    this.isWithdrawSubmitting = true;
+
+    const notes = this.withdrawForm.getRawValue().notes?.trim();
+    this.paymentService.createWithdrawRequest(amount, notes).subscribe({
+      next: (response) => {
+        this.isWithdrawSubmitting = false;
+
+        if (!response.success) {
+          this.withdrawErrorMessage = response.errorMessage || 'Impossible de soumettre la demande de retrait.';
+          return;
+        }
+
+        this.withdrawSuccessMessage = 'Demande de retrait envoyee, en cours de traitement.';
+        this.withdrawForm.reset({ amount: 1, notes: '' });
+
+        if (typeof response.newBalance === 'number') {
+          this.balance = response.newBalance;
+        } else {
+          this.loadBalance();
+        }
+
+        this.loadWithdrawals();
+        this.loadHistory();
+      },
+      error: (error: HttpErrorResponse) => {
+        this.isWithdrawSubmitting = false;
+        const backendMessage = error.error?.errorMessage ?? error.error?.message;
+        this.withdrawErrorMessage = backendMessage || 'Impossible de soumettre la demande de retrait.';
+      }
+    });
+  }
+
+  getWithdrawalStatusClass(status: string): string {
+    const normalized = status.toLowerCase();
+
+    if (normalized === 'approved') {
+      return 'bg-secondary-container text-on-secondary-container';
+    }
+
+    if (normalized === 'rejected' || normalized === 'failed') {
+      return 'bg-rose-100 text-rose-700';
+    }
+
+    return 'bg-amber-100 text-amber-800';
+  }
+
   isCredit(entry: WalletHistoryEntry): boolean {
     return entry.type.toLowerCase() === 'credit';
   }
@@ -250,6 +351,38 @@ export class WalletHistoryPageComponent implements OnInit {
       error: () => {
         this.isDownloading = false;
         this.downloadError = 'Failed to download history. Please try again.';
+      }
+    });
+  }
+
+  private loadBalance(): void {
+    this.isLoadingBalance = true;
+
+    this.walletService.getBalance().subscribe({
+      next: (balance) => {
+        this.balance = balance.balance;
+        this.balanceCurrency = balance.currency || 'USD';
+        this.isLoadingBalance = false;
+      },
+      error: () => {
+        this.isLoadingBalance = false;
+      }
+    });
+  }
+
+  private loadWithdrawals(): void {
+    this.isWithdrawalsLoading = true;
+    this.withdrawalsErrorMessage = '';
+
+    this.paymentService.getWithdrawals().subscribe({
+      next: (withdrawals) => {
+        this.withdrawals = withdrawals;
+        this.isWithdrawalsLoading = false;
+      },
+      error: () => {
+        this.withdrawals = [];
+        this.withdrawalsErrorMessage = 'Impossible de charger l historique des retraits.';
+        this.isWithdrawalsLoading = false;
       }
     });
   }

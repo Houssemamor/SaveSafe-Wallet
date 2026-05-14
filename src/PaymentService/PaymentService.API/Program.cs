@@ -25,6 +25,7 @@ builder.Services.Configure<ServicesOptions>(builder.Configuration.GetSection(Ser
 
 builder.Services.AddSingleton<IFirestoreDbProvider, FirestoreDbProvider>();
 builder.Services.AddSingleton<IPaymentTransactionRepository, PaymentTransactionRepository>();
+builder.Services.AddSingleton<IWithdrawalRequestRepository, WithdrawalRequestRepository>();
 builder.Services.AddHttpClient<IWalletServiceClient, WalletServiceClient>(client =>
 {
     client.BaseAddress = new Uri(

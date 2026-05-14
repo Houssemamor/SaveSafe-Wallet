@@ -88,3 +88,19 @@ export interface AdminAiReviewItem {
   reviewStatus: string;
   analyzedAt: string;
 }
+
+export type AdminWithdrawalStatus = 'Pending' | 'Approved' | 'Rejected' | 'Failed' | string;
+
+export interface AdminWithdrawalRequest {
+  id: string;
+  userId: string;
+  walletId: string;
+  amount: number;
+  currency: string;
+  status: AdminWithdrawalStatus;
+  notes: string | null;
+  createdAt: string;
+  processedAt: string | null;
+  processedBy: string | null;
+  rejectionReason: string | null;
+}

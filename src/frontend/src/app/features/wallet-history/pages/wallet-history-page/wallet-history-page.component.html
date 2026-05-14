@@ -111,6 +111,100 @@
       <p *ngIf="isLoading" class="text-sm text-on-surface-variant mb-4">Loading wallet history...</p>
       <p *ngIf="errorMessage" class="text-sm text-error mb-4">{{ errorMessage }}</p>
 
+      <section class="grid grid-cols-1 xl:grid-cols-[1.2fr_0.8fr] gap-6 mb-8">
+        <div class="bg-surface-container-low rounded-xl p-6">
+          <div class="flex items-start justify-between gap-4 mb-4">
+            <div>
+              <h3 class="text-2xl font-extrabold font-manrope tracking-tight text-on-surface">Retirer de l argent</h3>
+              <p class="text-sm text-on-surface-variant mt-1">Soumettez une demande de retrait. Le traitement payout sera effectue par un admin.</p>
+            </div>
+            <div class="text-right">
+              <p class="text-xs uppercase tracking-[0.12em] text-on-surface-variant">Solde disponible</p>
+              <p class="text-xl font-extrabold font-manrope text-on-surface" *ngIf="!isLoadingBalance">{{ balanceCurrency }} {{ balance | number: '1.2-2' }}</p>
+              <p class="text-sm text-on-surface-variant" *ngIf="isLoadingBalance">Chargement...</p>
+            </div>
+          </div>
+
+          <form [formGroup]="withdrawForm" (ngSubmit)="onWithdrawSubmit()" class="space-y-4">
+            <div>
+              <label class="block text-sm font-semibold mb-2" for="withdrawAmount">Montant</label>
+              <input
+                id="withdrawAmount"
+                type="number"
+                min="1"
+                step="0.01"
+                [max]="maxWithdrawAmount"
+                formControlName="amount"
+                class="w-full rounded-xl border border-outline-variant/25 bg-surface-container-high px-4 py-3 text-on-surface outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                placeholder="Ex: 25"
+              />
+              <p class="mt-1 text-xs text-on-surface-variant">Minimum 1 - Maximum {{ balanceCurrency }} {{ balance | number: '1.2-2' }}</p>
+              <p class="mt-2 text-sm text-error" *ngIf="withdrawForm.get('amount')?.touched && withdrawForm.get('amount')?.invalid">
+                Le montant doit etre superieur ou egal a 1.
+              </p>
+              <p class="mt-2 text-sm text-error" *ngIf="amountValidationError">{{ amountValidationError }}</p>
+            </div>
+
+            <div>
+              <label class="block text-sm font-semibold mb-2" for="withdrawNotes">Informations de carte / IBAN (optionnel)</label>
+              <textarea
+                id="withdrawNotes"
+                rows="3"
+                formControlName="notes"
+                class="w-full rounded-xl border border-outline-variant/25 bg-surface-container-high px-4 py-3 text-on-surface outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                placeholder="Ex: IBAN / numero carte / nom titulaire"
+              ></textarea>
+            </div>
+
+            <p *ngIf="withdrawErrorMessage" class="text-sm text-error">{{ withdrawErrorMessage }}</p>
+            <p *ngIf="withdrawSuccessMessage" class="text-sm text-primary font-semibold">{{ withdrawSuccessMessage }}</p>
+
+            <button
+              type="submit"
+              class="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-primary text-white font-semibold hover:bg-primary/90 transition-colors disabled:opacity-60"
+              [disabled]="isWithdrawSubmitting"
+            >
+              <span class="material-symbols-outlined text-sm" *ngIf="!isWithdrawSubmitting">payments</span>
+              <span class="material-symbols-outlined text-sm animate-spin" *ngIf="isWithdrawSubmitting">progress_activity</span>
+              {{ isWithdrawSubmitting ? 'Envoi en cours...' : 'Demander le retrait' }}
+            </button>
+          </form>
+        </div>
+
+        <div class="bg-surface-container-low rounded-xl p-6">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-xl font-extrabold font-manrope tracking-tight text-on-surface">Historique des retraits</h3>
+            <span class="text-xs text-on-surface-variant">{{ withdrawals.length }} demandes</span>
+          </div>
+
+          <p class="text-sm text-on-surface-variant" *ngIf="isWithdrawalsLoading">Chargement des retraits...</p>
+          <p class="text-sm text-error" *ngIf="withdrawalsErrorMessage">{{ withdrawalsErrorMessage }}</p>
+
+          <div class="space-y-3 max-h-[360px] overflow-y-auto pr-1" *ngIf="!isWithdrawalsLoading && !withdrawalsErrorMessage">
+            <div
+              *ngFor="let withdrawal of withdrawals; trackBy: trackByWithdrawal"
+              class="rounded-xl border border-outline-variant/15 bg-surface-container-high p-4"
+            >
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <p class="text-sm font-bold text-on-surface">{{ withdrawal.currency }} {{ withdrawal.amount | number: '1.2-2' }}</p>
+                  <p class="text-xs text-on-surface-variant mt-1">{{ withdrawal.createdAt | date: 'MMM d, y, HH:mm' }}</p>
+                </div>
+                <span class="px-2.5 py-1 rounded-lg text-xs font-semibold" [ngClass]="getWithdrawalStatusClass(withdrawal.status)">
+                  {{ withdrawal.status }}
+                </span>
+              </div>
+
+              <p *ngIf="withdrawal.notes" class="text-xs text-on-surface-variant mt-2">
+                {{ withdrawal.notes }}
+              </p>
+            </div>
+
+            <p *ngIf="withdrawals.length === 0" class="text-sm text-on-surface-variant">Aucune demande de retrait pour le moment.</p>
+          </div>
+        </div>
+      </section>
+
       <div class="bg-surface-container-low rounded-xl overflow-hidden mb-8">
         <div class="bg-surface-container-lowest overflow-x-auto">
           <table class="w-full text-left border-collapse">
