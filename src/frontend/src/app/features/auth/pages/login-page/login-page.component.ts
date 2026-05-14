@@ -9,7 +9,95 @@ import { SessionService } from '../../../../core/session/session.service';
   selector: 'app-login-page',
   standalone: true,
   imports: [RouterLink, ReactiveFormsModule, CommonModule],
-  templateUrl: './login-page.component.html'
+  templateUrl: './login-page.component.html',
+  styles: [`
+    :host {
+      display: block;
+    }
+
+    main::before {
+      content: '';
+      position: absolute;
+      inset: 12% auto auto 8%;
+      width: 18rem;
+      height: 18rem;
+      border: 1px solid rgba(0, 82, 204, 0.14);
+      border-radius: 999px;
+      animation: loginOrbit 16s linear infinite;
+      pointer-events: none;
+    }
+
+    .login-shell {
+      animation: loginFadeUp 620ms ease both;
+    }
+
+    .login-panel {
+      animation: loginPanelIn 760ms cubic-bezier(.2,.8,.2,1) 90ms both;
+      transition: transform 200ms ease, box-shadow 200ms ease;
+    }
+
+    .login-panel:focus-within {
+      transform: translateY(-2px);
+      box-shadow: 0 28px 70px rgba(25, 28, 29, 0.1);
+    }
+
+    .login-field {
+      animation: loginFadeUp 520ms ease both;
+    }
+
+    .login-field:nth-child(1) {
+      animation-delay: 150ms;
+    }
+
+    .login-field:nth-child(2) {
+      animation-delay: 220ms;
+    }
+
+    .login-action {
+      animation: loginFadeUp 520ms ease 300ms both;
+    }
+
+    @keyframes loginFadeUp {
+      from {
+        opacity: 0;
+        transform: translateY(14px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes loginPanelIn {
+      from {
+        opacity: 0;
+        transform: translateY(18px) scale(0.98);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    @keyframes loginOrbit {
+      from {
+        transform: rotate(0deg) translateX(10px) rotate(0deg);
+      }
+      to {
+        transform: rotate(360deg) translateX(10px) rotate(-360deg);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      main::before,
+      .login-shell,
+      .login-panel,
+      .login-field,
+      .login-action {
+        animation: none;
+      }
+    }
+  `]
 })
 export class LoginPageComponent {
   isSubmitting = false;

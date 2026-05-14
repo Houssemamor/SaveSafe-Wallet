@@ -41,3 +41,28 @@ export interface AdminUser {
   createdAt: string;
   lastLoginAt: string | null;
 }
+
+export interface AdminLokiQueryRequest {
+  query: string;
+  hours: number;
+  limit: number;
+}
+
+export interface AdminLokiQueryResponse {
+  query: string;
+  from: string;
+  to: string;
+  series: AdminLokiSeries[];
+}
+
+export interface AdminLokiSeries {
+  name: string;
+  labels: Record<string, string>;
+  points: AdminLokiPoint[];
+  total: number;
+}
+
+export interface AdminLokiPoint {
+  timestamp: string;
+  value: number;
+}

@@ -60,6 +60,39 @@ public class AdminController : ControllerBase
         return Ok(users);
     }
 
+    [HttpPost("observability/loki/query")]
+    [ProducesResponseType(typeof(AdminLokiQueryResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status502BadGateway)]
+    public async Task<IActionResult> QueryLoki([FromBody] AdminLokiQueryRequestDto request, CancellationToken ct)
+    {
+        try
+        {
+            var result = await _adminService.QueryLokiAsync(request, ct);
+            return Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+        catch (HttpRequestException ex)
+        {
+            return StatusCode(StatusCodes.Status502BadGateway, ex.Message);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return StatusCode(StatusCodes.Status502BadGateway, ex.Message);
+        }
+        catch (System.Text.Json.JsonException ex)
+        {
+            return StatusCode(StatusCodes.Status502BadGateway, ex.Message);
+        }
+        catch (TaskCanceledException)
+        {
+            return StatusCode(StatusCodes.Status502BadGateway, "Loki query timed out.");
+        }
+    }
+
     /// <summary>Suspend a user account.</summary>
     [HttpPost("users/{userId}/suspend")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]

@@ -4,6 +4,8 @@ import { Observable } from 'rxjs';
 import { API_CONFIG } from '../../../core/config/api.config';
 import {
   AdminFailedLoginByIp,
+  AdminLokiQueryRequest,
+  AdminLokiQueryResponse,
   AdminLoginEvent,
   AdminSecuritySummary,
   AdminUser
@@ -36,6 +38,10 @@ export class AdminService {
   getUsers(limit = 100): Observable<AdminUser[]> {
     const params = new HttpParams().set('limit', limit);
     return this.http.get<AdminUser[]>(`${API_CONFIG.adminBaseUrl}/users`, { params });
+  }
+
+  queryLoki(request: AdminLokiQueryRequest): Observable<AdminLokiQueryResponse> {
+    return this.http.post<AdminLokiQueryResponse>(`${API_CONFIG.adminBaseUrl}/observability/loki/query`, request);
   }
 
   suspendUser(userId: string): Observable<void> {

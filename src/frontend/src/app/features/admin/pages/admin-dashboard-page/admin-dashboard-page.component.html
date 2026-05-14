@@ -1,175 +1,421 @@
-<div class="min-h-screen bg-slate-50 text-slate-900">
-  <header class="border-b border-slate-200 bg-white">
-    <div class="mx-auto max-w-7xl px-6 py-5 flex items-center justify-between">
-      <div>
-        <h1 class="text-2xl font-headline font-bold">Admin Security Dashboard</h1>
-        <p class="text-sm text-slate-600">Centralized monitoring and access audit for SaveSafe.</p>
-      </div>
-      <div class="flex items-center gap-3">
-        <a class="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium hover:bg-slate-100" href="http://localhost:3000" rel="noopener" target="_blank">Open Grafana</a>
-        <button class="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium hover:bg-slate-100 disabled:opacity-60" (click)="refreshSummary()" [disabled]="isRefreshing" type="button">
-          {{ isRefreshing ? 'Refreshing...' : 'Refresh Summary' }}
-        </button>
-        <button class="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700" (click)="logout()" type="button">Logout</button>
+<div class="min-h-screen bg-[#f8f9fa] text-[#191c1d]">
+  <header class="sticky top-0 z-40 border-b border-slate-200/80 bg-white/95 backdrop-blur">
+    <div class="mx-auto max-w-7xl px-6 py-4">
+      <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div class="flex items-center gap-4">
+          <div class="flex h-12 w-12 items-center justify-center rounded-lg bg-[#003d9b] text-white shadow-sm">
+            <span class="material-symbols-outlined">admin_panel_settings</span>
+          </div>
+          <div>
+            <p class="text-xs font-bold uppercase tracking-widest text-[#0052cc]">Security Operations</p>
+            <h1 class="text-2xl font-black tracking-tight text-slate-950">Admin Command Center</h1>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-3">
+          <div class="rounded-lg border border-slate-200 bg-slate-50 px-4 py-2 text-sm">
+            <span class="text-slate-500">Admin</span>
+            <span class="ml-2 font-semibold">{{ user?.name || 'Admin' }}</span>
+          </div>
+          <a class="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50" href="http://localhost:3000" rel="noopener" target="_blank">
+            <span class="material-symbols-outlined text-base">open_in_new</span>
+            Grafana
+          </a>
+          <button class="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60" (click)="refreshSummary()" [disabled]="isRefreshing" type="button">
+            <span class="material-symbols-outlined text-base" [class.animate-spin]="isRefreshing">sync</span>
+            {{ isRefreshing ? 'Refreshing' : 'Refresh' }}
+          </button>
+          <button class="inline-flex items-center gap-2 rounded-lg bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800" (click)="logout()" type="button">
+            <span class="material-symbols-outlined text-base">logout</span>
+            Logout
+          </button>
+        </div>
       </div>
     </div>
   </header>
 
-  <main class="mx-auto max-w-7xl px-6 py-8 space-y-8">
-    <section class="rounded-lg border border-slate-200 bg-white p-6">
-      <p class="text-xs uppercase tracking-wide text-slate-500">Authenticated admin</p>
-      <p class="text-lg font-semibold">{{ user?.name || 'Admin' }}</p>
-      <p class="text-sm text-slate-600">{{ user?.email || '' }}</p>
+  <main class="mx-auto max-w-7xl space-y-8 px-6 py-8">
+    <section class="admin-enter grid gap-6 lg:grid-cols-[1.5fr_1fr]">
+      <article class="overflow-hidden rounded-lg border border-slate-200 bg-white">
+        <div class="grid gap-6 p-6 md:grid-cols-[1fr_auto] md:items-center">
+          <div>
+            <p class="text-xs font-bold uppercase tracking-widest text-slate-500">Live security posture</p>
+            <h2 class="mt-2 text-3xl font-black tracking-tight text-slate-950">SaveSafe telemetry is centralized and ready for triage.</h2>
+            <p class="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
+              Login events, AI risk scoring, source IP failures, user access state, and observability links are consolidated into one admin view.
+            </p>
+          </div>
+
+          <div class="flex items-center gap-5 rounded-lg border border-slate-200 bg-slate-50 p-5">
+            <div class="relative h-28 w-28">
+              <svg class="h-28 w-28 -rotate-90" viewBox="0 0 100 100" aria-hidden="true">
+                <circle cx="50" cy="50" r="42" fill="none" stroke="#e2e8f0" stroke-width="10"></circle>
+                <circle cx="50" cy="50" r="42" fill="none" stroke="#0052cc" stroke-width="10" stroke-linecap="round" stroke-dasharray="263.89" [attr.stroke-dashoffset]="riskStrokeOffset"></circle>
+              </svg>
+              <div class="absolute inset-0 flex flex-col items-center justify-center">
+                <span class="text-2xl font-black" [ngClass]="riskClass()">{{ summary?.aiRiskScore ?? 0 }}</span>
+                <span class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Risk</span>
+              </div>
+            </div>
+            <div>
+              <p class="text-sm font-bold text-slate-950">AI Risk Level</p>
+              <p class="mt-1 text-2xl font-black" [ngClass]="riskClass()">{{ summary?.aiRiskLevel || 'Pending' }}</p>
+              <p class="mt-2 text-xs text-slate-500">Updated {{ formatDate(summary?.computedAt || null) }}</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid border-t border-slate-200 bg-slate-50 md:grid-cols-4">
+          <div class="border-b border-slate-200 p-5 md:border-b-0 md:border-r">
+            <p class="text-xs uppercase tracking-widest text-slate-500">Success Rate</p>
+            <p class="mt-2 text-2xl font-black text-emerald-700">{{ successRate }}%</p>
+          </div>
+          <div class="border-b border-slate-200 p-5 md:border-b-0 md:border-r">
+            <p class="text-xs uppercase tracking-widest text-slate-500">Failed Rate</p>
+            <p class="mt-2 text-2xl font-black text-red-700">{{ failedRate }}%</p>
+          </div>
+          <div class="border-b border-slate-200 p-5 md:border-b-0 md:border-r">
+            <p class="text-xs uppercase tracking-widest text-slate-500">MFA Coverage</p>
+            <p class="mt-2 text-2xl font-black text-[#003d9b]">{{ mfaCoverageRate }}%</p>
+          </div>
+          <div class="p-5">
+            <p class="text-xs uppercase tracking-widest text-slate-500">Flagged Share</p>
+            <p class="mt-2 text-2xl font-black text-amber-700">{{ flaggedRate }}%</p>
+          </div>
+        </div>
+      </article>
+
+      <article class="rounded-lg border border-slate-200 bg-white p-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-xs font-bold uppercase tracking-widest text-slate-500">Access Trend</p>
+            <h2 class="mt-2 text-lg font-black text-slate-950">Last 24 hours</h2>
+          </div>
+          <span class="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">
+            {{ summary?.totalLoginEventsLast24Hours || 0 }} events
+          </span>
+        </div>
+        <svg class="mt-6 h-36 w-full" viewBox="0 0 270 110" preserveAspectRatio="none" aria-label="Login event trend">
+          <defs>
+            <linearGradient id="adminTrend" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0%" stop-color="#0052cc" stop-opacity="0.24"></stop>
+              <stop offset="100%" stop-color="#0052cc" stop-opacity="0"></stop>
+            </linearGradient>
+          </defs>
+          <polyline [attr.points]="loginTrendPoints" fill="none" stroke="#0052cc" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"></polyline>
+          <polygon [attr.points]="'8,104 ' + loginTrendPoints + ' 261,104'" fill="url(#adminTrend)"></polygon>
+        </svg>
+        <div class="mt-4 grid grid-cols-3 gap-3 text-center">
+          <div class="rounded-lg bg-slate-50 p-3">
+            <p class="text-xs text-slate-500">Failures</p>
+            <p class="text-lg font-black text-red-700">{{ summary?.failedLoginEventsLast24Hours || 0 }}</p>
+          </div>
+          <div class="rounded-lg bg-slate-50 p-3">
+            <p class="text-xs text-slate-500">Sources</p>
+            <p class="text-lg font-black text-slate-950">{{ summary?.distinctSourceIpsLast24Hours || 0 }}</p>
+          </div>
+          <div class="rounded-lg bg-slate-50 p-3">
+            <p class="text-xs text-slate-500">Flagged</p>
+            <p class="text-lg font-black text-amber-700">{{ summary?.flaggedEventsLast24Hours || 0 }}</p>
+          </div>
+        </div>
+      </article>
     </section>
 
     <p *ngIf="isLoading" class="rounded-lg border border-slate-200 bg-white p-6 text-sm text-slate-600">Loading dashboard data...</p>
     <p *ngIf="errorMessage" class="rounded-lg border border-red-200 bg-red-50 p-6 text-sm text-red-700">{{ errorMessage }}</p>
 
-    <section *ngIf="summary" class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-      <article class="rounded-lg border border-slate-200 bg-white p-5">
-        <p class="text-xs uppercase tracking-wide text-slate-500">Total Users</p>
-        <p class="mt-2 text-3xl font-bold">{{ summary.totalUsers }}</p>
-        <p class="mt-2 text-xs text-slate-600">Active: {{ summary.activeUsers }} | Suspended: {{ summary.suspendedUsers }} | Deleted: {{ summary.deletedUsers }}</p>
+    <section *ngIf="summary" class="admin-enter-delay grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <article class="metric-card rounded-lg border border-slate-200 bg-white p-5">
+        <div class="flex items-center justify-between">
+          <p class="text-xs font-bold uppercase tracking-widest text-slate-500">Total Users</p>
+          <span class="material-symbols-outlined text-[#0052cc]">groups</span>
+        </div>
+        <p class="mt-4 text-3xl font-black">{{ summary.totalUsers }}</p>
+        <div class="mt-4 h-2 overflow-hidden rounded-full bg-slate-100">
+          <div class="h-full rounded-full bg-[#0052cc]" [style.width.%]="activeUserRate"></div>
+        </div>
+        <p class="mt-3 text-xs text-slate-600">{{ summary.activeUsers }} active, {{ summary.suspendedUsers }} suspended, {{ summary.deletedUsers }} deleted</p>
       </article>
-      <article class="rounded-lg border border-slate-200 bg-white p-5">
-        <p class="text-xs uppercase tracking-wide text-slate-500">Login Events (24h)</p>
-        <p class="mt-2 text-3xl font-bold">{{ summary.totalLoginEventsLast24Hours }}</p>
-        <p class="mt-2 text-xs text-slate-600">Failed: {{ summary.failedLoginEventsLast24Hours }}</p>
+
+      <article class="metric-card rounded-lg border border-slate-200 bg-white p-5">
+        <div class="flex items-center justify-between">
+          <p class="text-xs font-bold uppercase tracking-widest text-slate-500">Login Events</p>
+          <span class="material-symbols-outlined text-emerald-700">login</span>
+        </div>
+        <p class="mt-4 text-3xl font-black">{{ summary.totalLoginEventsLast24Hours }}</p>
+        <p class="mt-3 text-xs text-slate-600">In the last 24 hours</p>
       </article>
-      <article class="rounded-lg border border-slate-200 bg-white p-5">
-        <p class="text-xs uppercase tracking-wide text-slate-500">Flagged Events (24h)</p>
-        <p class="mt-2 text-3xl font-bold">{{ summary.flaggedEventsLast24Hours }}</p>
+
+      <article class="metric-card rounded-lg border border-slate-200 bg-white p-5">
+        <div class="flex items-center justify-between">
+          <p class="text-xs font-bold uppercase tracking-widest text-slate-500">Flagged Events</p>
+          <span class="material-symbols-outlined text-amber-700">warning</span>
+        </div>
+        <p class="mt-4 text-3xl font-black text-amber-700">{{ summary.flaggedEventsLast24Hours }}</p>
+        <p class="mt-3 text-xs text-slate-600">{{ flaggedRate }}% of observed login traffic</p>
       </article>
-      <article class="rounded-lg border border-slate-200 bg-white p-5">
-        <p class="text-xs uppercase tracking-wide text-slate-500">Distinct Source IPs (24h)</p>
-        <p class="mt-2 text-3xl font-bold">{{ summary.distinctSourceIpsLast24Hours }}</p>
-      </article>
-      <article class="rounded-lg border border-slate-200 bg-white p-5">
-        <p class="text-xs uppercase tracking-wide text-slate-500">AI Risk Score</p>
-        <p class="mt-2 text-3xl font-bold" [class.text-red-700]="summary.aiRiskLevel === 'High'" [class.text-orange-700]="summary.aiRiskLevel === 'Medium'" [class.text-green-700]="summary.aiRiskLevel === 'Low'">
-          {{ summary.aiRiskScore }}/100
-        </p>
-        <p class="mt-2 text-xs text-slate-600">Level: {{ summary.aiRiskLevel }} | Updated: {{ formatDate(summary.computedAt) }}</p>
+
+      <article class="metric-card rounded-lg border border-slate-200 bg-white p-5">
+        <div class="flex items-center justify-between">
+          <p class="text-xs font-bold uppercase tracking-widest text-slate-500">Source IPs</p>
+          <span class="material-symbols-outlined text-slate-700">travel_explore</span>
+        </div>
+        <p class="mt-4 text-3xl font-black">{{ summary.distinctSourceIpsLast24Hours }}</p>
+        <p class="mt-3 text-xs text-slate-600">Distinct origins in the last 24 hours</p>
       </article>
     </section>
 
-    <section class="grid grid-cols-1 gap-8 lg:grid-cols-2">
-      <article class="rounded-lg border border-slate-200 bg-white p-6">
-        <h2 class="text-lg font-semibold">Failed Login Analysis</h2>
-        <p class="mt-1 text-sm text-slate-600">Top source IPs with failed authentication attempts.</p>
-        <div class="mt-4 overflow-x-auto">
-          <table class="min-w-full text-sm">
-            <thead>
-              <tr class="border-b border-slate-200 text-left text-slate-500">
-                <th class="px-2 py-2">IP Address</th>
-                <th class="px-2 py-2">Failed Attempts</th>
-                <th class="px-2 py-2">Last Attempt</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let item of failedLogins" class="border-b border-slate-100">
-                <td class="px-2 py-2 font-mono">{{ item.ipAddress }}</td>
-                <td class="px-2 py-2">{{ item.failedAttempts }}</td>
-                <td class="px-2 py-2">{{ formatDate(item.lastAttemptAt) }}</td>
-              </tr>
-              <tr *ngIf="failedLogins.length === 0">
-                <td class="px-2 py-3 text-slate-500" colspan="3">No failed logins found.</td>
-              </tr>
-            </tbody>
-          </table>
+    <section class="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      <article *ngFor="let source of sourceSignals" class="metric-card rounded-lg border border-slate-200 bg-white p-5">
+        <div class="flex items-start justify-between gap-4">
+          <div class="flex items-center gap-3">
+            <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 text-slate-700">
+              <span class="material-symbols-outlined">{{ source.icon }}</span>
+            </div>
+            <div>
+              <p class="font-black text-slate-950">{{ source.name }}</p>
+              <p class="text-xs text-slate-500">{{ source.role }}</p>
+            </div>
+          </div>
+          <span class="inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-[11px] font-bold" [ngClass]="statusClass(source.status)">
+            <span class="pulse-dot h-2 w-2 rounded-full bg-current"></span>
+            {{ source.status }}
+          </span>
         </div>
-      </article>
-
-      <article class="rounded-lg border border-slate-200 bg-white p-6">
-        <h2 class="text-lg font-semibold">Recent Access Audit</h2>
-        <p class="mt-1 text-sm text-slate-600">Latest authentication events across users. AI can flag suspicious patterns through the summary above.</p>
-        <div class="mt-4 overflow-x-auto">
-          <table class="min-w-full text-sm">
-            <thead>
-              <tr class="border-b border-slate-200 text-left text-slate-500">
-                <th class="px-2 py-2">User</th>
-                <th class="px-2 py-2">Status</th>
-                <th class="px-2 py-2">IP</th>
-                <th class="px-2 py-2">AI Flag</th>
-                <th class="px-2 py-2">Time</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let event of loginEvents" class="border-b border-slate-100">
-                <td class="px-2 py-2">{{ event.userEmail }}</td>
-                <td class="px-2 py-2">
-                  <span [class]="event.success ? 'text-green-700' : 'text-red-700'">{{ event.success ? 'Success' : (event.failureReason || 'Failed') }}</span>
-                </td>
-                <td class="px-2 py-2 font-mono">{{ event.ipAddress || 'unknown' }}</td>
-                <td class="px-2 py-2">{{ event.isFlagged ? 'Flagged' : 'Normal' }}</td>
-                <td class="px-2 py-2">{{ formatDate(event.timestamp) }}</td>
-              </tr>
-              <tr *ngIf="loginEvents.length === 0">
-                <td class="px-2 py-3 text-slate-500" colspan="5">No access events found.</td>
-              </tr>
-            </tbody>
-          </table>
+        <div class="mt-5 flex items-end justify-between gap-4">
+          <div>
+            <p class="text-2xl font-black text-slate-950">{{ source.value }}</p>
+            <p class="mt-1 text-xs text-slate-500">{{ source.detail }}</p>
+          </div>
+          <a *ngIf="source.href" class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50" [href]="source.href" rel="noopener" target="_blank">Open</a>
         </div>
       </article>
     </section>
 
     <section class="rounded-lg border border-slate-200 bg-white p-6">
-      <h2 class="text-lg font-semibold">User Access Snapshot</h2>
-      <p class="mt-1 text-sm text-slate-600">Latest registered users with role and account status.</p>
-      <div class="mt-4 overflow-x-auto">
-        <table class="min-w-full text-sm">
-          <thead>
-            <tr class="border-b border-slate-200 text-left text-slate-500">
-              <th class="px-2 py-2">Email</th>
-              <th class="px-2 py-2">Name</th>
-              <th class="px-2 py-2">Role</th>
-              <th class="px-2 py-2">Status</th>
-              <th class="px-2 py-2">MFA</th>
-              <th class="px-2 py-2">Last Login</th>
-              <th class="px-2 py-2">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let item of users" class="border-b border-slate-100">
-              <td class="px-2 py-2">{{ item.email }}</td>
-              <td class="px-2 py-2">{{ item.name }}</td>
-              <td class="px-2 py-2">{{ item.role }}</td>
-              <td class="px-2 py-2">
-                <span [class]="item.accountStatus === 'Active' ? 'text-green-700' : (item.accountStatus === 'Suspended' ? 'text-orange-700' : 'text-red-700')">
-                  {{ item.accountStatus }}
-                </span>
-              </td>
-              <td class="px-2 py-2">{{ item.mfaEnabled ? 'Enabled' : 'Disabled' }}</td>
-              <td class="px-2 py-2">{{ formatDate(item.lastLoginAt) }}</td>
-              <td class="px-2 py-2">
-                <div class="flex gap-2">
-                  <button *ngIf="canSuspendUser(item)"
-                    class="px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded hover:bg-orange-200 transition-colors"
-                    (click)="suspendUser(item.userId)"
-                    type="button">
-                    Suspend
-                  </button>
-                  <button *ngIf="canActivateUser(item)"
-                    class="px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200 transition-colors"
-                    (click)="activateUser(item.userId)"
-                    type="button">
-                    Activate
-                  </button>
-                  <button *ngIf="canDeleteUser(item)"
-                    class="px-2 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors"
-                    (click)="deleteUser(item.userId)"
-                    type="button">
-                    Delete
-                  </button>
-                </div>
-              </td>
-            </tr>
-            <tr *ngIf="users.length === 0">
-              <td class="px-2 py-3 text-slate-500" colspan="7">No users found.</td>
-            </tr>
-          </tbody>
-        </table>
+      <div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+        <div>
+          <p class="text-xs font-bold uppercase tracking-widest text-[#0052cc]">Observability Query Lab</p>
+          <h2 class="mt-2 text-lg font-black text-slate-950">Run Loki queries and render them here</h2>
+          <p class="mt-1 text-sm text-slate-600">The dashboard calls Loki through the admin API, then renders the returned series as a graph and share chart.</p>
+        </div>
+        <a class="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50" [href]="grafanaExploreUrl" rel="noopener" target="_blank">
+          <span class="material-symbols-outlined text-base">query_stats</span>
+          Open in Grafana Explore
+        </a>
       </div>
+
+      <div class="mt-6 grid gap-4 lg:grid-cols-[1fr_auto_auto]">
+        <input class="h-12 rounded-lg border border-slate-300 bg-slate-50 px-4 font-mono text-sm text-slate-900 outline-none transition focus:border-[#0052cc] focus:bg-white focus:ring-2 focus:ring-blue-100" type="text" [(ngModel)]="observabilityQuery" aria-label="Loki query" />
+        <select class="h-12 rounded-lg border border-slate-300 bg-slate-50 px-4 text-sm font-semibold text-slate-700 outline-none focus:border-[#0052cc] focus:bg-white focus:ring-2 focus:ring-blue-100" [(ngModel)]="observabilityHours" aria-label="Query range">
+          <option [ngValue]="1">Last 1h</option>
+          <option [ngValue]="3">Last 3h</option>
+          <option [ngValue]="6">Last 6h</option>
+          <option [ngValue]="24">Last 24h</option>
+        </select>
+        <button class="inline-flex h-12 items-center justify-center gap-2 rounded-lg bg-[#003d9b] px-5 text-sm font-bold text-white hover:bg-[#0052cc] disabled:opacity-60" type="button" (click)="runObservabilityQuery()" [disabled]="isObservabilityLoading">
+          <span class="material-symbols-outlined text-base" [class.animate-spin]="isObservabilityLoading">play_arrow</span>
+          {{ isObservabilityLoading ? 'Running' : 'Run Query' }}
+        </button>
+      </div>
+
+      <p *ngIf="observabilityErrorMessage" class="mt-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{{ observabilityErrorMessage }}</p>
+
+      <div class="mt-6 grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+        <div class="rounded-lg border border-slate-200 bg-slate-50 p-5">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-xs font-bold uppercase tracking-widest text-slate-500">Loki Line Chart</p>
+              <p class="mt-1 text-sm font-semibold text-slate-900">{{ primaryObservabilitySeriesName }}</p>
+            </div>
+            <span class="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-bold text-slate-600">{{ observabilitySeries.length }} series</span>
+          </div>
+          <svg class="mt-5 h-44 w-full" viewBox="0 0 270 110" preserveAspectRatio="none" aria-label="Loki query line chart">
+            <line x1="8" y1="20" x2="256" y2="20" stroke="#e2e8f0" stroke-width="1"></line>
+            <line x1="8" y1="56" x2="256" y2="56" stroke="#e2e8f0" stroke-width="1"></line>
+            <line x1="8" y1="92" x2="256" y2="92" stroke="#e2e8f0" stroke-width="1"></line>
+            <polyline *ngIf="observabilitySeries.length === 0" [attr.points]="observabilityFallbackLinePoints" fill="none" stroke="#94a3b8" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6 6"></polyline>
+            <polyline *ngFor="let series of observabilitySeries; let i = index" [attr.points]="observabilityLinePointsFor(series)" fill="none" [attr.stroke]="observabilityColor(i)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"></polyline>
+          </svg>
+          <div class="mt-4 flex flex-wrap gap-3">
+            <span *ngFor="let series of observabilitySeries; let i = index" class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-bold text-slate-700">
+              <span class="h-2.5 w-2.5 rounded-full" [style.background-color]="observabilityColor(i)"></span>
+              {{ series.name }}
+            </span>
+          </div>
+          <p class="mt-3 text-xs text-slate-500" *ngIf="observabilityResult">Range {{ formatDate(observabilityResult.from) }} to {{ formatDate(observabilityResult.to) }}</p>
+        </div>
+
+        <div class="rounded-lg border border-slate-200 bg-slate-50 p-5">
+          <p class="text-xs font-bold uppercase tracking-widest text-slate-500">Series Share</p>
+          <h3 class="mt-1 text-lg font-black text-slate-950">Pie-style totals</h3>
+          <div class="mt-5 grid gap-5 sm:grid-cols-[auto_1fr] sm:items-center">
+            <div class="relative h-32 w-32 rounded-full border border-slate-200" [style.background]="observabilityPieGradient">
+              <div class="absolute inset-5 rounded-full bg-slate-50"></div>
+              <div class="absolute inset-0 flex flex-col items-center justify-center">
+                <span class="text-xl font-black text-slate-950">{{ observabilityTotal | number:'1.0-0' }}</span>
+                <span class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Total</span>
+              </div>
+            </div>
+            <div class="space-y-4">
+              <div *ngFor="let series of observabilitySeries; let i = index" class="space-y-2">
+                <div class="flex items-center justify-between gap-4 text-sm">
+                  <span class="inline-flex items-center gap-2 font-semibold text-slate-800">
+                    <span class="h-2.5 w-2.5 rounded-full" [style.background-color]="observabilityColor(i)"></span>
+                    {{ series.name }}
+                  </span>
+                  <span class="font-black text-slate-950">{{ series.total | number:'1.0-2' }}</span>
+                </div>
+                <div class="h-3 overflow-hidden rounded-full bg-white">
+                  <div class="h-full rounded-full" [style.background-color]="observabilityColor(i)" [style.width.%]="observabilitySliceWidth(series)"></div>
+                </div>
+              </div>
+              <p *ngIf="observabilitySeries.length === 0 && !isObservabilityLoading" class="rounded-lg bg-white p-4 text-sm text-slate-500">Run a Loki metric query to populate this chart.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid grid-cols-1 gap-8 xl:grid-cols-[0.9fr_1.1fr]">
+      <article class="rounded-lg border border-slate-200 bg-white p-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-lg font-black text-slate-950">Failed Login Sources</h2>
+            <p class="mt-1 text-sm text-slate-600">Top source IPs ranked by failed authentication attempts.</p>
+          </div>
+          <span class="material-symbols-outlined text-red-700">shield_lock</span>
+        </div>
+
+        <div class="mt-6 max-h-80 space-y-4 overflow-y-auto pr-2">
+          <div *ngFor="let item of failedLogins" class="space-y-2">
+            <div class="flex items-center justify-between gap-4 text-sm">
+              <span class="font-mono font-semibold text-slate-800">{{ item.ipAddress }}</span>
+              <span class="font-black text-red-700">{{ item.failedAttempts }}</span>
+            </div>
+            <div class="h-2 overflow-hidden rounded-full bg-slate-100">
+              <div class="h-full rounded-full bg-red-600" [style.width.%]="failedLoginWidth(item)"></div>
+            </div>
+            <p class="text-xs text-slate-500">Last attempt {{ formatDate(item.lastAttemptAt) }}</p>
+          </div>
+          <p *ngIf="failedLogins.length === 0" class="rounded-lg bg-slate-50 p-4 text-sm text-slate-500">No failed logins found.</p>
+        </div>
+      </article>
+
+      <article class="rounded-lg border border-slate-200 bg-white p-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-lg font-black text-slate-950">Recent Access Audit</h2>
+            <p class="mt-1 text-sm text-slate-600">Latest authentication events with AI and source context.</p>
+          </div>
+          <span class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-bold text-slate-600">{{ loginEvents.length }} events</span>
+        </div>
+
+        <div class="mt-6 max-h-80 overflow-y-auto rounded-lg border border-slate-200">
+          <table class="min-w-full text-sm">
+            <thead class="bg-slate-50">
+              <tr class="text-left text-xs uppercase tracking-widest text-slate-500">
+                <th class="px-4 py-3">User</th>
+                <th class="px-4 py-3">Status</th>
+                <th class="px-4 py-3">Source</th>
+                <th class="px-4 py-3">Time</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              <tr *ngFor="let event of loginEvents" class="hover:bg-slate-50">
+                <td class="px-4 py-3">
+                  <p class="font-semibold text-slate-900">{{ event.userEmail }}</p>
+                  <p class="text-xs text-slate-500">{{ event.userName || event.userId }}</p>
+                </td>
+                <td class="px-4 py-3">
+                  <span class="inline-flex rounded-full border px-2.5 py-1 text-xs font-bold" [ngClass]="eventStatusClass(event)">
+                    {{ event.isFlagged ? 'Flagged' : (event.success ? 'Success' : (event.failureReason || 'Failed')) }}
+                  </span>
+                </td>
+                <td class="px-4 py-3 font-mono text-xs text-slate-700">{{ event.ipAddress || 'unknown' }}</td>
+                <td class="px-4 py-3 text-xs text-slate-500">{{ formatDate(event.timestamp) }}</td>
+              </tr>
+              <tr *ngIf="loginEvents.length === 0">
+                <td class="px-4 py-4 text-slate-500" colspan="4">No access events found.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+
+    <section class="grid grid-cols-1 gap-8 xl:grid-cols-[1.2fr_0.8fr]">
+      <article class="rounded-lg border border-slate-200 bg-white p-6">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 class="text-lg font-black text-slate-950">User Access Snapshot</h2>
+            <p class="mt-1 text-sm text-slate-600">Recent accounts with role, status, MFA coverage and controls.</p>
+          </div>
+          <span class="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">{{ activeUserRate }}% active</span>
+        </div>
+
+        <div class="mt-6 overflow-hidden rounded-lg border border-slate-200">
+          <table class="min-w-full text-sm">
+            <thead class="bg-slate-50">
+              <tr class="text-left text-xs uppercase tracking-widest text-slate-500">
+                <th class="px-4 py-3">Identity</th>
+                <th class="px-4 py-3">Role</th>
+                <th class="px-4 py-3">Status</th>
+                <th class="px-4 py-3">MFA</th>
+                <th class="px-4 py-3">Last Login</th>
+                <th class="px-4 py-3">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              <tr *ngFor="let item of users" class="hover:bg-slate-50">
+                <td class="px-4 py-3">
+                  <p class="font-semibold text-slate-950">{{ item.name }}</p>
+                  <p class="text-xs text-slate-500">{{ item.email }}</p>
+                </td>
+                <td class="px-4 py-3">
+                  <span class="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-bold text-slate-700">{{ item.role }}</span>
+                </td>
+                <td class="px-4 py-3">
+                  <span class="rounded-full border px-2.5 py-1 text-xs font-bold" [ngClass]="userStatusClass(item.accountStatus)">{{ item.accountStatus }}</span>
+                </td>
+                <td class="px-4 py-3">
+                  <span class="text-xs font-bold" [class.text-emerald-700]="item.mfaEnabled" [class.text-amber-700]="!item.mfaEnabled">{{ item.mfaEnabled ? 'Enabled' : 'Disabled' }}</span>
+                </td>
+                <td class="px-4 py-3 text-xs text-slate-500">{{ formatDate(item.lastLoginAt) }}</td>
+                <td class="px-4 py-3">
+                  <div class="flex flex-wrap gap-2">
+                    <button *ngIf="canSuspendUser(item)" class="rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs font-bold text-amber-700 hover:bg-amber-100" (click)="suspendUser(item.userId)" type="button">Suspend</button>
+                    <button *ngIf="canActivateUser(item)" class="rounded-lg bg-emerald-50 px-2.5 py-1.5 text-xs font-bold text-emerald-700 hover:bg-emerald-100" (click)="activateUser(item.userId)" type="button">Activate</button>
+                    <button *ngIf="canDeleteUser(item)" class="rounded-lg bg-red-50 px-2.5 py-1.5 text-xs font-bold text-red-700 hover:bg-red-100" (click)="deleteUser(item.userId)" type="button">Delete</button>
+                  </div>
+                </td>
+              </tr>
+              <tr *ngIf="users.length === 0">
+                <td class="px-4 py-4 text-slate-500" colspan="6">No users found.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+
+      <article class="rounded-lg border border-slate-200 bg-white p-6">
+        <h2 class="text-lg font-black text-slate-950">AI Review Queue</h2>
+        <p class="mt-1 text-sm text-slate-600">Flagged events that deserve human attention.</p>
+
+        <div class="mt-6 space-y-4">
+          <div *ngFor="let event of latestFlaggedEvents" class="rounded-lg border border-amber-200 bg-amber-50 p-4">
+            <div class="flex items-start justify-between gap-4">
+              <div>
+                <p class="font-semibold text-slate-950">{{ event.userEmail }}</p>
+                <p class="mt-1 text-xs text-slate-600">{{ event.ipAddress || 'unknown source' }} · {{ formatDate(event.timestamp) }}</p>
+              </div>
+              <span class="material-symbols-outlined text-amber-700">priority_high</span>
+            </div>
+          </div>
+          <p *ngIf="latestFlaggedEvents.length === 0" class="rounded-lg bg-slate-50 p-4 text-sm text-slate-500">No flagged events in the loaded audit window.</p>
+        </div>
+      </article>
     </section>
   </main>
 </div>
