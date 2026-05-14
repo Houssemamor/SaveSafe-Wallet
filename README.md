@@ -62,7 +62,7 @@ ou with git repo https://github.com/stripe/stripe-cli/releases/tag/v1.40.9
 2. Run:
 
 ```bash
-stripe listen --forward-to http://localhost:5003/api/payment/webhook
+\.stripe.exe listen --forward-to http://localhost:5003/api/payment/webhook
 ```
 
 3. The CLI prints a `whsec_...` signing secret. Put that in your local `.env` as `STRIPE_WEBHOOK_SECRET`.
