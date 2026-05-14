@@ -326,29 +326,28 @@ public sealed class WithdrawalRequestRepository : IWithdrawalRequestRepository
     {
         var snapshot = await Requests
             .WhereEqualTo("userId", userId.ToString())
-            .OrderByDescending("createdAt")
             .GetSnapshotAsync(ct);
 
         return snapshot.Documents
             .Select(document => ToEntity(document.ConvertTo<WithdrawalRequestDocument>()))
+            .OrderByDescending(request => request.CreatedAt)
             .ToList();
     }
 
     public async Task<IReadOnlyList<WithdrawalRequest>> ListAllAsync(string? status, CancellationToken ct = default)
     {
-        Query query = Requests.OrderByDescending("createdAt");
+        Query query = Requests;
 
         if (!string.IsNullOrWhiteSpace(status))
         {
-            query = Requests
-                .WhereEqualTo("status", status)
-                .OrderByDescending("createdAt");
+            query = Requests.WhereEqualTo("status", status);
         }
 
         var snapshot = await query.GetSnapshotAsync(ct);
 
         return snapshot.Documents
             .Select(document => ToEntity(document.ConvertTo<WithdrawalRequestDocument>()))
+            .OrderByDescending(request => request.CreatedAt)
             .ToList();
     }
 
