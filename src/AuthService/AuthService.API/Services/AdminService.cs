@@ -3,6 +3,7 @@ using AuthService.API.Entities;
 using AuthService.API.Persistence;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace AuthService.API.Services;
 
@@ -14,6 +15,8 @@ public interface IAdminService
     Task<IReadOnlyList<AdminFailedLoginByIpDto>> GetFailedLoginsByIpAsync(int top);
     Task<IReadOnlyList<AdminUserDto>> GetUsersAsync(int limit);
     Task<AdminLokiQueryResponseDto> QueryLokiAsync(AdminLokiQueryRequestDto request, CancellationToken ct = default);
+    Task<AdminAiReviewQueueResponseDto> GetAiReviewQueueAsync(int limit, CancellationToken ct = default);
+    Task ResolveAiReviewItemAsync(string eventId, CancellationToken ct = default);
     Task SuspendUserAsync(Guid userId);
     Task ActivateUserAsync(Guid userId);
     Task DeleteUserAsync(Guid userId);
@@ -178,6 +181,57 @@ public class AdminService : IAdminService
                 item.FailedAttempts,
                 item.LastAttemptAt))
             .ToList();
+    }
+
+    public async Task<AdminAiReviewQueueResponseDto> GetAiReviewQueueAsync(int limit, CancellationToken ct = default)
+    {
+        var safeLimit = Math.Clamp(limit, 1, 100);
+        var baseUri = _configuration["Services:AiSecurityServiceUrl"] ?? "http://localhost:5010";
+        var client = _httpClientFactory.CreateClient();
+        client.Timeout = TimeSpan.FromSeconds(8);
+
+        using var response = await client.GetAsync($"{baseUri.TrimEnd('/')}/review-queue?limit={safeLimit}", ct);
+        response.EnsureSuccessStatusCode();
+
+        await using var stream = await response.Content.ReadAsStreamAsync(ct);
+        var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+        var raw = await JsonSerializer.DeserializeAsync<AiReviewQueueRaw>(stream, options, ct);
+
+        return new AdminAiReviewQueueResponseDto(
+            raw?.Items?
+                .Select(item => new AdminAiReviewItemDto(
+                    item.EventId,
+                    item.UserId,
+                    item.Email,
+                    item.IpAddress,
+                    item.CountryCode,
+                    item.UserAgent,
+                    item.Success,
+                    item.FailureReason,
+                    item.TimestampUtc,
+                    item.RiskScore,
+                    item.Label,
+                    item.Reasons,
+                    item.RecommendedAction,
+                    item.ReviewStatus,
+                    item.AnalyzedAt))
+                .ToList() ?? []);
+    }
+
+    public async Task ResolveAiReviewItemAsync(string eventId, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(eventId))
+            throw new ArgumentException("Event id is required.");
+
+        var baseUri = _configuration["Services:AiSecurityServiceUrl"] ?? "http://localhost:5010";
+        var client = _httpClientFactory.CreateClient();
+        client.Timeout = TimeSpan.FromSeconds(8);
+
+        using var response = await client.PostAsync(
+            $"{baseUri.TrimEnd('/')}/review-queue/{Uri.EscapeDataString(eventId)}/resolve",
+            content: null,
+            cancellationToken: ct);
+        response.EnsureSuccessStatusCode();
     }
 
     public async Task<IReadOnlyList<AdminUserDto>> GetUsersAsync(int limit)
@@ -362,4 +416,23 @@ public class AdminService : IAdminService
 
         return $"Series {fallbackIndex}";
     }
+
+    private sealed record AiReviewQueueRaw(List<AiReviewItemRaw> Items);
+
+    private sealed record AiReviewItemRaw(
+        [property: JsonPropertyName("event_id")] string EventId,
+        [property: JsonPropertyName("user_id")] string? UserId,
+        [property: JsonPropertyName("email")] string Email,
+        [property: JsonPropertyName("ip_address")] string? IpAddress,
+        [property: JsonPropertyName("country_code")] string? CountryCode,
+        [property: JsonPropertyName("user_agent")] string? UserAgent,
+        [property: JsonPropertyName("success")] bool Success,
+        [property: JsonPropertyName("failure_reason")] string? FailureReason,
+        [property: JsonPropertyName("timestamp_utc")] DateTime TimestampUtc,
+        [property: JsonPropertyName("risk_score")] double RiskScore,
+        [property: JsonPropertyName("label")] string Label,
+        [property: JsonPropertyName("reasons")] List<string> Reasons,
+        [property: JsonPropertyName("recommended_action")] string RecommendedAction,
+        [property: JsonPropertyName("review_status")] string ReviewStatus,
+        [property: JsonPropertyName("analyzed_at")] DateTime AnalyzedAt);
 }

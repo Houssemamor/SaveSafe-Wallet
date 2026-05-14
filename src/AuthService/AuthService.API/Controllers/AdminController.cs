@@ -93,6 +93,46 @@ public class AdminController : ControllerBase
         }
     }
 
+    [HttpGet("ai/review-queue")]
+    [ProducesResponseType(typeof(AdminAiReviewQueueResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status502BadGateway)]
+    public async Task<IActionResult> GetAiReviewQueue([FromQuery] int limit = 25, CancellationToken ct = default)
+    {
+        try
+        {
+            var queue = await _adminService.GetAiReviewQueueAsync(limit, ct);
+            return Ok(queue);
+        }
+        catch (HttpRequestException ex)
+        {
+            return StatusCode(StatusCodes.Status502BadGateway, ex.Message);
+        }
+        catch (TaskCanceledException)
+        {
+            return StatusCode(StatusCodes.Status502BadGateway, "AI security service timed out.");
+        }
+    }
+
+    [HttpPost("ai/review-queue/{eventId}/resolve")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status502BadGateway)]
+    public async Task<IActionResult> ResolveAiReviewItem(string eventId, CancellationToken ct)
+    {
+        try
+        {
+            await _adminService.ResolveAiReviewItemAsync(eventId, ct);
+            return NoContent();
+        }
+        catch (HttpRequestException ex)
+        {
+            return StatusCode(StatusCodes.Status502BadGateway, ex.Message);
+        }
+        catch (TaskCanceledException)
+        {
+            return StatusCode(StatusCodes.Status502BadGateway, "AI security service timed out.");
+        }
+    }
+
     /// <summary>Suspend a user account.</summary>
     [HttpPost("users/{userId}/suspend")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]

@@ -11,6 +11,7 @@ import { SessionUser } from '../../../auth/models/auth.models';
 import { AdminService } from '../../data-access/admin.service';
 import {
   AdminFailedLoginByIp,
+  AdminAiReviewItem,
   AdminLokiQueryResponse,
   AdminLokiSeries,
   AdminLoginEvent,
@@ -90,11 +91,14 @@ export class AdminDashboardPageComponent implements OnInit, OnDestroy {
   failedLogins: AdminFailedLoginByIp[] = [];
   loginEvents: AdminLoginEvent[] = [];
   users: AdminUser[] = [];
+  aiReviewItems: AdminAiReviewItem[] = [];
 
   isLoading = true;
   isRefreshing = false;
   isObservabilityLoading = false;
+  isAiReviewLoading = false;
   errorMessage = '';
+  aiReviewErrorMessage = '';
   observabilityErrorMessage = '';
   observabilityQuery = 'sum by (service) (count_over_time({service=~".+"}[5m]))';
   observabilityHours = 1;
@@ -465,6 +469,22 @@ export class AdminDashboardPageComponent implements OnInit, OnDestroy {
     return 'bg-red-50 text-red-700 border-red-200';
   }
 
+  aiRiskBadgeClass(item: AdminAiReviewItem): string {
+    if (item.label === 'high_risk' || item.riskScore >= 70) {
+      return 'bg-red-50 text-red-700 border-red-200';
+    }
+
+    if (item.label === 'suspicious' || item.riskScore >= 40) {
+      return 'bg-amber-50 text-amber-700 border-amber-200';
+    }
+
+    return 'bg-blue-50 text-blue-700 border-blue-200';
+  }
+
+  findUserByEmail(email: string): AdminUser | null {
+    return this.users.find((user) => user.email.toLowerCase() === email.toLowerCase()) ?? null;
+  }
+
   private loadDashboard(): void {
     this.isLoading = true;
     this.errorMessage = '';
@@ -481,12 +501,60 @@ export class AdminDashboardPageComponent implements OnInit, OnDestroy {
         this.loginEvents = loginEvents;
         this.users = users;
         this.isLoading = false;
+        this.loadAiReviewQueue();
       },
       error: () => {
         this.errorMessage = 'Unable to load admin dashboard data.';
         this.isLoading = false;
       }
     });
+  }
+
+  loadAiReviewQueue(): void {
+    this.isAiReviewLoading = true;
+    this.aiReviewErrorMessage = '';
+
+    this.adminService.getAiReviewQueue(25).subscribe({
+      next: (queue) => {
+        this.aiReviewItems = queue.items;
+        this.isAiReviewLoading = false;
+      },
+      error: () => {
+        this.aiReviewItems = [];
+        this.aiReviewErrorMessage = 'Unable to load AI review queue.';
+        this.isAiReviewLoading = false;
+      }
+    });
+  }
+
+  resolveAiReviewItem(item: AdminAiReviewItem): void {
+    this.adminService.resolveAiReviewItem(item.eventId).subscribe({
+      next: () => {
+        this.aiReviewItems = this.aiReviewItems.filter((candidate) => candidate.eventId !== item.eventId);
+      },
+      error: () => {
+        this.aiReviewErrorMessage = 'Unable to resolve AI review item.';
+      }
+    });
+  }
+
+  contactAiReviewUser(item: AdminAiReviewItem): void {
+    const user = this.findUserByEmail(item.email);
+    if (user) {
+      this.openContactUser(user);
+      this.contactForm.patchValue({
+        subject: 'Security review on your account',
+        message: `Hello ${user.name}, our security system detected unusual account activity from ${item.ipAddress || 'an unknown source'}. Please review your account and contact support if this was not you.`
+      });
+      return;
+    }
+
+    this.notificationService.addAdminMessageForUser(
+      item.email,
+      'Security review on your account',
+      `Our security system detected unusual account activity from ${item.ipAddress || 'an unknown source'}. Please review your account and contact support if this was not you.`
+    );
+    this.adminActionMessage = `Security message queued for ${item.email}.`;
   }
 
   runObservabilityQuery(): void {

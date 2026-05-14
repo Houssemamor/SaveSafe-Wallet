@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 import { API_CONFIG } from '../../../core/config/api.config';
 import {
   AdminFailedLoginByIp,
+  AdminAiReviewQueueResponse,
   AdminLokiQueryRequest,
   AdminLokiQueryResponse,
   AdminLoginEvent,
@@ -42,6 +43,15 @@ export class AdminService {
 
   queryLoki(request: AdminLokiQueryRequest): Observable<AdminLokiQueryResponse> {
     return this.http.post<AdminLokiQueryResponse>(`${API_CONFIG.adminBaseUrl}/observability/loki/query`, request);
+  }
+
+  getAiReviewQueue(limit = 25): Observable<AdminAiReviewQueueResponse> {
+    const params = new HttpParams().set('limit', limit);
+    return this.http.get<AdminAiReviewQueueResponse>(`${API_CONFIG.adminBaseUrl}/ai/review-queue`, { params });
+  }
+
+  resolveAiReviewItem(eventId: string): Observable<void> {
+    return this.http.post<void>(`${API_CONFIG.adminBaseUrl}/ai/review-queue/${eventId}/resolve`, {});
   }
 
   suspendUser(userId: string): Observable<void> {

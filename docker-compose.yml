@@ -139,6 +139,7 @@ services:
       Jwt__Issuer: savesafe-auth
       Jwt__Audience: savesafe-clients
       Services__WalletServiceUrl: http://wallet-service:8080
+      Services__AiSecurityServiceUrl: http://ai-security-service:8000
       InternalApi__ApiKey: ${INTERNAL_API_KEY}
       DefaultAdmin__Email: ${DEFAULT_ADMIN_EMAIL}
       DefaultAdmin__Name: ${DEFAULT_ADMIN_NAME}
@@ -224,7 +225,7 @@ services:
         condition: service_healthy
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-      REDIS_URL: redis://redis:6379
+      REDIS_URL: "redis://:${REDIS_PASSWORD:-ssw_redis_secret}@redis:6379"
       DATABASE_URL: postgresql://user:password@postgres:5432/ai_db
     networks:
       - ssw-network

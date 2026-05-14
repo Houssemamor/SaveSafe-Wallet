@@ -6,13 +6,15 @@ from aiokafka import AIOKafkaConsumer
 from aiokafka.errors import KafkaError
 from models import LoginEventMessage
 import risk_engine
+from review_store import ReviewStore
 
 
 logger = logging.getLogger("ai_security.kafka_consumer")
 
 
 class LoginEventKafkaConsumer:
-    def __init__(self) -> None:
+    def __init__(self, review_store: ReviewStore) -> None:
+        self._review_store = review_store
         self._bootstrap_servers = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
         self._topic = "login-events"
         self._group_id = "ai-security-service"
@@ -53,6 +55,7 @@ class LoginEventKafkaConsumer:
                         try:
                             event = LoginEventMessage.model_validate(message.value)
                             risk = await risk_engine.analyze(event)
+                            await self._review_store.save_analysis(risk)
                             logger.info(
                                 "login_event_received",
                                 extra={
@@ -63,8 +66,8 @@ class LoginEventKafkaConsumer:
                                     "event_id": event.event_id,
                                     "email": event.email,
                                     "success": event.success,
-                                    "risk_score": risk.get("risk_score", 0.0),
-                                    "risk_label": risk.get("label", "normal"),
+                                    "risk_score": risk.risk_score,
+                                    "risk_label": risk.label,
                                 },
                             )
                             await self._consumer.commit()

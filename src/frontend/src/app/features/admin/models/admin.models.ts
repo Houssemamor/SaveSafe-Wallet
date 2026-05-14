@@ -66,3 +66,25 @@ export interface AdminLokiPoint {
   timestamp: string;
   value: number;
 }
+
+export interface AdminAiReviewQueueResponse {
+  items: AdminAiReviewItem[];
+}
+
+export interface AdminAiReviewItem {
+  eventId: string;
+  userId: string | null;
+  email: string;
+  ipAddress: string | null;
+  countryCode: string | null;
+  userAgent: string | null;
+  success: boolean;
+  failureReason: string | null;
+  timestampUtc: string;
+  riskScore: number;
+  label: string;
+  reasons: string[];
+  recommendedAction: string;
+  reviewStatus: string;
+  analyzedAt: string;
+}

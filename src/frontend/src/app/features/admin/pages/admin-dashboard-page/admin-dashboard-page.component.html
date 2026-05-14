@@ -410,20 +410,56 @@
       </article>
 
       <article class="rounded-lg border border-slate-200 bg-white p-6">
-        <h2 class="text-lg font-black text-slate-950">AI Review Queue</h2>
-        <p class="mt-1 text-sm text-slate-600">Flagged events that deserve human attention.</p>
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <h2 class="text-lg font-black text-slate-950">AI Review Queue</h2>
+            <p class="mt-1 text-sm text-slate-600">Risk decisions from the AI security service.</p>
+          </div>
+          <button class="rounded-lg border border-slate-300 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50" type="button" (click)="loadAiReviewQueue()">
+            {{ isAiReviewLoading ? 'Loading...' : 'Refresh' }}
+          </button>
+        </div>
 
-        <div class="mt-6 space-y-4">
-          <div *ngFor="let event of latestFlaggedEvents" class="rounded-lg border border-amber-200 bg-amber-50 p-4">
+        <p *ngIf="aiReviewErrorMessage" class="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{{ aiReviewErrorMessage }}</p>
+
+        <div class="mt-6 max-h-[42rem] space-y-4 overflow-y-auto pr-2">
+          <div *ngFor="let item of aiReviewItems" class="rounded-lg border border-slate-200 bg-slate-50 p-4">
             <div class="flex items-start justify-between gap-4">
               <div>
-                <p class="font-semibold text-slate-950">{{ event.userEmail }}</p>
-                <p class="mt-1 text-xs text-slate-600">{{ event.ipAddress || 'unknown source' }} · {{ formatDate(event.timestamp) }}</p>
+                <div class="flex flex-wrap items-center gap-2">
+                  <p class="font-semibold text-slate-950">{{ item.email }}</p>
+                  <span class="rounded-full border px-2.5 py-1 text-[11px] font-bold" [ngClass]="aiRiskBadgeClass(item)">{{ item.label }}</span>
+                </div>
+                <p class="mt-1 text-xs text-slate-600">{{ item.ipAddress || 'unknown source' }} · {{ item.countryCode || 'unknown country' }} · {{ formatDate(item.timestampUtc) }}</p>
               </div>
-              <span class="material-symbols-outlined text-amber-700">priority_high</span>
+              <div class="text-right">
+                <p class="text-2xl font-black" [class.text-red-700]="item.riskScore >= 70" [class.text-amber-700]="item.riskScore >= 40 && item.riskScore < 70" [class.text-blue-700]="item.riskScore < 40">{{ item.riskScore | number:'1.0-0' }}</p>
+                <p class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Risk</p>
+              </div>
+            </div>
+
+            <div class="mt-4 space-y-2">
+              <p class="text-xs font-bold uppercase tracking-widest text-slate-500">Reasons</p>
+              <ul class="space-y-1 text-sm text-slate-700">
+                <li *ngFor="let reason of item.reasons" class="flex gap-2">
+                  <span class="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-slate-400"></span>
+                  <span>{{ reason }}</span>
+                </li>
+              </ul>
+            </div>
+
+            <div class="mt-4 rounded-lg bg-white p-3 text-sm">
+              <p class="text-xs font-bold uppercase tracking-widest text-slate-500">Recommended action</p>
+              <p class="mt-1 font-semibold text-slate-800">{{ item.recommendedAction }}</p>
+            </div>
+
+            <div class="mt-4 grid gap-2 sm:grid-cols-3">
+              <button class="rounded-lg bg-[#003d9b] px-3 py-2 text-xs font-bold text-white hover:bg-[#0052cc]" type="button" (click)="contactAiReviewUser(item)">Contact</button>
+              <button class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50" type="button" (click)="resolveAiReviewItem(item)">Resolve</button>
+              <button *ngIf="findUserByEmail(item.email) as reviewUser" class="rounded-lg bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700 hover:bg-amber-100" type="button" (click)="openPasswordReset(reviewUser)">Reset password</button>
             </div>
           </div>
-          <p *ngIf="latestFlaggedEvents.length === 0" class="rounded-lg bg-slate-50 p-4 text-sm text-slate-500">No flagged events in the loaded audit window.</p>
+          <p *ngIf="aiReviewItems.length === 0 && !isAiReviewLoading" class="rounded-lg bg-slate-50 p-4 text-sm text-slate-500">No AI review items are open.</p>
         </div>
       </article>
     </section>
